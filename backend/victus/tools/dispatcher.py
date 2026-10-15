@@ -1,6 +1,7 @@
 import hashlib
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from victus.safety.policy import validate_action
 from victus.tools.contracts import ActionRequest
@@ -30,7 +31,7 @@ class Dispatcher:
         self.workspace = workspace
         self.registry = registry
 
-    def dispatch(self, action: ActionRequest) -> DispatchOutcome:
+    def dispatch(self, action: ActionRequest, cancelled: Any = None) -> DispatchOutcome:
         """Execute *action* inside the workspace and return an outcome.
 
         All exceptions that represent known failure modes are caught and mapped
@@ -40,10 +41,18 @@ class Dispatcher:
         dispatched = False
         try:
             tool = self.registry.get(action.tool)
+            validated = tool.argument_model.model_validate(action.arguments.model_dump())
             validate_action(action, self.workspace)
+            if cancelled is not None and cancelled.is_set():
+                return DispatchOutcome(status="cancelled", error_code="SERVICE_STOPPED")
             dispatched = True
-            output = tool.execute(self.workspace, action.arguments)
-            if tool.verify(output, action.arguments):
+            if tool.execute_cancellable is not None and cancelled is not None:
+                output = tool.execute_cancellable(self.workspace, validated, cancelled)
+            else:
+                output = tool.execute(self.workspace, validated)
+            if cancelled is not None and cancelled.is_set():
+                return DispatchOutcome(status="unknown", error_code="STOPPED_DURING_ACTION")
+            if tool.verify(output, validated):
                 return DispatchOutcome(
                     status="succeeded",
                     verified=True,

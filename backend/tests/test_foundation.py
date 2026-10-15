@@ -1,3 +1,4 @@
+import time
 from concurrent.futures import ThreadPoolExecutor
 
 import pytest
@@ -7,11 +8,14 @@ from victus.api.app import create_app
 from victus.bootstrap import build_services
 from victus.settings import Settings
 from victus.tools.contracts import ActionRequest, TaskResult
-from victus.tools.contracts import NoteArguments
-from victus.tools.registry import RetryClass, RiskLevel, ToolRegistry, ToolSpec
+from victus.tools.registry import ToolRegistry, ToolSpec
 
 TOKEN = "test-only-" + "x" * 40
 HEADERS = {"Authorization": f"Bearer {TOKEN}"}
+
+
+def reject_verification(*_):
+    return False
 
 
 @pytest.fixture
@@ -41,10 +45,22 @@ def test_host_and_origin_are_restricted(client):
     )
 
 
+def wait_for_task(client, task_id: str, timeout: float = 8.0) -> dict:
+    start = time.time()
+    while time.time() - start < timeout:
+        res = client.get(f"/api/tasks/{task_id}", headers=HEADERS).json()
+        if res["status"] in {"succeeded", "failed", "cancelled", "unknown"}:
+            return res
+        time.sleep(0.02)
+    raise TimeoutError(f"Task {task_id} did not complete within {timeout}s")
+
+
 def test_create_and_read_verified_result(client, settings):
     response = client.post("/api/tasks", headers=HEADERS, json=request_body())
-    assert response.status_code == 200
-    result = response.json()
+    assert response.status_code == 202
+    queued = response.json()
+    assert queued["status"] == "queued"
+    result = wait_for_task(client, queued["task_id"])
     assert result["status"] == "succeeded" and result["verified"]
     assert (settings.workspace / "hello.txt").read_text() == "Hello VICTUS"
     saved = client.get(f"/api/tasks/{result['task_id']}", headers=HEADERS).json()
@@ -54,7 +70,9 @@ def test_create_and_read_verified_result(client, settings):
 def test_existing_file_is_not_overwritten(client, settings):
     target = settings.workspace / "hello.txt"
     target.write_text("keep me")
-    result = client.post("/api/tasks", headers=HEADERS, json=request_body()).json()
+    response = client.post("/api/tasks", headers=HEADERS, json=request_body())
+    assert response.status_code == 202
+    result = wait_for_task(client, response.json()["task_id"])
     assert result["error_code"] == "TARGET_EXISTS"
     assert target.read_text() == "keep me"
 
@@ -67,7 +85,9 @@ def test_paths_rejected(client, filename):
 
 
 def test_reserved_name_denied(client, settings):
-    result = client.post("/api/tasks", headers=HEADERS, json=request_body("CON.txt")).json()
+    response = client.post("/api/tasks", headers=HEADERS, json=request_body("CON.txt"))
+    assert response.status_code == 202
+    result = wait_for_task(client, response.json()["task_id"])
     assert result["error_code"] == "POLICY_DENIED"
     assert not (settings.workspace / "CON.txt").exists()
 
@@ -90,7 +110,9 @@ def test_stop_prevents_later_dispatch(client, settings):
 
 def test_parallel_duplicate_filename_has_one_winner(client, settings):
     def submit(_):
-        return client.post("/api/tasks", headers=HEADERS, json=request_body()).json()["status"]
+        res = client.post("/api/tasks", headers=HEADERS, json=request_body())
+        assert res.status_code == 202
+        return wait_for_task(client, res.json()["task_id"])["status"]
 
     with ThreadPoolExecutor(max_workers=2) as pool:
         statuses = list(pool.map(submit, range(2)))
@@ -127,19 +149,21 @@ def test_failed_verification_is_not_success(settings):
     services = build_services(settings)
     original = services.tasks.registry.get("fs.create_note")
     replacement = ToolRegistry()
-    replacement.register(ToolSpec(
-        name=original.name,
-        version=original.version,
-        description=original.description,
-        argument_model=original.argument_model,
-        risk_floor=original.risk_floor,
-        required_scope=original.required_scope,
-        timeout_seconds=original.timeout_seconds,
-        resource_name=original.resource_name,
-        retry_class=original.retry_class,
-        execute=original.execute,
-        verify=lambda *_: False,
-    ))
+    replacement.register(
+        ToolSpec(
+            name=original.name,
+            version=original.version,
+            description=original.description,
+            argument_model=original.argument_model,
+            risk_floor=original.risk_floor,
+            required_scope=original.required_scope,
+            timeout_seconds=original.timeout_seconds,
+            resource_name=original.resource_name,
+            retry_class=original.retry_class,
+            execute=original.execute,
+            verify=reject_verification,
+        )
+    )
     services.tasks.registry = replacement
     services.tasks.dispatcher.registry = replacement
     try:

@@ -7,6 +7,7 @@ from pathlib import Path
 class Settings:
     data_dir: Path
     api_token: str
+    emergency_hotkey: bool = False
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -18,7 +19,11 @@ class Settings:
             if not local:
                 raise ValueError("Set VICTUS_DATA_DIR when LOCALAPPDATA is unavailable")
             root = Path(local).resolve() / "VICTUS"
-        return cls(data_dir=root, api_token=os.getenv("VICTUS_API_TOKEN", ""))
+        return cls(
+            data_dir=root,
+            api_token=os.getenv("VICTUS_API_TOKEN", ""),
+            emergency_hotkey=os.getenv("VICTUS_EMERGENCY_HOTKEY", "0") == "1",
+        )
 
     @property
     def workspace(self) -> Path:

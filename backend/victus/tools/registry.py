@@ -21,9 +21,9 @@ class RiskLevel(StrEnum):
 class RetryClass(StrEnum):
     """Whether the runtime may safely retry a failed invocation."""
 
-    NONE = "none"            # Never retry — side-effects are unpredictable.
+    NONE = "none"  # Never retry — side-effects are unpredictable.
     IDEMPOTENT = "idempotent"  # Safe to retry; repeated calls produce the same result.
-    SAFE = "safe"            # Retry is safe but the output may differ across attempts.
+    SAFE = "safe"  # Retry is safe but the output may differ across attempts.
 
 
 @dataclass(frozen=True)
@@ -60,6 +60,9 @@ class ToolSpec:
     # ── callables ─────────────────────────────────────────────────────────
     execute: Callable[[Path, Any], Path]
     verify: Callable[[Path, Any], bool]
+    # Optional cooperative variant receives a multiprocessing Event. It must
+    # check the signal before each effect; the supervisor still enforces time.
+    execute_cancellable: Callable[[Path, Any, Any], Path] | None = None
 
 
 class ToolRegistry:

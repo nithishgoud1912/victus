@@ -18,3 +18,4 @@ dashboard/dist/
 build/
 dist/
 docs/
+pytest_tmp/

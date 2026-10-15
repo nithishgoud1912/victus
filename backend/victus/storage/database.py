@@ -25,16 +25,19 @@ class Database:
         # F1 startup recovery: mark interrupted tasks as unknown.
         with self.connect() as connection:
             # Guard against first-run where the tasks table may be empty.
-            for task_id, raw in connection.execute(
-                "SELECT task_id, result_json FROM tasks"
-            ):
+            for task_id, raw in connection.execute("SELECT task_id, result_json FROM tasks"):
                 task = TaskResult.model_validate_json(raw)
-                if task.status in {"prepared", "running"}:
-                    task.status = "unknown"
+                if task.status in {"queued", "prepared", "running"}:
+                    task.status = "cancelled" if task.status == "queued" else "unknown"
                     task.error_code = "RESTART_REQUIRES_REVIEW"
                     connection.execute(
                         "UPDATE tasks SET result_json = ? WHERE task_id = ?",
                         (task.model_dump_json(), task_id),
+                    )
+                    connection.execute(
+                        "INSERT INTO task_events (task_id, event_type, safe_payload) "
+                        "VALUES (?, ?, ?)",
+                        (task_id, f"task.{task.status}", '{"reason":"restart_requires_review"}'),
                     )
 
     @contextmanager
@@ -60,3 +63,8 @@ class Database:
                 "SELECT result_json FROM tasks WHERE task_id = ?", (task_id,)
             ).fetchone()
         return TaskResult.model_validate_json(row[0]) if row else None
+
+    def list_tasks(self) -> list[TaskResult]:
+        with self.connect() as connection:
+            rows = connection.execute("SELECT result_json FROM tasks ORDER BY rowid").fetchall()
+        return [TaskResult.model_validate_json(row[0]) for row in rows]
