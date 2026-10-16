@@ -1,0 +1,30 @@
+{
+  "scope": "Local filesystem fixture, real StateGraph/checkpointer/dispatcher, no LLM or native UIA",
+  "langgraph": "1.2.15",
+  "langgraph_checkpoint_sqlite": "3.1.2",
+  "runs": [
+    {
+      "window": "effect",
+      "crash_exit_code": 71,
+      "status": "unknown",
+      "action_refs": [
+        "3d2a77f8313047c9a9ba76205c6dbc4d"
+      ],
+      "calls_this_process": 0,
+      "error_code": "NODE_INTERRUPTED_REQUIRES_REVIEW",
+      "saved_bytes_verified": true
+    },
+    {
+      "window": "journal",
+      "crash_exit_code": 72,
+      "status": "succeeded",
+      "action_refs": [
+        "4a653705a5034617b5566af9fad47947"
+      ],
+      "calls_this_process": 0,
+      "error_code": null,
+      "saved_bytes_verified": true
+    }
+  ],
+  "passed": true
+}

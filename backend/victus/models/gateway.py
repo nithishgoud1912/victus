@@ -31,9 +31,13 @@ class RequestBudget:
     One global repair slot additionally consumes a normal request reservation.
     """
 
-    def __init__(self, *, max_requests=4, max_output_tokens=2048, timeout_seconds=120):
+    def __init__(
+        self, *, max_requests=4, max_output_tokens=2048, timeout_seconds=120, repairs_remaining=1
+    ):
         if (
-            type(max_requests) is not int
+            type(repairs_remaining) is not int
+            or not 0 <= repairs_remaining <= 1
+            or type(max_requests) is not int
             or not 1 <= max_requests <= 32
             or type(max_output_tokens) is not int
             or not 1 <= max_output_tokens <= 65536
@@ -41,6 +45,7 @@ class RequestBudget:
             or not 0 < timeout_seconds <= 600
         ):
             raise ValueError("Invalid model budget")
+        self._max_repairs = repairs_remaining
         self._max_requests = max_requests
         self._max_tokens = max_output_tokens
         self.deadline = time.monotonic() + timeout_seconds
@@ -54,7 +59,7 @@ class RequestBudget:
             if (
                 self._requests >= self._max_requests
                 or self._tokens + tokens > self._max_tokens
-                or (repair and self._repairs >= 1)
+                or (repair and self._repairs >= self._max_repairs)
             ):
                 raise ModelError(ErrorCode.BUDGET)
             self._requests += 1

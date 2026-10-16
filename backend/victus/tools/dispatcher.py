@@ -165,6 +165,21 @@ class Dispatcher:
                             output = await output
                         if context.stopped() or time.monotonic() >= deadline:
                             raise TimeoutError
+                        verification_output = output
+                        if isinstance(output, Path):
+                            if (
+                                output.is_symlink()
+                                or output.resolve().parent != self.workspace.resolve()
+                            ):
+                                raise ValueError("Artifact outside workspace")
+                            with output.open("rb") as stream:
+                                contents = stream.read(128001)
+                            if len(contents) > 128000:
+                                raise ValueError("Artifact output limit")
+                            output = {
+                                "output_name": output.name,
+                                "sha256": hashlib.sha256(contents).hexdigest(),
+                            }
                         if not isinstance(output, dict):
                             raise TypeError("Workflow tool must return data, not live handles")
                         # Bound and validate the transport before returning it to workflow code.
@@ -172,7 +187,7 @@ class Dispatcher:
                         if len(encoded.encode("utf-8")) > 128_000:
                             raise ValueError("Step output limit")
                         context.ledger.mark_applied(action_id)
-                        verified = tool.verify(output, arguments)
+                        verified = tool.verify(verification_output, arguments)
                         if inspect.isawaitable(verified):
                             verified = await verified
                         if context.stopped() or time.monotonic() >= deadline:

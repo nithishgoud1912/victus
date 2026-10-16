@@ -16,3 +16,6 @@ are implemented. See [workflow usage, M2 evidence and remaining Windows qualific
 
 The model gateway and strict action/finish parser (section 7A) are implemented.
 See [budgets, schema repair and pending live model qualification](docs/milestones/M3-7A-model-gateway.md).
+
+The bounded StateGraph and persistent SQLite checkpoints (section 7B) are implemented.
+See [domain-service composition, restart recovery and graph tests](docs/milestones/M3-7B-state-graph.md).
