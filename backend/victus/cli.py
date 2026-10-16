@@ -7,9 +7,38 @@ from victus.settings import Settings
 
 def main() -> None:
     parser = argparse.ArgumentParser(prog="victus")
-    parser.add_argument("command", choices=["doctor", "serve", "export-openapi"])
+    parser.add_argument("command", choices=["doctor", "serve", "export-openapi", "cloud-key",
+                                            "backup", "restore", "migrate", "version"])
     parser.add_argument("--output", type=Path)
+    parser.add_argument("--source", type=Path)
+    parser.add_argument("--destination", type=Path)
     args = parser.parse_args()
+    if args.command == "version":
+        from victus.runtime.release import version
+
+        print(version())
+        return
+    if args.command in {"backup", "restore", "migrate"}:
+        from victus.runtime.release import maintain, print_result
+
+        try:
+            print_result(maintain(args.command, Settings.from_env(), args.source, args.destination))
+        except Exception:
+            parser.error("Maintenance failed: stop all application processes, check compatible schema and new destination")
+        return
+    if args.command == "cloud-key":
+        from getpass import getpass
+
+        from victus.adapters.credentials import WindowsCredentials
+
+        if not __import__("sys").stdin.isatty():
+            parser.error("cloud-key requires an interactive terminal")
+        try:
+            WindowsCredentials().store(getpass("OpenRouter key (hidden): "))
+        except (RuntimeError, ValueError):
+            parser.error("Credential could not be stored")
+        print("Cloud credential stored in Windows Credential Manager.")
+        return
     if args.command == "export-openapi":
         from victus.api.app import create_app
 
@@ -25,19 +54,9 @@ def main() -> None:
         return
     settings = Settings.from_env()
     if args.command == "doctor":
-        print(
-            json.dumps(
-                {
-                    "data_dir": str(settings.data_dir),
-                    "token_configured": len(settings.api_token) >= 32,
-                    "mode": "foundation",
-                    "ollama": "not_checked_in_this_stage",
-                    "browser": "not_checked_in_this_stage",
-                    "microphone": "not_checked_in_this_stage",
-                },
-                indent=2,
-            )
-        )
+        from victus.runtime.release import prerequisites, print_result
+
+        print_result(prerequisites(settings))
         return
     if len(settings.api_token) < 32:
         parser.error("Set VICTUS_API_TOKEN to a random value of at least 32 characters")

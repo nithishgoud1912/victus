@@ -1,0 +1,8 @@
+{
+  "wake": {"path": "C:/VICTUS-assets/wake/victus.onnx", "sha256": "REPLACE_WITH_SHA256"},
+  "melspectrogram": {"path": "C:/VICTUS-assets/wake/melspectrogram.onnx", "sha256": "REPLACE_WITH_SHA256"},
+  "embedding": {"path": "C:/VICTUS-assets/wake/embedding_model.onnx", "sha256": "REPLACE_WITH_SHA256"},
+  "threshold": 0.5,
+  "cooldown_seconds": 3.0,
+  "command_seconds": 6.0
+}

@@ -323,6 +323,8 @@ class AgentRunner:
                 result.update(next_node="end", sequence=result["sequence"] + 1)
                 await self.graph.aupdate_state(config, result, as_node="finalize")
             latest = await self.graph.aget_state(config)
+            if not latest.next:
+                self.services.store.mark_terminal(task_id)
             return Snapshot.model_validate(latest.values).model_dump()
         finally:
             self._active = False

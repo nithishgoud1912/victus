@@ -11,7 +11,7 @@ from urllib.parse import urlsplit
 
 import httpx
 import uvicorn
-from playwright.sync_api import sync_playwright
+from playwright.sync_api import expect, sync_playwright
 
 from victus.api.app import create_app
 from victus.settings import Settings
@@ -46,7 +46,7 @@ def main():
             page.on("pageerror", lambda error: errors.append(str(error)))
             page.goto("http://127.0.0.1:5173/")
             page.get_by_label("Session token").wait_for(state="visible")
-            page.get_by_label("Session token").wait_for(state="editable")
+            expect(page.get_by_label("Session token")).to_be_editable()
             page.screenshot(path=str(root / "desktop-disconnected.png"), full_page=True)
             page.get_by_label("Session token").fill(token)
             page.get_by_role("button", name="Connect to VICTUS").click()
@@ -95,7 +95,7 @@ def main():
 
             page.on("request", observe)
             page.goto("http://127.0.0.1:8765/")
-            page.get_by_label("Session token").wait_for(state="editable")
+            expect(page.get_by_label("Session token")).to_be_editable()
             page.get_by_label("Session token").fill(token)
             page.get_by_role("button", name="Connect to VICTUS").click()
             page.get_by_role("heading", name="Your workspace is connected.").wait_for()

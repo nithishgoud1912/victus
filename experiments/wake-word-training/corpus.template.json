@@ -1,0 +1,14 @@
+[
+  {
+    "path": "C:/VICTUS-assets/corpus/held-out-speaker-01.wav",
+    "sha256": "REPLACE_WITH_SHA256",
+    "label": "positive",
+    "provenance": "Record speaker consent, recording date, device, room, license, split and language here."
+  },
+  {
+    "path": "C:/VICTUS-assets/corpus/realistic-negative-01.wav",
+    "sha256": "REPLACE_WITH_SHA256",
+    "label": "realistic_negative",
+    "provenance": "Record permission, device, room, duration and background speech/TV/assistant-speech conditions here."
+  }
+]

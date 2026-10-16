@@ -19,6 +19,7 @@ from victus.models.contracts import (
     ProviderRequest,
     ProviderResponse,
 )
+from victus.runtime.resources import ResourcePressure, resources
 
 
 class Provider(Protocol):
@@ -96,6 +97,20 @@ class ModelGateway:
     async def request(
         self, request: ProviderRequest, *, repair=False, decision_id=None
     ) -> ProviderResponse:
+        try:
+            async with resources().async_inference_slot(
+                "reasoner",
+                self.cancelled,
+                timeout=min(
+                    self.timeout_seconds, max(0.001, self.budget.deadline - time.monotonic())
+                ),
+            ):
+                return await self._request(request, repair=repair, decision_id=decision_id)
+        except ResourcePressure:
+            self._check_cancelled()
+            raise ModelError(ErrorCode.UNAVAILABLE) from None
+
+    async def _request(self, request, *, repair=False, decision_id=None):
         self._check_cancelled()
         try:
             request = ProviderRequest.model_validate(request.model_dump(warnings="error"))

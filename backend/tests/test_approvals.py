@@ -224,7 +224,7 @@ def test_migration_invalidates_legacy_and_preserves_action_audit(tmp_path, monke
             ("old", "action", "approved", "old audit reason"),
         )
     monkeypatch.setattr(migrations, "_discover_migrations", discover)
-    assert migrate(path) == [5, 6]
+    assert migrate(path) == [version for version, _ in discover() if version > 4]
     assert migrate(path) == []
     store = ApprovalStore(path)
     assert store.get("old").state == "invalidated"
@@ -252,7 +252,7 @@ def test_failed_migration_rolls_back_schema_and_version(tmp_path, monkeypatch):
             "SELECT name FROM sqlite_master WHERE name='approvals_legacy'"
         ).fetchall()
     monkeypatch.setattr(migrations, "_discover_migrations", discover)
-    assert migrate(path) == [5, 6]
+    assert migrate(path) == [version for version, _ in discover() if version > 4]
 
 
 def test_protection_failure_never_stores_plaintext(setup, monkeypatch):

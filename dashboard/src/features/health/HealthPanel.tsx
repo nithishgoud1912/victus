@@ -1,0 +1,2 @@
+import type { HealthResponse } from '../../api/generated/types.gen'
+export function HealthPanel({ health }: { health: HealthResponse }) { return <section className="service-card"><h2>Dependency readiness</h2><dl><div><dt>Service</dt><dd>{health.stopped ? 'Stopped' : health.status}</dd></div><div><dt>Mode</dt><dd>{health.mode}</dd></div>{['Model','Microphone','Browser','Worker'].map(name => <div key={name}><dt>{name}</dt><dd>Not reported by backend</dd></div>)}</dl><p>Available tools: {health.tools.join(', ') || 'None'}</p></section> }

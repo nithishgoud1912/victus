@@ -29,6 +29,8 @@ from pathlib import Path
 from typing import Any, Literal
 from uuid import uuid4
 
+from victus.storage.secure_json import PREFIX, decode_text, encode_text
+
 PayloadKind = Literal["arguments", "typed_text", "output"]
 
 # Default retention hours per kind.
@@ -68,6 +70,16 @@ class PayloadStore:
 
     def __init__(self, db_path: Path) -> None:
         self.db_path = db_path
+        with self._connect() as db:
+            db.execute("PRAGMA secure_delete=ON")
+            for key, data in db.execute(
+                "SELECT payload_id,data_json FROM payloads WHERE purged=0"
+            ).fetchall():
+                if not data.startswith(PREFIX):
+                    db.execute(
+                        "UPDATE payloads SET data_json=? WHERE payload_id=?",
+                        (encode_text(data), key),
+                    )
 
     @contextmanager
     def _connect(self) -> Iterator[sqlite3.Connection]:
@@ -89,7 +101,9 @@ class PayloadStore:
     ) -> str:
         """Persist a payload and return its ``payload_id``."""
         payload_id = uuid4().hex
-        data_json = json.dumps(data, ensure_ascii=False, default=str) if not isinstance(data, str) else data
+        data_json = (
+            json.dumps(data, ensure_ascii=False, default=str) if not isinstance(data, str) else data
+        )
         byte_length = len(data_json.encode("utf-8"))
         expires_at = _expiry_iso(kind, retention_hours)
         with self._connect() as conn:
@@ -97,7 +111,7 @@ class PayloadStore:
                 """INSERT INTO payloads
                    (payload_id, action_id, kind, data_json, byte_length, expires_at)
                    VALUES (?, ?, ?, ?, ?, ?)""",
-                (payload_id, action_id, kind, data_json, byte_length, expires_at),
+                (payload_id, action_id, kind, encode_text(data_json), byte_length, expires_at),
             )
         return payload_id
 
@@ -105,8 +119,8 @@ class PayloadStore:
         """Return a single payload record, or ``None`` if not found or purged."""
         with self._connect() as conn:
             row = conn.execute(
-                "SELECT * FROM payloads WHERE payload_id = ? AND purged = 0",
-                (payload_id,),
+                "SELECT * FROM payloads WHERE payload_id = ? AND purged = 0 AND (expires_at IS NULL OR expires_at>?)",
+                (payload_id, _now_iso()),
             ).fetchone()
         return _row_to_record(row) if row else None
 
@@ -121,11 +135,14 @@ class PayloadStore:
                 ).fetchall()
             else:
                 rows = conn.execute(
-                    "SELECT * FROM payloads WHERE action_id = ? AND purged = 0"
-                    " ORDER BY created_at",
+                    "SELECT * FROM payloads WHERE action_id = ? AND purged = 0 ORDER BY created_at",
                     (action_id,),
                 ).fetchall()
-        return [_row_to_record(r) for r in rows]
+        return [
+            _row_to_record(r)
+            for r in rows
+            if r["expires_at"] is None or r["expires_at"] > _now_iso()
+        ]
 
     def purge_expired(self) -> int:
         """Replace expired payload data with a tombstone.  Returns the count of purged rows."""
@@ -157,7 +174,7 @@ def _row_to_record(row: sqlite3.Row) -> PayloadRecord:
         payload_id=row["payload_id"],
         action_id=row["action_id"],
         kind=row["kind"],
-        data_json=row["data_json"],
+        data_json=decode_text(row["data_json"]),
         byte_length=row["byte_length"],
         created_at=row["created_at"],
         expires_at=row["expires_at"],

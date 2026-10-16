@@ -9,8 +9,6 @@ leaves the database unchanged.
 from __future__ import annotations
 
 import sqlite3
-from collections.abc import Iterator
-from contextlib import contextmanager
 from pathlib import Path
 
 _SQL_DIR = Path(__file__).parent / "sql"
@@ -53,13 +51,18 @@ def migrate(db_path: Path) -> list[int]:
     independently so that a crash leaves only the failing migration unapplied.
     """
     db_path.parent.mkdir(parents=True, exist_ok=True)
+    migrations = _discover_migrations()
+    if not migrations:
+        raise RuntimeError("Schema migration resources are missing")
     conn = sqlite3.connect(db_path, timeout=5)
     applied: list[int] = []
     try:
         conn.execute("PRAGMA journal_mode = WAL")
         _ensure_version_table(conn)
         already = _applied_versions(conn)
-        for version, path in _discover_migrations():
+        if already and max(already) > max(n for n, _ in migrations):
+            raise RuntimeError("Database schema is newer than this application; restore a compatible backup")
+        for version, path in migrations:
             if version in already:
                 continue
             sql = path.read_text(encoding="utf-8")

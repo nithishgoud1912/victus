@@ -1,6 +1,5 @@
 import re
 from contextlib import asynccontextmanager
-from pathlib import Path
 from uuid import uuid4
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request, status
@@ -13,8 +12,13 @@ from starlette.staticfiles import StaticFiles
 from victus.api.auth import BrowserSessions, create_auth
 from victus.api.routes.approvals import create_approvals_router
 from victus.api.routes.events import create_events_router
+from victus.api.routes.integrations import create_integrations_router
+from victus.api.routes.memory import create_memory_router
 from victus.api.routes.session import create_session_router
+from victus.api.routes.voice import create_voice_router
 from victus.bootstrap import build_services
+from victus.runtime.paths import dashboard_root
+from victus.runtime.resources import ResourcePressure
 from victus.settings import Settings
 from victus.tasks.queue import QueueFullError
 from victus.tools.contracts import ActionRequest, TaskQueuedResponse, TaskResult
@@ -82,6 +86,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             response.headers["Cache-Control"] = "no-store"
         return response
 
+    app.include_router(create_memory_router(authorized))
+    app.include_router(create_integrations_router(authorized))
+    app.include_router(create_voice_router(authorized))
     app.include_router(create_events_router(authorized))
     app.include_router(create_approvals_router(authorized))
     app.include_router(create_session_router(authorized, require_bearer, sessions))
@@ -117,6 +124,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         tasks = request.app.state.services.tasks
         try:
             task_id, _ = tasks.enqueue(action, client_request_id=req_id)
+        except ResourcePressure:
+            raise HTTPException(503, "Local resource pressure; no cloud fallback") from None
         except QueueFullError as e:
             raise HTTPException(status_code=429, detail=str(e))
 
@@ -135,12 +144,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.post("/api/stop", response_model=StopResponse, dependencies=[Depends(authorized)])
     def stop(request: Request):
-        request.app.state.services.tasks.stop()
+        request.app.state.services.stop()
         return {"stopped": True, "reset": "restart_required"}
 
-    dashboard = (
-        configured.dashboard_dir or Path(__file__).resolve().parents[3] / "dashboard" / "dist"
-    )
+    dashboard = configured.dashboard_dir or dashboard_root()
     if (dashboard / "assets").is_dir():
         app.mount("/assets", StaticFiles(directory=dashboard / "assets"), name="dashboard-assets")
 

@@ -21,7 +21,22 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
 
 
-_SENSITIVE_KEYS = {"text", "password", "secret", "token", "key", "authorization"}
+_SENSITIVE_KEYS = {
+    "text",
+    "password",
+    "secret",
+    "token",
+    "key",
+    "authorization",
+    "prompt",
+    "goal",
+    "transcript",
+    "content",
+    "html",
+    "dom",
+    "messages",
+    "arguments",
+}
 
 
 def sanitize_payload(payload: dict[str, Any] | None) -> dict[str, Any]:
@@ -104,7 +119,27 @@ class EventManager:
         safe_payload: dict[str, Any] | None = None,
     ) -> EventRecord:
         """Insert a sequenced event into the database."""
-        sanitized = sanitize_payload(safe_payload)
+        allowed = {
+            "tool",
+            "tool_name",
+            "action_id",
+            "approval_id",
+            "approval_ref",
+            "status",
+            "verified",
+            "error_code",
+            "reason",
+            "output_name",
+            "sha256",
+            "policy_version",
+            "decision",
+            "elapsed_seconds",
+            "duration_seconds",
+            "step",
+            "request_id",
+        }
+        metadata = {key: value for key, value in (safe_payload or {}).items() if key in allowed}
+        sanitized = sanitize_payload(metadata)
         payload_str = json.dumps(sanitized)
 
         with self._connect() as conn:

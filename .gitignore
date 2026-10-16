@@ -17,6 +17,20 @@
 dashboard/dist/
 build/
 dist/
-docs/
+docs/*
+!docs/milestones/
+!docs/decisions/
+!docs/supported-workflows.md
+!docs/release/
+docs/milestones/evidence/
 pytest_tmp/
 .local-tests/
+# Large wake training material is never source code.
+experiments/wake-word-training/**/*.wav
+experiments/wake-word-training/**/*.flac
+experiments/wake-word-training/**/*.onnx
+experiments/wake-word-training/**/*.tflite
+experiments/wake-word-training/**/*.npy
+experiments/wake-word-training/**/*.npz
+experiments/wake-word-training/**/*.pt
+experiments/wake-word-training/**/*.pth

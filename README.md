@@ -19,3 +19,13 @@ See [budgets, schema repair and pending live model qualification](docs/milestone
 
 The bounded StateGraph and persistent SQLite checkpoints (section 7B) are implemented.
 See [domain-service composition, restart recovery and graph tests](docs/milestones/M3-7B-state-graph.md).
+
+The React dashboard transport and session foundation (section 9A) is implemented.
+See [dashboard setup, local sessions, generated API types and checks](dashboard/README.md).
+Task and approval dashboard screens remain for later M5 sections.
+## M8 optional features
+
+Wake-word qualification, the selected local MCP note adapter and explicit cloud
+transfer review are documented in [the integration guide](evaluation/integrations/README.md).
+They default off. See [verification results](evaluation/integrations/results-2026-10-17.md)
+for passed checks and the remaining real-audio/live-provider qualification work.

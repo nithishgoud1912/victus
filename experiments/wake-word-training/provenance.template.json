@@ -1,0 +1,23 @@
+{
+  "status": "untrained-unqualified",
+  "upstream": "https://github.com/dscripka/openWakeWord/tree/v0.6.0",
+  "training_commit_sha": "REQUIRED",
+  "training_configuration_sha256": "REQUIRED",
+  "generator_repository_commit_and_voice_license": "REQUIRED",
+  "random_seeds": [],
+  "sources": [
+    {
+      "id": "REQUIRED",
+      "source_url_or_collection_record": "REQUIRED",
+      "license_and_speaker_consent": "REQUIRED",
+      "speakers_languages_devices_conditions": "REQUIRED",
+      "split": "train-or-validation-or-held-out-test",
+      "sha256": "REQUIRED",
+      "transformations_and_seeds": "REQUIRED"
+    }
+  ],
+  "feature_model_sources_licenses_and_hashes": [],
+  "output_model_sha256": "REQUIRED",
+  "held_out_corpus_sha256": "REQUIRED",
+  "reviewer_and_review_date": "REQUIRED"
+}

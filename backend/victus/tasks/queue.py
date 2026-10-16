@@ -19,6 +19,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from victus.runtime.locks import MutationLocks
+from victus.runtime.resources import resources
 from victus.runtime.supervisor import WorkerSupervisor
 from victus.safety.cancellation import CancellationController
 from victus.storage.action_ledger import ActionLedger
@@ -126,6 +127,9 @@ class TaskQueue:
                 return (existing, False)
 
         stopped = self.stopped.is_set()
+        if not stopped:
+            resources().check()
+            resources().check_disk(self.workspace)
         if not stopped and self._queue.full():
             raise QueueFullError(f"Task queue is full (maximum {self.MAX_QUEUED} queued tasks)")
         task_id = uuid4().hex

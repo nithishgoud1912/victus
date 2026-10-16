@@ -78,6 +78,60 @@ export type ApprovalRecord = {
 };
 
 /**
+ * DiagnosticExport
+ */
+export type DiagnosticExport = {
+    /**
+     * Preview Id
+     */
+    preview_id: string;
+    /**
+     * Sha256
+     */
+    sha256: string;
+    /**
+     * Confirmation
+     */
+    confirmation: 'explicit_user_review';
+};
+
+/**
+ * DiagnosticExportResult
+ */
+export type DiagnosticExportResult = {
+    /**
+     * Contents
+     */
+    contents: string;
+    /**
+     * Sha256
+     */
+    sha256: string;
+};
+
+/**
+ * DiagnosticPreview
+ */
+export type DiagnosticPreview = {
+    /**
+     * Preview Id
+     */
+    preview_id: string;
+    /**
+     * Sha256
+     */
+    sha256: string;
+    /**
+     * Contents
+     */
+    contents: string;
+    /**
+     * Expires At
+     */
+    expires_at: number;
+};
+
+/**
  * HTTPValidationError
  */
 export type HttpValidationError = {
@@ -114,6 +168,121 @@ export type HealthResponse = {
 };
 
 /**
+ * IntegrationStatus
+ */
+export type IntegrationStatus = {
+    /**
+     * Cloud
+     */
+    cloud: string;
+    cloud_pin: ModelPin | null;
+    /**
+     * Upstream
+     */
+    upstream: string | null;
+    /**
+     * Mcp Notes
+     */
+    mcp_notes: boolean;
+};
+
+/**
+ * MemoryEntry
+ */
+export type MemoryEntry = {
+    /**
+     * Memory Id
+     */
+    memory_id: string;
+    /**
+     * Type
+     */
+    type: 'preference' | 'summary';
+    /**
+     * Value
+     */
+    value: string;
+    /**
+     * Provenance
+     */
+    provenance: string;
+    /**
+     * Created At
+     */
+    created_at: number;
+    /**
+     * Updated At
+     */
+    updated_at: number;
+    /**
+     * Last Confirmed At
+     */
+    last_confirmed_at: number;
+    /**
+     * Expires At
+     */
+    expires_at?: number | null;
+    /**
+     * Context Only
+     */
+    context_only?: boolean;
+};
+
+/**
+ * MemoryInput
+ */
+export type MemoryInput = {
+    /**
+     * Type
+     */
+    type: 'preference' | 'summary';
+    /**
+     * Value
+     */
+    value: string;
+    /**
+     * Provenance
+     */
+    provenance: 'explicit_user_preference' | 'user_reviewed_summary';
+    /**
+     * Confirmation
+     */
+    confirmation: 'explicit_user_review';
+    /**
+     * Task Ids
+     */
+    task_ids?: Array<string>;
+    /**
+     * Expires At
+     */
+    expires_at?: number | null;
+};
+
+/**
+ * ModelPin
+ */
+export type ModelPin = {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Digest
+     */
+    digest: string;
+};
+
+/**
+ * MuteRequest
+ */
+export type MuteRequest = {
+    /**
+     * Muted
+     */
+    muted: boolean;
+};
+
+/**
  * NoteArguments
  */
 export type NoteArguments = {
@@ -128,6 +297,83 @@ export type NoteArguments = {
 };
 
 /**
+ * ProviderMessage
+ */
+export type ProviderMessage = {
+    /**
+     * Role
+     */
+    role: 'system' | 'user' | 'assistant';
+    /**
+     * Content
+     */
+    content: string;
+};
+
+/**
+ * ProviderRequest
+ */
+export type ProviderRequest = {
+    pin: ModelPin;
+    /**
+     * Messages
+     */
+    messages: Array<ProviderMessage>;
+    /**
+     * Output Schema
+     */
+    output_schema: {
+        [key: string]: unknown;
+    };
+    /**
+     * Max Output Tokens
+     */
+    max_output_tokens?: number;
+    /**
+     * Context Tokens
+     */
+    context_tokens?: number;
+    /**
+     * Structured Path
+     */
+    structured_path?: 'json_schema';
+};
+
+/**
+ * ProviderResponse
+ */
+export type ProviderResponse = {
+    pin: ModelPin;
+    /**
+     * Content
+     */
+    content: string;
+    usage: ProviderUsage;
+    /**
+     * Finish Reason
+     */
+    finish_reason?: 'stop';
+    /**
+     * Structured Path
+     */
+    structured_path?: 'json_schema';
+};
+
+/**
+ * ProviderUsage
+ */
+export type ProviderUsage = {
+    /**
+     * Input Tokens
+     */
+    input_tokens: number;
+    /**
+     * Output Tokens
+     */
+    output_tokens: number;
+};
+
+/**
  * Resolution
  */
 export type Resolution = {
@@ -139,6 +385,39 @@ export type Resolution = {
      * Confirmation
      */
     confirmation: 'explicit_user_review';
+};
+
+/**
+ * ReviewedSubmission
+ */
+export type ReviewedSubmission = {
+    /**
+     * Session Id
+     */
+    session_id: string;
+    /**
+     * Revision
+     */
+    revision: number;
+    /**
+     * Confirmation
+     */
+    confirmation: 'explicit_user_review';
+    action: ActionRequest;
+};
+
+/**
+ * SessionCommand
+ */
+export type SessionCommand = {
+    /**
+     * Session Id
+     */
+    session_id: string;
+    /**
+     * Revision
+     */
+    revision: number;
 };
 
 /**
@@ -222,6 +501,71 @@ export type TaskResult = {
 };
 
 /**
+ * Transcript
+ */
+export type Transcript = {
+    /**
+     * Text
+     */
+    text: string;
+    /**
+     * Language
+     */
+    language?: string;
+};
+
+/**
+ * TransferDecision
+ */
+export type TransferDecision = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Approve
+     */
+    approve: boolean;
+    /**
+     * Confirmation
+     */
+    confirmation: 'explicit_user_review';
+};
+
+/**
+ * TransferPreview
+ */
+export type TransferPreview = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Recipient
+     */
+    recipient: string;
+    /**
+     * Body
+     */
+    body: string;
+    /**
+     * Sha256
+     */
+    sha256: string;
+    /**
+     * Expires In Seconds
+     */
+    expires_in_seconds: number;
+};
+
+/**
+ * TransferResult
+ */
+export type TransferResult = {
+    response: ProviderResponse | null;
+};
+
+/**
  * ValidationError
  */
 export type ValidationError = {
@@ -248,6 +592,502 @@ export type ValidationError = {
         [key: string]: unknown;
     };
 };
+
+/**
+ * VoiceSnapshot
+ */
+export type VoiceSnapshot = {
+    /**
+     * Enabled
+     */
+    enabled: boolean;
+    state: VoiceState;
+    /**
+     * Session Id
+     */
+    session_id?: string | null;
+    /**
+     * Revision
+     */
+    revision?: number;
+    transcript?: Transcript | null;
+    proposal?: ActionRequest | null;
+    /**
+     * Clarification
+     */
+    clarification?: string | null;
+    /**
+     * Error Code
+     */
+    error_code?: string | null;
+    /**
+     * Task Id
+     */
+    task_id?: string | null;
+    /**
+     * Summary
+     */
+    summary?: string | null;
+    /**
+     * Speech Pending
+     */
+    speech_pending?: boolean;
+    /**
+     * Muted
+     */
+    muted?: boolean;
+    /**
+     * Wake Suppressed
+     */
+    wake_suppressed?: boolean;
+    /**
+     * Wake Available
+     */
+    wake_available?: boolean;
+    /**
+     * Wake Listening
+     */
+    wake_listening?: boolean;
+    /**
+     * Wake Error
+     */
+    wake_error?: string | null;
+};
+
+/**
+ * VoiceState
+ */
+export type VoiceState = 'idle' | 'recording' | 'transcribing' | 'reviewing' | 'submitted' | 'speaking' | 'error';
+
+export type RecallApiMemoryGetData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/memory';
+};
+
+export type RecallApiMemoryGetResponses = {
+    /**
+     * Response Recall Api Memory Get
+     *
+     * Successful Response
+     */
+    200: Array<MemoryEntry>;
+};
+
+export type RecallApiMemoryGetResponse = RecallApiMemoryGetResponses[keyof RecallApiMemoryGetResponses];
+
+export type RememberApiMemoryPostData = {
+    body: MemoryInput;
+    path?: never;
+    query?: never;
+    url: '/api/memory';
+};
+
+export type RememberApiMemoryPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RememberApiMemoryPostError = RememberApiMemoryPostErrors[keyof RememberApiMemoryPostErrors];
+
+export type RememberApiMemoryPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: MemoryEntry;
+};
+
+export type RememberApiMemoryPostResponse = RememberApiMemoryPostResponses[keyof RememberApiMemoryPostResponses];
+
+export type ExportMemoryApiMemoryExportGetData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/memory/export';
+};
+
+export type ExportMemoryApiMemoryExportGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type ForgetApiMemoryMemoryIdDeleteData = {
+    body?: never;
+    path: {
+        /**
+         * Memory Id
+         */
+        memory_id: string;
+    };
+    query?: never;
+    url: '/api/memory/{memory_id}';
+};
+
+export type ForgetApiMemoryMemoryIdDeleteErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ForgetApiMemoryMemoryIdDeleteError = ForgetApiMemoryMemoryIdDeleteErrors[keyof ForgetApiMemoryMemoryIdDeleteErrors];
+
+export type ForgetApiMemoryMemoryIdDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type EditApiMemoryMemoryIdPostData = {
+    body: MemoryInput;
+    path: {
+        /**
+         * Memory Id
+         */
+        memory_id: string;
+    };
+    query?: never;
+    url: '/api/memory/{memory_id}';
+};
+
+export type EditApiMemoryMemoryIdPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type EditApiMemoryMemoryIdPostError = EditApiMemoryMemoryIdPostErrors[keyof EditApiMemoryMemoryIdPostErrors];
+
+export type EditApiMemoryMemoryIdPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: MemoryEntry;
+};
+
+export type EditApiMemoryMemoryIdPostResponse = EditApiMemoryMemoryIdPostResponses[keyof EditApiMemoryMemoryIdPostResponses];
+
+export type CleanupApiRetentionCleanupPostData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/retention/cleanup';
+};
+
+export type CleanupApiRetentionCleanupPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type ResourcesStatusApiResourcesGetData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/resources';
+};
+
+export type ResourcesStatusApiResourcesGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type PreviewApiDiagnosticsPreviewGetData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/diagnostics/preview';
+};
+
+export type PreviewApiDiagnosticsPreviewGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: DiagnosticPreview;
+};
+
+export type PreviewApiDiagnosticsPreviewGetResponse = PreviewApiDiagnosticsPreviewGetResponses[keyof PreviewApiDiagnosticsPreviewGetResponses];
+
+export type DiagnosticExportApiDiagnosticsExportPostData = {
+    body: DiagnosticExport;
+    path?: never;
+    query?: never;
+    url: '/api/diagnostics/export';
+};
+
+export type DiagnosticExportApiDiagnosticsExportPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DiagnosticExportApiDiagnosticsExportPostError = DiagnosticExportApiDiagnosticsExportPostErrors[keyof DiagnosticExportApiDiagnosticsExportPostErrors];
+
+export type DiagnosticExportApiDiagnosticsExportPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: DiagnosticExportResult;
+};
+
+export type DiagnosticExportApiDiagnosticsExportPostResponse = DiagnosticExportApiDiagnosticsExportPostResponses[keyof DiagnosticExportApiDiagnosticsExportPostResponses];
+
+export type StatusApiIntegrationsGetData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/integrations';
+};
+
+export type StatusApiIntegrationsGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: IntegrationStatus;
+};
+
+export type StatusApiIntegrationsGetResponse = StatusApiIntegrationsGetResponses[keyof StatusApiIntegrationsGetResponses];
+
+export type PreviewApiIntegrationsCloudPreviewPostData = {
+    body: ProviderRequest;
+    path?: never;
+    query?: never;
+    url: '/api/integrations/cloud/preview';
+};
+
+export type PreviewApiIntegrationsCloudPreviewPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PreviewApiIntegrationsCloudPreviewPostError = PreviewApiIntegrationsCloudPreviewPostErrors[keyof PreviewApiIntegrationsCloudPreviewPostErrors];
+
+export type PreviewApiIntegrationsCloudPreviewPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: TransferPreview;
+};
+
+export type PreviewApiIntegrationsCloudPreviewPostResponse = PreviewApiIntegrationsCloudPreviewPostResponses[keyof PreviewApiIntegrationsCloudPreviewPostResponses];
+
+export type ReviewApiIntegrationsCloudReviewPostData = {
+    body: TransferDecision;
+    path?: never;
+    query?: never;
+    url: '/api/integrations/cloud/review';
+};
+
+export type ReviewApiIntegrationsCloudReviewPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ReviewApiIntegrationsCloudReviewPostError = ReviewApiIntegrationsCloudReviewPostErrors[keyof ReviewApiIntegrationsCloudReviewPostErrors];
+
+export type ReviewApiIntegrationsCloudReviewPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: TransferResult;
+};
+
+export type ReviewApiIntegrationsCloudReviewPostResponse = ReviewApiIntegrationsCloudReviewPostResponses[keyof ReviewApiIntegrationsCloudReviewPostResponses];
+
+export type VoiceStatusApiVoiceGetData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/voice';
+};
+
+export type VoiceStatusApiVoiceGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: VoiceSnapshot;
+};
+
+export type VoiceStatusApiVoiceGetResponse = VoiceStatusApiVoiceGetResponses[keyof VoiceStatusApiVoiceGetResponses];
+
+export type VoiceStartApiVoiceStartPostData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/voice/start';
+};
+
+export type VoiceStartApiVoiceStartPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: VoiceSnapshot;
+};
+
+export type VoiceStartApiVoiceStartPostResponse = VoiceStartApiVoiceStartPostResponses[keyof VoiceStartApiVoiceStartPostResponses];
+
+export type WakeEnableApiVoiceWakeEnablePostData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/voice/wake/enable';
+};
+
+export type WakeEnableApiVoiceWakeEnablePostResponses = {
+    /**
+     * Successful Response
+     */
+    200: VoiceSnapshot;
+};
+
+export type WakeEnableApiVoiceWakeEnablePostResponse = WakeEnableApiVoiceWakeEnablePostResponses[keyof WakeEnableApiVoiceWakeEnablePostResponses];
+
+export type WakeDisableApiVoiceWakeDisablePostData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/voice/wake/disable';
+};
+
+export type WakeDisableApiVoiceWakeDisablePostResponses = {
+    /**
+     * Successful Response
+     */
+    200: VoiceSnapshot;
+};
+
+export type WakeDisableApiVoiceWakeDisablePostResponse = WakeDisableApiVoiceWakeDisablePostResponses[keyof WakeDisableApiVoiceWakeDisablePostResponses];
+
+export type VoiceFinishApiVoiceFinishPostData = {
+    body: SessionCommand;
+    path?: never;
+    query?: never;
+    url: '/api/voice/finish';
+};
+
+export type VoiceFinishApiVoiceFinishPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type VoiceFinishApiVoiceFinishPostError = VoiceFinishApiVoiceFinishPostErrors[keyof VoiceFinishApiVoiceFinishPostErrors];
+
+export type VoiceFinishApiVoiceFinishPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: VoiceSnapshot;
+};
+
+export type VoiceFinishApiVoiceFinishPostResponse = VoiceFinishApiVoiceFinishPostResponses[keyof VoiceFinishApiVoiceFinishPostResponses];
+
+export type VoiceCancelApiVoiceCancelPostData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/voice/cancel';
+};
+
+export type VoiceCancelApiVoiceCancelPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: VoiceSnapshot;
+};
+
+export type VoiceCancelApiVoiceCancelPostResponse = VoiceCancelApiVoiceCancelPostResponses[keyof VoiceCancelApiVoiceCancelPostResponses];
+
+export type VoiceSubmitApiVoiceSubmitPostData = {
+    body: ReviewedSubmission;
+    path?: never;
+    query?: never;
+    url: '/api/voice/submit';
+};
+
+export type VoiceSubmitApiVoiceSubmitPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type VoiceSubmitApiVoiceSubmitPostError = VoiceSubmitApiVoiceSubmitPostErrors[keyof VoiceSubmitApiVoiceSubmitPostErrors];
+
+export type VoiceSubmitApiVoiceSubmitPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: VoiceSnapshot;
+};
+
+export type VoiceSubmitApiVoiceSubmitPostResponse = VoiceSubmitApiVoiceSubmitPostResponses[keyof VoiceSubmitApiVoiceSubmitPostResponses];
+
+export type VoiceDisplayedApiVoiceDisplayedPostData = {
+    body: SessionCommand;
+    path?: never;
+    query?: never;
+    url: '/api/voice/displayed';
+};
+
+export type VoiceDisplayedApiVoiceDisplayedPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type VoiceDisplayedApiVoiceDisplayedPostError = VoiceDisplayedApiVoiceDisplayedPostErrors[keyof VoiceDisplayedApiVoiceDisplayedPostErrors];
+
+export type VoiceDisplayedApiVoiceDisplayedPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: VoiceSnapshot;
+};
+
+export type VoiceDisplayedApiVoiceDisplayedPostResponse = VoiceDisplayedApiVoiceDisplayedPostResponses[keyof VoiceDisplayedApiVoiceDisplayedPostResponses];
+
+export type VoiceMuteApiVoiceMutePostData = {
+    body: MuteRequest;
+    path?: never;
+    query?: never;
+    url: '/api/voice/mute';
+};
+
+export type VoiceMuteApiVoiceMutePostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type VoiceMuteApiVoiceMutePostError = VoiceMuteApiVoiceMutePostErrors[keyof VoiceMuteApiVoiceMutePostErrors];
+
+export type VoiceMuteApiVoiceMutePostResponses = {
+    /**
+     * Successful Response
+     */
+    200: VoiceSnapshot;
+};
+
+export type VoiceMuteApiVoiceMutePostResponse = VoiceMuteApiVoiceMutePostResponses[keyof VoiceMuteApiVoiceMutePostResponses];
 
 export type StreamEventsApiEventsGetData = {
     body?: never;

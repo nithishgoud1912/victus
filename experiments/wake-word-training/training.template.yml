@@ -1,0 +1,34 @@
+# Upstream openWakeWord v0.6.0 train.py configuration; not executed by VICTUS.
+# Replace paths and freeze corpus/generator versions in provenance.template.json.
+# Review licenses before generating or training. This file triggers no downloads.
+model_name: victus
+target_phrase:
+  - "hey victus"
+custom_negative_phrases:
+  - "victory"
+  - "pictures"
+n_samples: 20000
+n_samples_val: 2000
+tts_batch_size: 16
+augmentation_batch_size: 16
+piper_sample_generator_path: "C:/VICTUS-assets/training/piper-sample-generator"
+output_dir: "C:/VICTUS-assets/training/output"
+rir_paths:
+  - "C:/VICTUS-assets/training/consented-rirs"
+background_paths:
+  - "C:/VICTUS-assets/training/licensed-backgrounds"
+background_paths_duplication_rate:
+  - 1
+false_positive_validation_data_path: "C:/VICTUS-assets/training/validation_features.npy"
+augmentation_rounds: 1
+feature_data_files:
+  local_negative: "C:/VICTUS-assets/training/negative_features.npy"
+batch_n_per_class:
+  local_negative: 1024
+  adversarial_negative: 50
+  positive: 50
+model_type: dnn
+layer_size: 32
+steps: 50000
+max_negative_weight: 1500
+target_false_positives_per_hour: 0.2

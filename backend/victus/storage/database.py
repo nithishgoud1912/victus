@@ -9,6 +9,7 @@ that existing tests remain green.
 from __future__ import annotations
 
 import sqlite3
+import time
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
@@ -56,6 +57,11 @@ class Database:
                 "ON CONFLICT(task_id) DO UPDATE SET result_json = excluded.result_json",
                 (task.task_id, task.model_dump_json()),
             )
+            if task.status not in {"queued", "prepared", "running"}:
+                connection.execute(
+                    "INSERT OR IGNORE INTO task_retention(task_id,terminal_at) VALUES (?,?)",
+                    (task.task_id, time.time()),
+                )
 
     def get(self, task_id: str) -> TaskResult | None:
         with self.connect() as connection:
