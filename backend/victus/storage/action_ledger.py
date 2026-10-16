@@ -245,6 +245,15 @@ class ActionLedger:
             ).fetchone()
         return _row_to_record(row) if row else None
 
+    def list_for_task(self, task_id: str) -> list[ActionRecord]:
+        """Find task-bound evidence after an interrupted graph node; never replay it."""
+        with self._connect() as conn:
+            rows = conn.execute(
+                "SELECT * FROM action_attempts WHERE expected_effect_ref = ? ORDER BY rowid",
+                (f"task:{task_id}",),
+            ).fetchall()
+        return [_row_to_record(row) for row in rows]
+
     def list_unfinished(self) -> list[ActionRecord]:
         """Return all actions that have not reached a terminal status."""
         with self._connect() as conn:
