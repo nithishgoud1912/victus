@@ -74,6 +74,18 @@ def wait_for_task(client, task_id: str, timeout: float = 8.0) -> dict:
     raise TimeoutError(f"Task {task_id} did not complete within {timeout}s")
 
 
+def wait_for_terminal_events(services, task_id: str):
+    # State and its final event are separate commits. Compare complete histories
+    # only after the final event exists, with a bounded delivery deadline.
+    deadline = time.monotonic() + 3
+    while time.monotonic() < deadline:
+        events = services.events.get_events(task_id=task_id)
+        if any(event.event_type == "task.succeeded" for event in events):
+            return events
+        time.sleep(0.01)
+    pytest.fail("Final task event was not recorded within 3 seconds")
+
+
 # ── Task Queue Tests ──────────────────────────────────────────────────────
 
 
@@ -156,7 +168,7 @@ class TestTaskQueue:
             ids = list(pool.map(submit, range(8)))
         assert len(set(ids)) == 1
         assert wait_for_task(client, ids[0])["status"] == "succeeded"
-        events = client.app.state.services.events.get_events(task_id=ids[0])
+        events = wait_for_terminal_events(client.app.state.services, ids[0])
         assert [e.event_type for e in events] == ["task.queued", "task.started", "task.succeeded"]
 
     def test_client_request_id_deduplication(self, client):
@@ -274,6 +286,7 @@ class TestEventStreaming:
         wait_for_task(client, task_id)
 
         services = client.app.state.services
+        initial = wait_for_terminal_events(services, task_id)
 
         async def check_stream():
             request = SimpleNamespace(app=client.app)
@@ -282,7 +295,6 @@ class TestEventStreaming:
                 return False
 
             request.is_disconnected = connected
-            initial = services.events.get_events(task_id=task_id)
             stream = task_event_stream(request, initial[0].event_id, task_id)
             try:
                 chunks = []
@@ -308,7 +320,7 @@ class TestEventStreaming:
         response = client.post("/api/tasks", headers=HEADERS, json=request_body("network.txt"))
         task_id = response.json()["task_id"]
         assert wait_for_task(client, task_id)["status"] == "succeeded"
-        initial = app.state.services.events.get_events(task_id=task_id)
+        initial = wait_for_terminal_events(app.state.services, task_id)
         with client.stream(
             "GET",
             f"/api/tasks/{task_id}/events",

@@ -67,6 +67,8 @@ class ToolSpec:
     # Optional trusted policy for supervised qualification/workflow entry points.
     # These are not registered by the public API/bootstrap by default.
     policy: Callable[[Path, BaseModel], None] | None = None
+    # Fail closed until a reviewed adapter explicitly declares a read-only tool.
+    external_write: bool = True
 
 
 class ToolRegistry:

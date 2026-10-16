@@ -1,6 +1,7 @@
 import hashlib
 from dataclasses import dataclass
 from pathlib import Path
+from threading import RLock
 from typing import Any
 
 from victus.safety.policy import validate_action
@@ -31,6 +32,33 @@ class Dispatcher:
         self.workspace = workspace
         self.registry = registry
         self._step_lock = None
+        self._dispatch_barrier = RLock()
+
+    def cancel_task(self, cancel):
+        """Linearize the owner's cancellation latch with a dispatch commitment."""
+        with self._dispatch_barrier:
+            cancel()
+
+    def _reject_review(self, context, *, cancelled=False):
+        """A failed pre-dispatch check permanently retires this review attempt."""
+        action_id = context.prepared_action_id
+        if action_id is None or context.permits is None:
+            return
+        approvals = context.permits.approvals
+        with approvals.connect() as db:
+            now = approvals.now()
+            approvals._expire(db, now)
+            db.execute(
+                "UPDATE approvals SET state='invalidated',updated_at=? "
+                "WHERE task_id=? AND action_id=? AND state IN ('pending','approved')",
+                (now, context.task_id, action_id),
+            )
+        record = context.ledger.get(action_id)
+        if record is not None and record.status == "prepared":
+            if cancelled:
+                context.ledger.mark_cancelled(action_id)
+            else:
+                context.ledger.mark_failed(action_id, error_code="APPROVAL_OR_TARGET_STALE")
 
     def dispatch(self, action: ActionRequest, cancelled: Any = None) -> DispatchOutcome:
         """Execute *action* inside the workspace and return an outcome.
@@ -106,13 +134,18 @@ class Dispatcher:
         import math
         import time
 
+        from langgraph.errors import GraphInterrupt
+
+        from victus.safety.approvals import argument_hash
         from victus.safety.policy import validate_step
+        from victus.storage.action_ledger import _canonical_hash
         from victus.tools.steps import StepOutcome
 
         if self._step_lock is None:
             self._step_lock = asyncio.Lock()
         async with self._step_lock:
             if context.stopped():
+                self._reject_review(context, cancelled=True)
                 return StepOutcome("cancelled", error_code="SERVICE_STOPPED")
             if (
                 context.remaining_steps <= 0
@@ -138,26 +171,85 @@ class Dispatcher:
                     )
                 if not math.isfinite(tool.timeout_seconds) or tool.timeout_seconds <= 0:
                     raise ValueError("Invalid deadline")
+            except GraphInterrupt:
+                raise
             except Exception:
+                self._reject_review(context)
                 return StepOutcome("blocked", error_code="STEP_VALIDATION_OR_POLICY_DENIED")
-            action_id = context.ledger.prepare_action(
-                tool.name,
-                tool.version,
-                arguments.model_dump(),
-                expected_effect_ref=f"task:{context.task_id}",
-            )
+            action_id = context.prepared_action_id
+            if action_id is not None:
+                record = context.ledger.get(action_id)
+                if (
+                    record is None
+                    or record.status != "prepared"
+                    or record.tool_name != tool.name
+                    or record.tool_version != tool.version
+                    or record.expected_effect_ref != f"task:{context.task_id}"
+                    or record.canonical_args_hash != _canonical_hash(arguments.model_dump())
+                    or context.permits is None
+                    or context.permit_token is None
+                ):
+                    return StepOutcome("blocked", error_code="APPROVAL_BINDING_INVALID")
+            else:
+                if context.permits is not None or context.permit_token is not None:
+                    return StepOutcome("blocked", error_code="APPROVAL_BINDING_INVALID")
+                action_id = context.ledger.prepare_action(
+                    tool.name,
+                    tool.version,
+                    arguments.model_dump(),
+                    expected_effect_ref=f"task:{context.task_id}",
+                )
             context.payloads.store(
                 action_id, "arguments", arguments.model_dump(), retention_hours=24
             )
             dispatched = False
             outcome = None
             try:
+                if context.permits is not None:
+                    try:
+                        live = context.revalidate_binding()
+                        if inspect.isawaitable(live):
+                            live = await live
+                        if (
+                            live != context.approval_binding
+                            or live.task_id != context.task_id
+                            or live.action_id != action_id
+                            or live.tool_name != tool.name
+                            or live.tool_version != tool.version
+                            or live.canonical_args_hash != argument_hash(arguments.model_dump())
+                        ):
+                            raise PermissionError("Target changed")
+                    except (PermissionError, ValueError):
+                        approval = context.permits.approvals
+                        with approval.connect() as db:
+                            db.execute(
+                                "UPDATE approvals SET state='invalidated',updated_at=? "
+                                "WHERE action_id=? AND state IN ('pending','approved')",
+                                (approval.now(), action_id),
+                            )
+                        context.ledger.mark_failed(
+                            action_id, error_code="TARGET_STALE_NEW_REVIEW_REQUIRED"
+                        )
+                        return StepOutcome(
+                            "blocked", action_id, error_code="TARGET_STALE_NEW_REVIEW_REQUIRED"
+                        )
                 if context.stopped():
                     context.ledger.mark_cancelled(action_id)
                     outcome = StepOutcome("cancelled", action_id, error_code="SERVICE_STOPPED")
                 else:
-                    context.ledger.mark_dispatching(action_id)
-                    dispatched = True
+                    with self._dispatch_barrier:
+                        if context.stopped():
+                            context.ledger.mark_cancelled(action_id)
+                            return StepOutcome("cancelled", action_id, error_code="SERVICE_STOPPED")
+                        if context.permits is not None:
+                            context.permits.consume_permit(
+                                context.permit_token, live, cancelled=context.stopped
+                            )
+                        if context.stopped():
+                            context.ledger.mark_cancelled(action_id)
+                            return StepOutcome("cancelled", action_id, error_code="SERVICE_STOPPED")
+                        context.ledger.mark_dispatching(action_id)
+                        dispatched = True
                     deadline = min(context.deadline, time.monotonic() + tool.timeout_seconds)
                     async with asyncio.timeout(max(0, deadline - time.monotonic())):
                         output = tool.execute(self.workspace, arguments)
@@ -198,6 +290,23 @@ class Dispatcher:
                         context.ledger.mark_verified(action_id)
                         outcome = StepOutcome("succeeded", action_id, output)
             except BaseException as error:
+                if isinstance(error, GraphInterrupt):
+                    raise
+                if (
+                    isinstance(error, PermissionError)
+                    and not dispatched
+                    and context.permits is not None
+                ):
+                    stopped = context.stopped()
+                    code = "SERVICE_STOPPED" if stopped else "APPROVAL_OR_TARGET_STALE"
+                    if stopped:
+                        context.ledger.mark_cancelled(action_id)
+                    else:
+                        context.ledger.mark_failed(action_id, error_code=code)
+                    outcome = StepOutcome(
+                        "cancelled" if stopped else "blocked", action_id, error_code=code
+                    )
+                    return outcome
                 code = (
                     "STEP_DEADLINE_OR_STOP"
                     if isinstance(error, (TimeoutError, asyncio.CancelledError))

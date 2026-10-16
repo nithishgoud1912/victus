@@ -12,9 +12,44 @@ from victus.models.contracts import (
     ProviderRequest,
 )
 from victus.models.gateway import ModelGateway, RequestBudget
-from victus.models.ollama import OllamaClient
+from victus.models.ollama import OllamaClient, grammar_schema
+from victus.tools.contracts import NoteArguments
 
 PIN = ModelPin(name="qwen3:4b", digest="sha256:" + "a" * 64)
+
+
+def test_native_ollama_raw_digest_is_canonicalized():
+    def handler(request):
+        return httpx.Response(200, json={"models": [{"name": PIN.name, "digest": "a" * 64}]})
+
+    async def run():
+        async with OllamaClient(transport=httpx.MockTransport(handler)) as client:
+            return await client.list_models()
+
+    assert asyncio.run(run()) == [PIN]
+
+
+def test_sampler_projection_keeps_shape_and_local_parser_keeps_all_constraints():
+    from victus.agent.output_parser import OutputParser
+
+    parser = OutputParser({"fs.create_note": NoteArguments})
+    original = parser.schema()
+    projected = grammar_schema(original)
+    assert "pattern" in json.dumps(original) and "pattern" not in json.dumps(projected)
+    assert projected["oneOf"][0]["required"] == original["oneOf"][0]["required"]
+    assert projected["oneOf"][0]["additionalProperties"] is False
+    with pytest.raises(ModelError):
+        parser.parse(
+            json.dumps(
+                {
+                    "decision": "action",
+                    "action": {
+                        "tool": "fs.create_note",
+                        "arguments": {"filename": "../outside.txt", "text": "x"},
+                    },
+                }
+            )
+        )
 
 
 def wire():

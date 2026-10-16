@@ -12,6 +12,7 @@ from uuid import uuid4
 
 import aiosqlite
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
+from langgraph.types import Interrupt
 
 from victus.models._json import strict_json
 from victus.runtime.instance_lock import InstanceLock
@@ -21,7 +22,20 @@ class JSONSerializer:
     """No pickle, msgpack object construction or arbitrary class imports on resume."""
 
     def dumps_typed(self, value):
-        data = json.dumps(value, allow_nan=False, separators=(",", ":")).encode("utf-8")
+        def encode(item):
+            if type(item) is Interrupt:
+                return {
+                    "__victus_interrupt_v1__": {
+                        "value": item.value,
+                        "id": item.id,
+                        "response_schema": item.response_schema,
+                    }
+                }
+            raise TypeError("Unsupported checkpoint object")
+
+        data = json.dumps(value, default=encode, allow_nan=False, separators=(",", ":")).encode(
+            "utf-8"
+        )
         if len(data) > 512000:
             raise ValueError("Checkpoint size limit")
         return "json", data
@@ -30,7 +44,25 @@ class JSONSerializer:
         kind, data = value
         if kind != "json" or len(data) > 512000:
             raise ValueError("Unsupported checkpoint encoding")
-        return strict_json(data.decode("utf-8"))
+
+        def restore(item):
+            if isinstance(item, list):
+                return [restore(value) for value in item]
+            if isinstance(item, dict):
+                if set(item) == {"__victus_interrupt_v1__"}:
+                    value = item["__victus_interrupt_v1__"]
+                    if (
+                        not isinstance(value, dict)
+                        or set(value) != {"value", "id", "response_schema"}
+                        or not isinstance(value["id"], str)
+                        or value["response_schema"] is not None
+                    ):
+                        raise ValueError("Invalid interrupt checkpoint")
+                    return Interrupt(value=value["value"], id=value["id"])
+                return {key: restore(value) for key, value in item.items()}
+            return item
+
+        return restore(strict_json(data.decode("utf-8")))
 
 
 class CheckpointStore:
@@ -84,7 +116,7 @@ class CheckpointStore:
         return row is None or bool(row[0])
 
     def put_payload(self, task_id, kind, value, *, ttl_seconds=86400):
-        if kind not in {"goal", "observation", "proposal", "approval", "evidence"}:
+        if kind not in {"goal", "observation", "proposal", "approval", "evidence", "route"}:
             raise ValueError("Unknown agent payload kind")
         if not 0 < ttl_seconds <= 86400:
             raise ValueError("Invalid payload retention")

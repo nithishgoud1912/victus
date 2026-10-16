@@ -19,3 +19,4 @@ build/
 dist/
 docs/
 pytest_tmp/
+.local-tests/

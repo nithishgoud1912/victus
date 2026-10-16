@@ -7,6 +7,9 @@ from typing import Literal, TypedDict
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from victus.agent.budgets import Budgets, BudgetState
+from victus.agent.progress import ProgressState
+
 Status = Literal[
     "queued",
     "running",
@@ -16,6 +19,7 @@ Status = Literal[
     "failed",
     "cancelled",
     "unknown",
+    "partial",
 ]
 Node = Literal[
     "intake",
@@ -24,6 +28,7 @@ Node = Literal[
     "propose",
     "validate",
     "authorize",
+    "review",
     "execute",
     "verify",
     "failed",
@@ -31,17 +36,6 @@ Node = Literal[
     "finalize",
     "end",
 ]
-
-
-class BudgetState(TypedDict):
-    nodes: int
-    actions: int
-    observations: int
-    model_requests: int
-    output_tokens: int
-    schema_repairs: int
-    recoveries: int
-    deadline_epoch: float
 
 
 class ProposalReference(TypedDict):
@@ -65,23 +59,14 @@ class AgentState(TypedDict):
     sequence: int
     next_node: Node
     route_name: str | None
+    route_ref: str | None
     execution_status: str | None
     completion_verified: bool
+    progress: dict
 
 
 class _Strict(BaseModel):
     model_config = ConfigDict(strict=True, extra="forbid")
-
-
-class Budgets(_Strict):
-    nodes: int = Field(default=96, ge=0, le=256)
-    actions: int = Field(default=8, ge=0, le=32)
-    observations: int = Field(default=16, ge=0, le=64)
-    model_requests: int = Field(default=8, ge=0, le=32)
-    output_tokens: int = Field(default=4096, ge=0, le=65536)
-    schema_repairs: int = Field(default=1, ge=0, le=1)
-    recoveries: int = Field(default=2, ge=0, le=8)
-    deadline_epoch: float = Field(default_factory=lambda: time.time() + 180, allow_inf_nan=False)
 
 
 class Proposal(_Strict):
@@ -105,14 +90,20 @@ class Snapshot(_Strict):
     sequence: int = Field(ge=0, le=512)
     next_node: Node
     route_name: str | None
+    route_ref: str | None = Field(default=None, pattern=r"^[a-f0-9]{32}$")
     execution_status: str | None
     completion_verified: bool
+    progress: ProgressState = Field(default_factory=ProgressState)
 
 
 def initial_state(
     task_id: str, goal_payload_ref: str, budgets: Budgets | None = None
 ) -> AgentState:
-    if budgets is not None and budgets.deadline_epoch > time.time() + 600:
+    if (
+        budgets is not None
+        and budgets.deadline_epoch is not None
+        and budgets.deadline_epoch > time.time() + 600
+    ):
         raise ValueError("Task deadline exceeds ten minutes")
     return Snapshot(
         task_id=task_id,

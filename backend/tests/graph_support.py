@@ -55,6 +55,9 @@ class Fixture:
             authorizer=lambda state, action: self.approved,
             goal_verifier=self.verify_goal,
             recovery=lambda state: self.recovery,
+            target_identity=lambda state, action: self.services.file_target_identity(
+                action.arguments["filename"]
+            ),
         )
 
     @staticmethod
@@ -68,6 +71,18 @@ class Fixture:
         return self.store.put_payload(
             self.task, "goal", {"expected": expected or {"note.txt": "ready"}}
         )
+
+    def resolve_review(self):
+        """Explicit trusted review for tests; toggling policy is no longer approval."""
+        store = self.services.approvals({"task_id": self.task})
+        with store.connect() as db:
+            rows = db.execute(
+                "SELECT approval_id FROM approvals WHERE task_id=? AND state='pending'",
+                (self.task,),
+            ).fetchall()
+        for row in rows:
+            record = store.get(row[0])
+            store.decide(record.approval_id, record.binding(), approved=True)
 
     def context(self, state):
         return context_for(

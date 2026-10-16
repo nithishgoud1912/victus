@@ -57,6 +57,7 @@ def test_valid_proposal_and_explicit_finish(parser):
         'import os; os.system("echo unsafe")',
         "rm -rf sample",
     ],
+    ids=lambda text: text[:60] if len(text) <= 100 else f"large-input-{len(text)}",
 )
 def test_entire_answer_must_be_one_strict_decision(parser, text):
     with pytest.raises(ModelError) as error:

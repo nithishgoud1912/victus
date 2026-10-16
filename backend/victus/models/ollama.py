@@ -51,6 +51,15 @@ class OllamaTag(WireModel):
     name: str
     digest: str = Field(pattern=r"^sha256:[a-f0-9]{64}$")
 
+    @field_validator("digest", mode="before")
+    @classmethod
+    def canonical_digest(cls, value):
+        # Ollama /api/tags returns raw hexadecimal SHA-256; local pins use the
+        # explicit algorithm prefix. Accept only those two exact representations.
+        if isinstance(value, str) and len(value) == 64:
+            return "sha256:" + value
+        return value
+
 
 class OllamaTags(WireModel):
     models: list[OllamaTag] = Field(max_length=256)
@@ -120,7 +129,7 @@ class OllamaClient:
             "model": request.pin.name,
             "messages": [message.model_dump() for message in request.messages],
             "stream": False,
-            "format": request.output_schema,
+            "format": grammar_schema(request.output_schema),
             "think": False,
             "options": {
                 "temperature": 0,
@@ -151,3 +160,21 @@ class OllamaClient:
 
     async def __aexit__(self, *args):
         await self.close()
+
+
+def grammar_schema(value):
+    """Compile structural grammar for local samplers with limited regex support.
+
+    Full argument constraints remain in the system schema and OutputParser. A
+    generated response must still pass that strict parser before any dispatch.
+    No constraint is removed from application policy or local validation.
+    """
+    if isinstance(value, dict):
+        return {
+            key: grammar_schema(item)
+            for key, item in value.items()
+            if key not in {"minLength", "maxLength", "pattern", "title"}
+        }
+    if isinstance(value, list):
+        return [grammar_schema(item) for item in value]
+    return value

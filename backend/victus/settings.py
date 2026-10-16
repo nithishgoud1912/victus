@@ -8,6 +8,14 @@ class Settings:
     data_dir: Path
     api_token: str
     emergency_hotkey: bool = False
+    dashboard_dev_origin: str | None = None
+    dashboard_dir: Path | None = None
+
+    def __post_init__(self):
+        if self.dashboard_dev_origin not in {None, "http://127.0.0.1:5173"}:
+            raise ValueError(
+                "Only http://127.0.0.1:5173 is an approved dashboard development origin"
+            )
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -23,6 +31,7 @@ class Settings:
             data_dir=root,
             api_token=os.getenv("VICTUS_API_TOKEN", ""),
             emergency_hotkey=os.getenv("VICTUS_EMERGENCY_HOTKEY", "0") == "1",
+            dashboard_dev_origin=os.getenv("VICTUS_DASHBOARD_DEV_ORIGIN") or None,
         )
 
     @property

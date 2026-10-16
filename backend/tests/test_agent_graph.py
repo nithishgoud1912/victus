@@ -59,7 +59,7 @@ def test_multiple_verified_actions_continue_via_observe(tmp_path):
     )
     result = run(fixture, fixture.goal({"a.txt": "one", "b.txt": "two"}))
     assert result["status"] == "succeeded" and fixture.calls == 2 and fixture.observations == 2
-    assert len(result["action_ledger_refs"]) == 2 and result["remaining"]["actions"] == 6
+    assert len(result["action_ledger_refs"]) == 2 and result["remaining"]["actions"] == 10
 
 
 @pytest.mark.parametrize("mode", ["approval", "validation", "route", "finish"])
@@ -83,6 +83,7 @@ def test_pending_approval_survives_reopen_and_revalidates(tmp_path):
     first = run(fixture)
     assert first["status"] == "awaiting_approval" and fixture.calls == 0
     reopened = Fixture(tmp_path, decisions=[])
+    reopened.resolve_review()
 
     async def resume():
         async with agent(reopened.services) as runner:
@@ -98,13 +99,15 @@ def test_approval_resume_cannot_bypass_new_validation_failure(tmp_path):
     run(fixture)
     reopened = Fixture(tmp_path, decisions=[])
     reopened.valid = False
+    reopened.resolve_review()
 
     async def resume():
         async with agent(reopened.services) as runner:
             return await runner.resume(reopened.task)
 
     result = asyncio.run(resume())
-    assert result["status"] == "failed" and reopened.calls == 0
+    assert result["status"] == "blocked" and reopened.calls == 0
+    assert result["error_code"] == "APPROVAL_OR_TARGET_STALE"
 
 
 @pytest.mark.parametrize(
@@ -129,6 +132,11 @@ def test_deterministic_recovery_reobserves_before_new_proposal(tmp_path):
         return len(checks) > 1
 
     fixture.services.validator = validate
+    original_observe = fixture.services.observer
+    fixture.services.observer = lambda route, goal: {
+        **original_observe(route, goal),
+        "validation_state": len(checks),
+    }
     fixture.recovery = "observe"
     result = run(fixture)
     assert result["status"] == "succeeded" and fixture.calls == 1 and fixture.observations == 2
@@ -208,7 +216,7 @@ def test_recovery_budget_stops_repeated_invalid_proposals(tmp_path):
     fixture.valid = False
     fixture.recovery = "propose"
     result = run(fixture, budgets=Budgets(recoveries=1))
-    assert result["status"] == "blocked" and fixture.plan_calls == 2 and fixture.calls == 0
+    assert result["status"] == "partial" and fixture.plan_calls == 2 and fixture.calls == 0
     assert result["remaining"]["recoveries"] == 0
 
 
@@ -263,9 +271,9 @@ def test_cancel_inflight_effect_marks_unknown_and_does_not_replay(tmp_path):
     async def execute():
         async with agent(fixture.services) as runner:
             pending = asyncio.create_task(runner.start(fixture.task, fixture.goal()))
-            await asyncio.wait_for(entered.wait(), 1)
+            await asyncio.wait_for(entered.wait(), 3)
             runner.cancel(fixture.task)
-            return await asyncio.wait_for(pending, 1)
+            return await asyncio.wait_for(pending, 3)
 
     result = asyncio.run(execute())
     assert result["status"] == "unknown" and fixture.calls == 1
@@ -328,7 +336,8 @@ def test_service_exception_is_sanitized_and_charges_planning_budget(tmp_path):
     assert result["status"] == "failed" and "PRIVATE" not in repr(result)
     assert result["remaining"]["model_requests"] == 6
     assert result["remaining"]["output_tokens"] == 3072
-    assert result["remaining"]["schema_repairs"] == 0
+    assert result["remaining"]["schema_repairs"] == 1
+    assert result["remaining"]["repairs_used"] == 1
 
 
 def test_gateway_planner_repair_usage_is_checkpointed(tmp_path):
@@ -356,11 +365,12 @@ def test_gateway_planner_repair_usage_is_checkpointed(tmp_path):
     fixture.services.planner = GatewayPlanner(provider, pin, fixture.parser)
     result = run(fixture)
     assert result["status"] == "succeeded" and provider.calls == 2
-    assert result["remaining"]["model_requests"] == 6 and result["remaining"]["schema_repairs"] == 0
+    assert result["remaining"]["model_requests"] == 6 and result["remaining"]["schema_repairs"] == 1
+    assert result["remaining"]["repairs_used"] == 1
     assert result["remaining"]["output_tokens"] == 3072
 
 
-def test_schema_repair_cannot_reset_between_graph_turns(tmp_path):
+def test_each_decision_can_repair_without_resetting_shared_model_budget(tmp_path):
     from victus.agent.services import GatewayPlanner
     from victus.models.contracts import ModelPin, ProviderResponse, ProviderUsage
 
@@ -388,9 +398,11 @@ def test_schema_repair_cannot_reset_between_graph_turns(tmp_path):
     provider = Provider()
     fixture.services.planner = GatewayPlanner(provider, pin, fixture.parser)
     result = run(fixture, fixture.goal({"a.txt": "one", "b.txt": "two"}))
-    assert result["status"] == "failed" and provider.calls == 3 and fixture.calls == 1
-    assert not (fixture.workspace / "b.txt").exists()
-    assert result["remaining"]["schema_repairs"] == 0
+    assert result["status"] == "succeeded" and provider.calls == 4 and fixture.calls == 2
+    assert (fixture.workspace / "b.txt").read_text() == "two"
+    assert result["remaining"]["schema_repairs"] == 1
+    assert result["remaining"]["repairs_used"] == 2
+    assert result["remaining"]["model_requests"] == 4
 
 
 def test_model_budget_does_not_reset_when_reopening_checkpoint(tmp_path):

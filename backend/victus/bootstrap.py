@@ -1,7 +1,9 @@
 from dataclasses import dataclass
 
+from victus.recovery.resume import ResumeManager
 from victus.runtime.hotkey import EmergencyShortcut
 from victus.runtime.instance_lock import InstanceLock
+from victus.safety.approvals import ApprovalStore
 from victus.settings import Settings
 from victus.storage.action_ledger import ActionLedger
 from victus.storage.database import Database
@@ -24,6 +26,10 @@ class Services:
     events: EventManager
     hotkey: EmergencyShortcut | None = None
 
+    @property
+    def approvals(self) -> ApprovalStore:
+        return ApprovalStore(self.ledger.db_path)
+
     def close(self) -> None:
         if self.hotkey is not None:
             self.hotkey.close()
@@ -44,11 +50,11 @@ def build_services(settings: Settings) -> Services:
         database = Database(settings.data_dir)
         db_path = database.path
         ledger = ActionLedger(db_path)
-        for action in ledger.list_unfinished():
-            if action.status == "prepared":
-                ledger.mark_cancelled(action.action_id)
-            else:
-                ledger.mark_unknown(action.action_id, error_code="RESTART_REQUIRES_REVIEW")
+        approvals = ApprovalStore(db_path)
+        # Crash/startup recovery retires previous authority. Ordinary live review
+        # pauses resume separately through the graph's review interrupt.
+        approvals.purge_expired()
+        ResumeManager(ledger, approvals).recover(quiesced=True)
         payloads = PayloadStore(db_path)
         events = EventManager(db_path)
         tasks = TaskService(settings.workspace, database, registry, events)

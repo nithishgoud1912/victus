@@ -94,16 +94,15 @@ def test_repair_cannot_escape_global_request_or_token_budget(limit):
     assert len(provider.requests) == 1
 
 
-def test_repair_allowance_is_shared_across_gateways():
+def test_repair_is_per_decision_but_requests_are_shared_across_gateways():
     budget = RequestBudget()
     first = ModelGateway(Fake(["bad", VALID]), budget)
     second_provider = Fake(["bad", VALID])
     asyncio.run(decide(first))
-    with pytest.raises(ModelError) as error:
-        asyncio.run(decide(ModelGateway(second_provider, budget)))
-    assert error.value.error.code == ErrorCode.BUDGET
-    assert budget.snapshot()["schema_repairs"] == 1
-    assert len(second_provider.requests) == 1
+    assert asyncio.run(decide(ModelGateway(second_provider, budget))).status == "blocked"
+    assert budget.snapshot()["schema_repairs"] == 2
+    assert budget.snapshot()["requests"] == 4
+    assert len(second_provider.requests) == 2
 
 
 def test_concurrent_gateways_share_atomic_reservations():

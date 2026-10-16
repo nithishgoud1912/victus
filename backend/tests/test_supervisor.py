@@ -31,6 +31,22 @@ def blocking_effect(workspace, arguments):
     return output
 
 
+def partial_write_effect(workspace, arguments):
+    """Leave a durable partial file while the supervisor interrupts a real write."""
+    with (workspace / "write-attempts.txt").open("a", encoding="utf-8") as attempts:
+        attempts.write("attempt\n")
+        attempts.flush()
+        os.fsync(attempts.fileno())
+    output = workspace / arguments.filename
+    with output.open("xb") as stream:
+        stream.write(b"partial")
+        stream.flush()
+        os.fsync(stream.fileno())
+        time.sleep(60)
+        stream.write(b"-completed")
+    return output
+
+
 def crashing_effect(workspace, arguments):
     create_note(workspace, arguments)
     os._exit(7)
@@ -116,6 +132,55 @@ def test_deadline_terminates_owned_process_and_preserves_unknown(services):
     configure(tasks)
     next_id, _ = tasks.enqueue(ActionRequest.model_validate(body("next.txt")))
     assert finished(tasks, next_id).status == "succeeded"
+
+
+def test_killed_partial_write_stays_unknown_without_retry_after_restart(settings):
+    instance = build_services(settings)
+    try:
+        tasks = instance.tasks
+        configure(tasks, partial_write_effect, timeout=2)
+        action = ActionRequest.model_validate(body("partial.txt"))
+        task_id, _ = tasks.enqueue(action, "partial-write-request")
+        output = tasks.workspace / "partial.txt"
+        until(lambda: output.exists() and output.read_bytes() == b"partial")
+        result = finished(tasks, task_id)
+        assert result.status == "unknown" and not result.verified
+        assert result.error_code == "WORKER_DEADLINE_EXCEEDED"
+        assert tasks.queue.supervisor.active_pid is None
+        assert instance.ledger.get(result.action_id).status == "unknown"
+        assert output.read_bytes() == b"partial"
+
+        def terminal_events():
+            batch = instance.events.get_events(task_id=task_id)
+            return batch if any(event.event_type == "task.unknown" for event in batch) else None
+
+        events = until(terminal_events)
+        assert [event.event_type for event in events] == [
+            "task.queued",
+            "task.started",
+            "task.unknown",
+        ]
+    finally:
+        instance.close()
+
+    resumed = build_services(settings)
+    try:
+        assert resumed.tasks.database.get(task_id).status == "unknown"
+        assert resumed.ledger.get(result.action_id).status == "unknown"
+        # Reconnecting/resubmitting the same request cannot replay the partial write.
+        assert resumed.tasks.enqueue(action, "partial-write-request") == (task_id, False)
+        next_id, _ = resumed.tasks.enqueue(ActionRequest.model_validate(body("after-partial.txt")))
+        assert finished(resumed.tasks, next_id).status == "succeeded"
+        assert output.read_bytes() == b"partial"
+        assert (settings.workspace / "write-attempts.txt").read_text().splitlines() == ["attempt"]
+        with resumed.tasks.database.connect() as connection:
+            attempts = connection.execute(
+                "SELECT COUNT(*) FROM action_attempts WHERE expected_effect_ref = ?",
+                (f"task:{task_id}",),
+            ).fetchone()[0]
+        assert attempts == 1
+    finally:
+        resumed.close()
 
 
 def test_stop_signals_cooperative_worker_and_cancels_queue(settings):

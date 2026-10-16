@@ -39,6 +39,11 @@ class StepContext:
     remaining_steps: int = 64
     deadline: float = field(default_factory=lambda: time.monotonic() + 180)
     trace: list[dict] = field(default_factory=list)
+    prepared_action_id: str | None = None
+    permits: Any = None
+    permit_token: str | None = None
+    approval_binding: Any = None
+    revalidate_binding: Any = None
 
     def stopped(self):
         return self.cancelled is not None and self.cancelled.is_set()

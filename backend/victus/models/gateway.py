@@ -1,4 +1,4 @@
-"""Task-wide inference budget, deadline, cancellation and one schema repair."""
+"""Task-wide inference budget, deadline, cancellation and one repair per decision."""
 
 from __future__ import annotations
 
@@ -8,6 +8,7 @@ import math
 import threading
 import time
 from typing import Protocol
+from uuid import uuid4
 
 from victus.agent.output_parser import OutputParser
 from victus.models.contracts import (
@@ -28,11 +29,11 @@ class RequestBudget:
     """Share across task branches; atomic reservations are never refunded.
 
     Failed/cancelled calls still consume requests and worst-case output tokens.
-    One global repair slot additionally consumes a normal request reservation.
+    One repair per decision additionally consumes a shared request reservation.
     """
 
     def __init__(
-        self, *, max_requests=4, max_output_tokens=2048, timeout_seconds=120, repairs_remaining=1
+        self, *, max_requests=8, max_output_tokens=4096, timeout_seconds=180, repairs_remaining=1
     ):
         if (
             type(repairs_remaining) is not int
@@ -50,21 +51,24 @@ class RequestBudget:
         self._max_tokens = max_output_tokens
         self.deadline = time.monotonic() + timeout_seconds
         self._requests = self._tokens = self._repairs = 0
+        self._decision_repairs = {}
         self._lock = threading.Lock()
 
-    def reserve(self, tokens, *, repair=False):
+    def reserve(self, tokens, *, repair=False, decision_id=None):
         with self._lock:
             if time.monotonic() >= self.deadline:
                 raise ModelError(ErrorCode.TIMEOUT)
             if (
                 self._requests >= self._max_requests
                 or self._tokens + tokens > self._max_tokens
-                or (repair and self._repairs >= self._max_repairs)
+                or (repair and self._decision_repairs.get(decision_id, 0) >= self._max_repairs)
             ):
                 raise ModelError(ErrorCode.BUDGET)
             self._requests += 1
             self._tokens += tokens
             self._repairs += int(repair)
+            if repair:
+                self._decision_repairs[decision_id] = self._decision_repairs.get(decision_id, 0) + 1
 
     def snapshot(self):
         with self._lock:
@@ -89,7 +93,9 @@ class ModelGateway:
         if self.cancelled is not None and self.cancelled.is_set():
             raise ModelError(ErrorCode.CANCELLED)
 
-    async def request(self, request: ProviderRequest, *, repair=False) -> ProviderResponse:
+    async def request(
+        self, request: ProviderRequest, *, repair=False, decision_id=None
+    ) -> ProviderResponse:
         self._check_cancelled()
         try:
             request = ProviderRequest.model_validate(request.model_dump(warnings="error"))
@@ -97,7 +103,7 @@ class ModelGateway:
                 raise ValueError("Request bound")
         except Exception:
             raise ModelError(ErrorCode.PROTOCOL) from None
-        self.budget.reserve(request.max_output_tokens, repair=repair)
+        self.budget.reserve(request.max_output_tokens, repair=repair, decision_id=decision_id)
         self._check_cancelled()
         deadline = min(self.budget.deadline, time.monotonic() + self.timeout_seconds)
         pending = asyncio.create_task(self.provider.complete(request))
@@ -155,7 +161,8 @@ class ModelGateway:
             output_schema=schema,
             max_output_tokens=max_output_tokens,
         )
-        response = await self.request(request)
+        decision_id = uuid4().hex
+        response = await self.request(request, decision_id=decision_id)
         try:
             return parser.parse(response.content)
         except ModelError as error:
@@ -174,5 +181,5 @@ class ModelGateway:
                 ]
             }
         )
-        response = await self.request(repaired, repair=True)
+        response = await self.request(repaired, repair=True, decision_id=decision_id)
         return parser.parse(response.content)

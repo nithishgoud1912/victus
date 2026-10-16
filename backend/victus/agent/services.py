@@ -8,11 +8,17 @@ import time
 from dataclasses import dataclass
 from typing import Any, Callable
 
+from victus.agent.budgets import seconds_left
+from victus.agent.context import ContextBuilder
 from victus.agent.output_parser import ActionDecision, FinishDecision, OutputParser
-from victus.models.contracts import ModelPin, ProviderMessage
+from victus.agent.router import RoutePlan
+from victus.models.contracts import ModelPin
 from victus.models.gateway import ModelGateway, RequestBudget
+from victus.safety.approvals import ApprovalBinding, ApprovalStore, argument_hash
+from victus.safety.permits import PermitStore
 from victus.storage.action_ledger import _canonical_hash
 from victus.tools.dispatcher import Dispatcher
+from victus.tools.registry import RiskLevel
 
 
 async def call(function, *args):
@@ -28,6 +34,14 @@ class PlanningResult:
     repairs: int = 0
 
 
+class PlanningFailure(Exception):
+    """Carry reservations on failure; attempted requests are never refunded."""
+
+    def __init__(self, usage):
+        super().__init__("PLANNING_FAILED")
+        self.usage = usage
+
+
 class GatewayPlanner:
     """Restore bounded M3-7A allowances from the persisted task state each turn."""
 
@@ -39,20 +53,28 @@ class GatewayPlanner:
         budget = RequestBudget(
             max_requests=min(2, left["model_requests"]),
             max_output_tokens=left["output_tokens"],
-            timeout_seconds=min(120, left["deadline_epoch"] - time.time()),
+            timeout_seconds=min(120, seconds_left(left)),
             repairs_remaining=left["schema_repairs"],
         )
         gateway = ModelGateway(self.provider, budget, cancelled=self.cancelled)
-        prompt = json.dumps(
-            {"goal": goal, "observations": observations, "errors": state["error_history"]},
-            allow_nan=False,
-        )
-        decision = await gateway.decide(
-            self.pin,
-            [ProviderMessage(role="user", content=prompt)],
-            self.parser,
-            max_output_tokens=min(512, left["output_tokens"]),
-        )
+        try:
+            inputs = state.get("planning_inputs", {})
+            context = ContextBuilder().build(
+                goal,
+                observations,
+                self.parser.tools,
+                relevant_tools=inputs.get("relevant_tools"),
+                outcomes=inputs.get("outcomes", state["error_history"][-4:]),
+                preferences=inputs.get("preferences", ()),
+            )
+            decision = await gateway.decide(
+                self.pin,
+                context.messages,
+                context.parser,
+                max_output_tokens=min(512, left["output_tokens"]),
+            )
+        except Exception:
+            raise PlanningFailure(budget.snapshot()) from None
         used = budget.snapshot()
         return PlanningResult(
             decision, used["requests"], used["reserved_output_tokens"], used["schema_repairs"]
@@ -83,6 +105,64 @@ class AgentServices:
     goal_verifier: Callable
     recovery: Callable | None = None
     cancelled: Any = None
+    preferences: Callable | None = None
+    target_identity: Callable | None = None
+    policy_version: str = "victus-policy-1"
+    reconciler: Any = None
+
+    def approvals(self, state):
+        return ApprovalStore(self.context_factory(state).ledger.db_path)
+
+    def file_target_identity(self, filename):
+        """Trusted filesystem resolver; UI targets must use their adapter resolver."""
+        path = self.dispatcher.workspace / filename
+        if path.resolve().parent != self.dispatcher.workspace.resolve() or path.is_symlink():
+            raise PermissionError("Unsafe destination")
+        parent = path.parent.stat()
+        stat = path.stat() if path.exists() else None
+        return "file:" + argument_hash(
+            {
+                "path": str(path.resolve()),
+                "parent": [parent.st_dev, parent.st_ino],
+                "target": [stat.st_dev, stat.st_ino, stat.st_size, stat.st_mtime_ns]
+                if stat
+                else None,
+            }
+        )
+
+    async def binding(self, state, action_id):
+        action = self.decision(state).action
+        tool = self.dispatcher.registry.get(action.tool)
+        arguments = tool.argument_model.model_validate(action.arguments).model_dump()
+        if not await self.validate(state):
+            raise PermissionError("New observation and approval required")
+        if self.target_identity is not None:
+            identity = await call(self.target_identity, state, action)
+        elif (
+            tool.name.startswith("fs.")
+            and "filename" in arguments
+            and not (action.target_ref or arguments.get("target_ref"))
+        ):
+            identity = self.file_target_identity(arguments["filename"])
+        else:
+            raise PermissionError("Live target identity resolver required")
+        observation = action.observation_id or arguments.get("observation_id")
+        latest_ref = state["observation_refs"][-1]
+        latest = self.store.payload(state["task_id"], "observation", latest_ref)
+        latest_identity = latest.get("observation_id", latest_ref)
+        if observation is not None and observation != latest_identity:
+            raise PermissionError("New observation and approval required")
+        observation = latest_identity
+        return ApprovalBinding(
+            task_id=state["task_id"],
+            action_id=action_id,
+            tool_name=tool.name,
+            tool_version=tool.version,
+            canonical_args_hash=argument_hash(arguments),
+            policy_version=self.policy_version,
+            target_identity=identity,
+            observation_identity=observation,
+        )
 
     def goal(self, state):
         return self.store.payload(state["task_id"], "goal", state["goal_payload_ref"])
@@ -100,6 +180,17 @@ class AgentServices:
     async def route(self, state):
         return await call(self.router, self.goal(state))
 
+    def route_plan(self, state):
+        if state.get("route_ref") is None:
+            return None
+        return RoutePlan.model_validate(
+            self.store.payload(state["task_id"], "route", state["route_ref"])
+        )
+
+    def is_deterministic(self, state):
+        route = self.route_plan(state)
+        return route is not None and route.mode == "deterministic"
+
     async def observe(self, state):
         observation = await call(self.observer, state["route_name"], self.goal(state))
         return self.store.put_payload(state["task_id"], "observation", observation)
@@ -109,17 +200,52 @@ class AgentServices:
             self.store.payload(state["task_id"], "observation", ref)
             for ref in state["observation_refs"][-4:]
         ]
-        result = await call(self.planner, self.goal(state), observations, state)
+        route = self.route_plan(state)
+        deterministic = route is not None and route.mode == "deterministic"
+        if deterministic:
+            index = len(state["action_ledger_refs"])
+            decision = (
+                ActionDecision(decision="action", action=route.steps[index].model_dump())
+                if index < len(route.steps)
+                else FinishDecision(
+                    decision="finish", status="completed", reason="Workflow exhausted; verify goal"
+                )
+            )
+            result = PlanningResult(decision, 0, 0)
+        else:
+            outcomes = []
+            if state["action_ledger_refs"]:
+                ledger = self.context_factory(state).ledger
+                for action_id in state["action_ledger_refs"][-4:]:
+                    record = ledger.get(action_id)
+                    if record is not None:
+                        outcomes.append(
+                            {
+                                "tool": record.tool_name,
+                                "status": record.status,
+                                "error_code": record.error_code,
+                            }
+                        )
+            preferences = await call(self.preferences, state) if self.preferences else []
+            planning_state = {
+                **state,
+                "planning_inputs": {
+                    "relevant_tools": route.tool_names if route else None,
+                    "outcomes": outcomes,
+                    "preferences": preferences,
+                },
+            }
+            result = await call(self.planner, self.goal(state), observations, planning_state)
         if not isinstance(result, PlanningResult):
             raise ValueError("Typed planning result required")
         left = state["remaining"]
         if (
             type(result.requests) is not int
-            or not 1 <= result.requests <= min(2, left["model_requests"])
+            or not (0 if deterministic else 1) <= result.requests <= min(2, left["model_requests"])
             or type(result.output_tokens) is not int
-            or not 1 <= result.output_tokens <= left["output_tokens"]
+            or not (0 if deterministic else 1) <= result.output_tokens <= left["output_tokens"]
             or type(result.repairs) is not int
-            or not 0 <= result.repairs <= left["schema_repairs"]
+            or not 0 <= result.repairs <= min(left["schema_repairs"], max(0, result.requests - 1))
         ):
             raise ValueError("Planning budget mismatch")
         decision = self.parser.parse(result.decision.model_dump_json())
@@ -131,6 +257,9 @@ class AgentServices:
         if isinstance(decision, FinishDecision):
             return True
         action = decision.action
+        route = self.route_plan(state)
+        if route is not None and action.tool not in route.tool_names:
+            return False
         self.dispatcher.registry.get(action.tool).argument_model.model_validate(
             action.arguments, strict=True
         )
@@ -148,26 +277,42 @@ class AgentServices:
         if not isinstance(decision, ActionDecision):
             raise ValueError("Only actions require approval")
         result = await call(self.authorizer, state, decision.action)
-        if result is not True:
-            return ("pending" if result is None else "denied"), None
-        ref = self.store.put_payload(
-            state["task_id"],
-            "approval",
-            {"proposal_ref": state["current_proposal"]["payload_ref"], "expires": time.time() + 60},
+        if result is False:
+            return "denied", None
+        context = self.context_factory(state)
+        tool = self.dispatcher.registry.get(decision.action.tool)
+        arguments = tool.argument_model.model_validate(decision.action.arguments).model_dump()
+        action_id = context.ledger.prepare_action(
+            tool.name, tool.version, arguments, expected_effect_ref=f"task:{state['task_id']}"
         )
-        return "approved", ref
+        binding = await self.binding(state, action_id)
+        store = self.approvals(state)
+        record = store.request(
+            binding,
+            {"tool": tool.name, "arguments": arguments, "target": binding.target_identity},
+            ttl_seconds=state["remaining"]["approval_timeout_seconds"],
+        )
+        # Consequential tools always require explicit non-voice human review.
+        if result is True and tool.risk_floor not in {RiskLevel.HIGH, RiskLevel.CRITICAL}:
+            store.decide(record.approval_id, binding, approved=True)
+            return "approved", record.approval_id
+        return "pending", record.approval_id
 
     async def execution(self, state):
         """Prepare dispatcher inputs; recheck live validation and exact approval binding."""
-        approval = self.store.payload(state["task_id"], "approval", state["approval_ref"])
-        if (
-            approval["proposal_ref"] != state["current_proposal"]["payload_ref"]
-            or approval["expires"] <= time.time()
-            or not await self.validate(state)
-        ):
-            raise PermissionError("Approval or target stale")
+        approvals = self.approvals(state)
+        approval = approvals.get(state["approval_ref"])
+        if approval is None or approval.task_id != state["task_id"]:
+            raise PermissionError("Approval unavailable")
+        permits = PermitStore(approvals)
+        try:
+            binding = await self.binding(state, approval.action_id)
+            permits.validate_binding(approval.approval_id, binding)
+        except (PermissionError, ValueError):
+            approvals.invalidate(approval.approval_id)
+            raise
         action = self.decision(state).action
-        if await call(self.authorizer, state, action) is not True:
+        if await call(self.authorizer, state, action) is False:
             raise PermissionError("Approval withdrawn")
         context = self.context_factory(state)
         if context.task_id != state["task_id"]:
@@ -182,14 +327,22 @@ class AgentServices:
             and original(tool, args) is True
         )
         context.cancelled = _Cancellation(context.cancelled, self.store, state["task_id"])
+        context.prepared_action_id = approval.action_id
+        context.permits = permits
+        context.approval_binding = binding
+        context.permit_token = permits.issue_permit(approval.approval_id, binding)
+        context.revalidate_binding = lambda: self.binding(state, approval.action_id)
         context.deadline = min(
             context.deadline,
-            time.monotonic() + max(0, state["remaining"]["deadline_epoch"] - time.time()),
+            time.monotonic() + seconds_left(state["remaining"]),
         )
         return action, context
 
     def reconcile_interrupted(self, state):
+        from victus.recovery.resume import ResumeManager
+
         context = self.context_factory(state)
+        ResumeManager(context.ledger, self.approvals(state)).invalidate(state["task_id"])
         references = list(state["action_ledger_refs"])
         for record in context.ledger.list_for_task(state["task_id"]):
             if record.action_id not in references:
@@ -251,5 +404,13 @@ class AgentServices:
 
     async def recover(self, state):
         if state["execution_status"] == "unknown":
+            await self.reconcile_effects(state["action_ledger_refs"])
             return "stop"
         return await call(self.recovery, state) if self.recovery else "stop"
+
+    async def reconcile_effects(self, references):
+        if self.reconciler is not None:
+            for action_id in references:
+                record = self.reconciler.ledger.get(action_id)
+                if record is not None and record.status in {"dispatching", "applied", "unknown"}:
+                    await self.reconciler.reconcile(action_id, quiesced=True)

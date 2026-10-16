@@ -1,7 +1,10 @@
 {
   "candidate_model": "qwen3:4b",
-  "digest": null,
+  "digest": "sha256:359d7dd4bcdab3d86b87d73ac27966f4dbb9f5efdfcc75d34a8764a09474fae7",
   "structured_path": "json_schema",
   "qualified": false,
-  "reason": "Requires live sample qualification of an installed exact model digest. No Ollama service is available in the implementation environment."
+  "schema_samples_qualified": true,
+  "schema_samples_passed": 6,
+  "schema_profile": "structural_sampler_grammar_with_strict_local_validation",
+  "reason": "Local structured-output samples passed 6/6. The frozen M3 benchmark verified 19/30 goals; the 27/30 release gate has not passed and native desktop profiles remain unqualified."
 }

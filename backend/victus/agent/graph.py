@@ -8,8 +8,19 @@ import time
 from contextlib import asynccontextmanager
 
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
+from langgraph.errors import GraphInterrupt, GraphRecursionError
 from langgraph.graph import END, START, StateGraph
+from langgraph.types import Command
 
+from victus.agent.budgets import (
+    Budgets,
+    charge_planning,
+    charge_time,
+    resume_approval,
+    seconds_left,
+    stopped_status,
+)
+from victus.agent.services import PlanningFailure
 from victus.agent.state import AgentState, Snapshot, initial_state
 
 NODES = (
@@ -19,6 +30,7 @@ NODES = (
     "propose",
     "validate",
     "authorize",
+    "review",
     "execute",
     "verify",
     "failed",
@@ -31,7 +43,8 @@ EDGES = {
     "observe": ("propose", "failed", "finalize"),
     "propose": ("validate", "failed", "finalize"),
     "validate": ("authorize", "verify", "failed", "finalize"),
-    "authorize": ("execute", "failed", "finalize", "end"),
+    "authorize": ("execute", "review", "failed", "finalize", "end"),
+    "review": ("execute", "finalize"),
     "execute": ("verify", "failed", "finalize"),
     "verify": ("observe", "failed", "finalize"),
     "failed": ("recover", "finalize"),
@@ -44,14 +57,15 @@ def _stop(state, code, status="blocked"):
     return {"status": status, "error_code": code, "next_node": "finalize", "approval_ref": None}
 
 
-def charge_uncertain(state, name):
+def charge_uncertain(state, name, services=None):
     left = state["remaining"].copy()
     left["nodes"] = max(0, left["nodes"] - 1)
-    if name == "propose":
+    if name == "propose" and not (services and services.is_deterministic(state)):
         left.update(
             model_requests=max(0, left["model_requests"] - 2),
             output_tokens=max(0, left["output_tokens"] - 1024),
-            schema_repairs=0,
+            repairs_used=left["repairs_used"]
+            + min(left["schema_repairs"], left["model_requests"] // 2),
         )
     if name == "execute":
         left["actions"] = max(0, left["actions"] - 1)
@@ -86,6 +100,7 @@ async def perform(operation, state, services, name):
 
 def guarded(name, operation, services):
     async def node(raw):
+        started = time.monotonic()
         state = Snapshot.model_validate(raw).model_dump()
         task, sequence = state["task_id"], state["sequence"]
         claimed, cached = services.store.claim(task, sequence, name)
@@ -96,12 +111,14 @@ def guarded(name, operation, services):
                 **_stop(state, "NODE_INTERRUPTED_REQUIRES_REVIEW", "unknown"),
                 "sequence": sequence + 1,
                 "execution_status": "unknown",
-                "remaining": charge_uncertain(state, name),
+                "remaining": charge_uncertain(state, name, services),
             }
             if name == "execute":
                 result["action_ledger_refs"] = services.reconcile_interrupted(state)
+                await services.reconcile_effects(result["action_ledger_refs"])
             if name == "finalize":
                 result["next_node"] = "end"
+            result["remaining"] = charge_time(result["remaining"], time.monotonic() - started)
             services.store.complete(task, sequence, result)
             return result
         remaining = state["remaining"]
@@ -116,33 +133,38 @@ def guarded(name, operation, services):
                     ),
                     "cancellation_requested": True,
                 }
-            elif name != "finalize" and (
-                remaining["nodes"] <= 0 or remaining["deadline_epoch"] <= time.time()
+            elif (
+                name != "finalize"
+                and remaining["approval_expires_epoch"] is not None
+                and time.time() >= remaining["approval_expires_epoch"]
             ):
+                result = _stop(state, "APPROVAL_WAIT_EXPIRED", stopped_status(state))
+            elif name != "finalize" and (remaining["nodes"] <= 0 or seconds_left(remaining) <= 0):
                 result = _stop(
                     state,
                     "AGENT_BUDGET_EXHAUSTED",
-                    "unknown" if state["status"] == "unknown" else "blocked",
+                    stopped_status(state),
                 )
             elif (
                 (name == "execute" and remaining["actions"] <= 0)
                 or (name == "observe" and remaining["observations"] <= 0)
                 or (
                     name == "propose"
+                    and not services.is_deterministic(state)
                     and (remaining["model_requests"] <= 0 or remaining["output_tokens"] <= 0)
                 )
                 or (name == "recover" and remaining["recoveries"] <= 0)
             ):
                 result = _stop(
                     state,
-                    "AGENT_BUDGET_EXHAUSTED",
-                    "unknown" if state["status"] == "unknown" else "blocked",
+                    "NO_PROGRESS"
+                    if state["progress"]["recovery_pending"]
+                    else "AGENT_BUDGET_EXHAUSTED",
+                    stopped_status(state, partial=state["progress"]["recovery_pending"]),
                 )
             else:
                 async with asyncio.timeout(
-                    max(0.001, min(60, remaining["deadline_epoch"] - time.time()))
-                    if name != "finalize"
-                    else 5
+                    max(0.001, min(60, seconds_left(remaining))) if name != "finalize" else 5
                 ):
                     result = await perform(operation, state, services, name)
                 if is_cancelled(services, task) and name != "finalize":
@@ -150,7 +172,10 @@ def guarded(name, operation, services):
                         _stop(
                             state,
                             "AGENT_CANCELLED",
-                            "unknown" if name == "execute" else "cancelled",
+                            "unknown"
+                            if name == "execute"
+                            and result.get("execution_status") not in {"blocked", "cancelled"}
+                            else "cancelled",
                         )
                     )
                     result["cancellation_requested"] = True
@@ -158,19 +183,27 @@ def guarded(name, operation, services):
             result = {
                 **_stop(state, "AGENT_CANCELLED", "unknown" if name == "execute" else "cancelled"),
                 "cancellation_requested": True,
-                "remaining": charge_uncertain(state, name),
+                "remaining": charge_uncertain(state, name, services),
             }
             if name == "execute":
                 result.update(
                     execution_status="unknown",
                     action_ledger_refs=services.reconcile_interrupted(state),
                 )
-        except asyncio.CancelledError:
+        except (asyncio.CancelledError, GraphInterrupt):
             # Leave a running journal record; a restart must not repeat this operation.
             raise
-        except Exception:
+        except Exception as error:
             result = {"error_code": "NODE_OPERATION_FAILED", "next_node": "failed"}
-            result["remaining"] = charge_uncertain(state, name)
+            result["remaining"] = charge_uncertain(state, name, services)
+            if isinstance(error, PlanningFailure):
+                used = error.usage
+                result["remaining"] = charge_planning(
+                    remaining,
+                    used["requests"],
+                    used["reserved_output_tokens"],
+                    used["schema_repairs"],
+                )
             if name in {"execute", "verify"}:
                 result.update(status="unknown", execution_status="unknown")
             if name == "execute":
@@ -181,8 +214,16 @@ def guarded(name, operation, services):
                     status="unknown" if state["status"] == "unknown" else "failed",
                     next_node="finalize" if name != "finalize" else "end",
                 )
+            if isinstance(error, TimeoutError) and time.monotonic() - started >= seconds_left(
+                remaining
+            ):
+                result.update(
+                    error_code="AGENT_ACTIVE_TIME_EXHAUSTED",
+                    next_node="finalize",
+                    status="unknown" if name == "execute" else stopped_status(state),
+                )
         result["sequence"] = sequence + 1
-        left = result.get("remaining", remaining).copy()
+        left = charge_time(result.get("remaining", remaining), time.monotonic() - started)
         left["nodes"] = max(0, remaining["nodes"] - 1)
         result["remaining"] = left
         Snapshot.model_validate({**state, **result})
@@ -198,7 +239,17 @@ def build_graph(services, checkpointer, *, interrupt_after=None):
     builder = StateGraph(AgentState)
     for name in NODES:
         operation = importlib.import_module(f"victus.agent.nodes.{name}").run
-        builder.add_node(name, guarded(name, operation, services))
+        if name == "review":
+            # LangGraph must own interrupt replay; do not claim a node-journal
+            # entry or catch GraphInterrupt at this pure review boundary.
+            async def review(state):
+                from victus.agent.nodes.review import run
+
+                return await run(state, services)
+
+            builder.add_node(name, review)
+        else:
+            builder.add_node(name, guarded(name, operation, services))
     builder.add_edge(START, "intake")
     for name, destinations in EDGES.items():
         builder.add_conditional_edges(
@@ -217,7 +268,10 @@ class AgentRunner:
         self._active = False
 
     def config(self, task_id):
-        return {"configurable": {"thread_id": task_id}, "recursion_limit": 300}
+        return {
+            "configurable": {"thread_id": task_id},
+            "recursion_limit": Budgets().recursion_limit,
+        }
 
     async def start(self, task_id, goal_payload_ref, *, budgets=None):
         state = initial_state(task_id, goal_payload_ref, budgets)
@@ -238,26 +292,43 @@ class AgentRunner:
             elif not snapshot.values:
                 raise KeyError("Unknown agent checkpoint")
             elif snapshot.values["status"] == "awaiting_approval":
-                # Revalidate the exact proposal before requesting current policy approval.
-                await self.graph.aupdate_state(
-                    config,
-                    {
-                        "status": "running",
-                        "approval_ref": None,
-                        "next_node": "validate",
-                        "sequence": snapshot.values["sequence"] + 1,
-                    },
-                    as_node="propose",
-                )
+                saved = Snapshot.model_validate(snapshot.values).model_dump()
+                record = self.services.approvals(saved).get(saved["approval_ref"])
+                resumed, valid = resume_approval(saved["remaining"])
+                cancelled = is_cancelled(self.services, task_id)
+                if (
+                    record
+                    and record.state == "pending"
+                    and valid
+                    and seconds_left(resumed) > 0
+                    and not cancelled
+                ):
+                    # Polling cannot authorize, renew expiry or replay preparation.
+                    return saved
+                state = Command(resume=True)
             elif not snapshot.next:
                 return Snapshot.model_validate(snapshot.values).model_dump()
-            result = await self.graph.ainvoke(state, config, durability="sync")
-            return Snapshot.model_validate(result).model_dump()
+            allowance = (
+                state["remaining"]
+                if new
+                else Snapshot.model_validate(snapshot.values).remaining.model_dump()
+            )
+            config["recursion_limit"] = allowance["recursion_limit"]
+            try:
+                result = await self.graph.ainvoke(state, config, durability="sync")
+            except GraphRecursionError:
+                latest = await self.graph.aget_state(config)
+                result = Snapshot.model_validate(latest.values).model_dump()
+                result.update(_stop(result, "GRAPH_RECURSION_EXHAUSTED", stopped_status(result)))
+                result.update(next_node="end", sequence=result["sequence"] + 1)
+                await self.graph.aupdate_state(config, result, as_node="finalize")
+            latest = await self.graph.aget_state(config)
+            return Snapshot.model_validate(latest.values).model_dump()
         finally:
             self._active = False
 
     def cancel(self, task_id):
-        self.services.store.cancel(task_id)
+        self.services.dispatcher.cancel_task(lambda: self.services.store.cancel(task_id))
 
 
 @asynccontextmanager
