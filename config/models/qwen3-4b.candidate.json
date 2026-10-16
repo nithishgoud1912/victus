@@ -1,0 +1,7 @@
+{
+  "candidate_model": "qwen3:4b",
+  "digest": null,
+  "structured_path": "json_schema",
+  "qualified": false,
+  "reason": "Requires live sample qualification of an installed exact model digest. No Ollama service is available in the implementation environment."
+}
