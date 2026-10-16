@@ -1,0 +1,16 @@
+{
+  "candidate_model": "qwen3:4b",
+  "selected_path": "json_schema",
+  "qualified": false,
+  "status": "blocked",
+  "live_inference_samples": 0,
+  "samples": [],
+  "executes_tools": false,
+  "pin": null,
+  "error_code": "MODEL_UNAVAILABLE",
+  "budget": {
+    "requests": 0,
+    "reserved_output_tokens": 0,
+    "schema_repairs": 0
+  }
+}

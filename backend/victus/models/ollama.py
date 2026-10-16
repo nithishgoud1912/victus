@@ -1,142 +1,153 @@
-# Create backend/victus/models/ollama.py with an asynchronous OllamaClient and a local-only base URL. Its first methods are health(), list_models() and chat(). Add httpx as a runtime dependency:
+"""Ollama's local HTTP wire schema, isolated from request governance."""
 
-# # Working directory: backend
-# uv add "httpx>=0.27,<1"
-# First request shape for chat():
-
-# payload = {
-#     "model": "qwen3:4b",
-#     "messages": [{"role": "user", "content": "Reply with the word ready."}],
-#     "stream": False,
-#     "options": {"num_ctx": 4096},
-# }
+from __future__ import annotations
 
 import asyncio
-import os
-from typing import AsyncIterator, Sequence, TypedDict
+from typing import Literal
+from urllib.parse import urlsplit
 
 import httpx
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
-from .base import ModelClient
+from victus.models._json import strict_json
+from victus.models.contracts import (
+    ErrorCode,
+    ModelError,
+    ModelPin,
+    ProviderRequest,
+    ProviderResponse,
+    ProviderUsage,
+)
 
 
-class OllamaMessage(TypedDict):
-    role: str
-    content: str
+class WireModel(BaseModel):
+    model_config = ConfigDict(strict=True, extra="ignore")
 
 
-class OllamaResponse(TypedDict):
+class OllamaMessage(WireModel):
+    role: Literal["assistant"]
+    content: str = Field(max_length=65536)
+    tool_calls: list = Field(default_factory=list, max_length=0)
+    # Thinking is deliberately not returned for action parsing.
+
+
+class OllamaResponse(WireModel):
     model: str
-    created_at: str
-    response: str
+    message: OllamaMessage
     done: bool
-    
+    done_reason: Literal["stop"]
+    prompt_eval_count: int = Field(ge=0)
+    eval_count: int = Field(ge=0)
+
+    @field_validator("done")
+    @classmethod
+    def require_done(cls, value):
+        if value is not True:
+            raise ValueError("Incomplete response")
+        return value
 
 
-class OllamaClient(ModelClient):
-    """
-    An asynchronous Ollama client that talks to the local Ollama server.
-    Uses http://localhost:11434 by default.
-    """
-    def __init__(self, base_url: str = "http://localhost:11434"):
-        self.client = httpx.AsyncClient(base_url=base_url, timeout=30.0)
-
-    async def health(self) -> dict:
-        """
-        Check if Ollama is reachable.
-        """
-        resp = await self.client.get("/api/tags")
-        resp.raise_for_status()
-        return resp.json()
-
-    async def list_models(self) -> list[str]:
-        """
-        Return the list of available models.
-        """
-        resp = await self.client.get("/api/tags")
-        resp.raise_for_status()
-        return [m["name"] for m in resp.json()["models"]]
-
-    async def chat(
-        self,
-        model: str,
-        messages: Sequence[OllamaMessage],
-    ) -> AsyncIterator[str]:
-        """
-        Send a chat request and stream the response.
-        """
-        data = {
-            "model": model,
-            "messages": messages,
-            "stream": True,
-        }
-        async with self.client.stream("POST", "/api/chat", json=data) as resp:
-            resp.raise_for_status()
-            async for line in resp.aiter_lines():
-                if not line:
-                    continue
-                chunk = _parse_ollama_chunk(line)
-                if chunk["done"]:
-                    break
-                yield chunk["response"]
-
-    async def generate(
-        self,
-        model: str,
-        prompt: str,
-        max_tokens: int = 500,
-    ) -> AsyncIterator[str]:
-        """
-        Simplified generate API (wraps chat).
-        """
-        messages: list[OllamaMessage] = [{"role": "user", "content": prompt}]
-        async for chunk in self.chat(model, messages):
-            yield chunk
+class OllamaTag(WireModel):
+    name: str
+    digest: str = Field(pattern=r"^sha256:[a-f0-9]{64}$")
 
 
-def _parse_ollama_chunk(line: str) -> OllamaResponse:
-    """
-    Parse one line of JSON from the Ollama streaming response.
-    """
-    return httpx.parse_json(line)
+class OllamaTags(WireModel):
+    models: list[OllamaTag] = Field(max_length=256)
 
 
-# In production, you should probably use a service registry or config
-def create_default_ollama_client() -> OllamaClient:
-    """Returns a client configured for the environment (localhost by default)."""
-    return OllamaClient(
-        base_url=os.getenv("VICTUS_OLLAMA_URL", "http://localhost:11434")
-    )
-
-
-# Minimal example usage for quick testing
-async def demo() -> None:
-    """
-    Quick demo: show models, then send a simple prompt.
-    """
-    client = OllamaClient()
-    try:
-        print("Health:", await client.health())
-        models = await client.list_models()
-        print("Available models:", models)
-        if not models:
-            print("No models found. Did you run 'ollama pull qwen3:4b'?")
-            return
-
-        model = models[0]
-        print(f"\nSending prompt to {model}...")
-
-        async for chunk in client.chat(
-            model,
-            [{"role": "user", "content": "Say 'Hello' in 3 words"}],
+class OllamaClient:
+    def __init__(self, base_url="http://127.0.0.1:11434", *, transport=None):
+        parts = urlsplit(base_url)
+        if (
+            parts.scheme != "http"
+            or parts.hostname not in {"localhost", "127.0.0.1", "::1"}
+            or parts.username
+            or parts.password
+            or parts.path not in {"", "/"}
+            or parts.query
+            or parts.fragment
         ):
-            print(chunk, end="", flush=True)
-        print()
-    except httpx.RequestException as e:
-        print("Ollama connection error:", e)
-    finally:
-        await client.client.aclose()
+            raise ValueError("Ollama requires a local-only HTTP origin")
+        host = "[::1]" if parts.hostname == "::1" else "127.0.0.1"
+        self._client = httpx.AsyncClient(
+            base_url=f"http://{host}:{parts.port or 11434}",
+            trust_env=False,
+            follow_redirects=False,
+            timeout=None,
+            transport=transport,
+        )
 
+    async def _json(self, method, path, payload=None):
+        try:
+            async with self._client.stream(method, path, json=payload) as response:
+                if response.status_code != 200:
+                    raise ModelError(ErrorCode.HTTP)
+                data = bytearray()
+                async for part in response.aiter_bytes():
+                    data.extend(part)
+                    if len(data) > 200000:
+                        raise ModelError(ErrorCode.PROTOCOL)
+            return strict_json(data.decode("utf-8"))
+        except ModelError:
+            raise
+        except httpx.TransportError:
+            raise ModelError(ErrorCode.UNAVAILABLE) from None
+        except (ValueError, UnicodeError, RecursionError):
+            raise ModelError(ErrorCode.PROTOCOL) from None
 
-if __name__ == "__main__":
-    asyncio.run(demo())
+    async def list_models(self) -> list[ModelPin]:
+        try:
+            async with asyncio.timeout(3):
+                tags = OllamaTags.model_validate(await self._json("GET", "/api/tags"))
+            return [ModelPin(name=tag.name, digest=tag.digest) for tag in tags.models]
+        except TimeoutError:
+            raise ModelError(ErrorCode.TIMEOUT) from None
+        except ValidationError:
+            raise ModelError(ErrorCode.PROTOCOL) from None
+
+    async def health(self):
+        return {"available_models": len(await self.list_models())}
+
+    async def _check_pin(self, pin):
+        matches = [model for model in await self.list_models() if model.name == pin.name]
+        if matches != [pin]:
+            raise ModelError(ErrorCode.PIN)
+
+    async def complete(self, request: ProviderRequest) -> ProviderResponse:
+        await self._check_pin(request.pin)
+        payload = {
+            "model": request.pin.name,
+            "messages": [message.model_dump() for message in request.messages],
+            "stream": False,
+            "format": request.output_schema,
+            "think": False,
+            "options": {
+                "temperature": 0,
+                "num_ctx": request.context_tokens,
+                "num_predict": request.max_output_tokens,
+            },
+        }
+        try:
+            result = OllamaResponse.model_validate(await self._json("POST", "/api/chat", payload))
+            if result.model != request.pin.name:
+                raise ModelError(ErrorCode.PIN)
+            await self._check_pin(request.pin)
+            return ProviderResponse(
+                pin=request.pin,
+                content=result.message.content,
+                usage=ProviderUsage(
+                    input_tokens=result.prompt_eval_count, output_tokens=result.eval_count
+                ),
+            )
+        except ValidationError:
+            raise ModelError(ErrorCode.PROTOCOL) from None
+
+    async def close(self):
+        await self._client.aclose()
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *args):
+        await self.close()

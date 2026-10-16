@@ -13,3 +13,6 @@ Task-scoped network/file-transfer restrictions and Windows application-profile a
 
 The first dispatcher-routed checklist and local browser research workflows (section 6E)
 are implemented. See [workflow usage, M2 evidence and remaining Windows qualification](docs/milestones/M2-6E-workflows.md).
+
+The model gateway and strict action/finish parser (section 7A) are implemented.
+See [budgets, schema repair and pending live model qualification](docs/milestones/M3-7A-model-gateway.md).
