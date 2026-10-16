@@ -1,0 +1,25 @@
+[
+  {
+    "name": "qualified-app",
+    "executable": "C:\\REPLACE_ME\\QualifiedApp.exe",
+    "arguments": [],
+    "executable_sha256": null,
+    "window": {
+      "control_type": "Window",
+      "automation_id": "REPLACE_WITH_OBSERVED_WINDOW_ID"
+    },
+    "controls": {
+      "editor": {
+        "control_type": "Edit",
+        "automation_id": "REPLACE_WITH_OBSERVED_EDITOR_ID",
+        "name": "REPLACE_WITH_OBSERVED_EDITOR_NAME"
+      },
+      "save": {
+        "control_type": "Button",
+        "automation_id": "REPLACE_WITH_OBSERVED_BUTTON_ID",
+        "name": "REPLACE_WITH_OBSERVED_BUTTON_NAME"
+      }
+    },
+    "allow_keyboard_fallback": false
+  }
+]

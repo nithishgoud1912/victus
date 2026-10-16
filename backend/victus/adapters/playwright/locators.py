@@ -87,6 +87,9 @@ class TargetResolver:
                 raise ValueError("Configure origins, not URL paths")
         self._allowed_origins = frozenset(origin_of(url) for url in allowed_origins)
         self._session = session
+        guard = session._network_guard if isinstance(session, BrowserSession) else None
+        self._network_task_id = guard.scope.task_id if guard is not None else None
+        self._upload_reviews = guard._uploads if guard is not None else None
         self._max_age = max_age_seconds
         self._capacity = max_observations
         self._operation_lock = asyncio.Lock()

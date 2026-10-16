@@ -62,6 +62,8 @@ def _role_and_label(snapshot: str) -> tuple[str, str] | None:
 
 
 def _operations(role: str, identity: dict) -> tuple[str, ...]:
+    if identity["tag"] == "input" and identity["type"] == "file":
+        return ("set_input_files",)
     if role in {"textbox", "searchbox", "spinbutton"}:
         if identity["tag"] not in {"input", "textarea"}:
             return ()  # Custom/contenteditable widgets require separate qualification.
@@ -145,7 +147,11 @@ class BrowserObserver:
                 continue
             target = ActionableTarget(uuid4().hex, role, label, operations)
             # Exact role/name locators are rechecked for uniqueness at dispatch.
-            locator = page.get_by_role(role, name=label, exact=True)
+            locator = (
+                page.get_by_label(label, exact=True)
+                if "set_input_files" in operations
+                else page.get_by_role(role, name=label, exact=True)
+            )
             bindings[target.ref] = _TargetBinding(target, locator, identity)
             if len(bindings) >= self._target_limit:
                 break
