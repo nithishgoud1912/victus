@@ -13,11 +13,23 @@ import re
 import threading
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
 from uuid import uuid4
 
 from playwright.async_api import Browser, BrowserContext, Page, Playwright, async_playwright
 
 from victus.runtime.instance_lock import InstanceLock
+
+if TYPE_CHECKING:
+    from victus.adapters.playwright.network import NetworkGuard
+
+
+async def _deny_route(route):
+    await route.abort("blockedbyclient")
+
+
+async def _deny_websocket(websocket):
+    await websocket.close()
 
 
 class SessionOwnershipError(RuntimeError):
@@ -50,6 +62,7 @@ class BrowserSession:
         timeout_ms: float = 30_000,
         data_dir: Path | None = None,
         profile_name: str | None = None,
+        network_guard: NetworkGuard | None = None,
     ) -> None:
         if not math.isfinite(timeout_ms) or timeout_ms <= 0:
             raise ValueError("Browser timeout must be positive and finite")
@@ -60,6 +73,9 @@ class BrowserSession:
         ):
             raise ValueError("Persistent profiles need a data directory and a safe profile name")
         self._headless = headless
+        if network_guard is not None and profile_name is not None:
+            raise ValueError("Task-scoped network requires an ephemeral context")
+        self._network_guard = network_guard
         self._channel = channel
         self._timeout_ms = timeout_ms
         self._data_dir = data_dir
@@ -116,13 +132,20 @@ class BrowserSession:
                     options["channel"] = self._channel
                 if profile is not None:
                     self._context = await self._playwright.chromium.launch_persistent_context(
-                        profile, accept_downloads=False, **options
+                        profile, accept_downloads=False, service_workers="block", **options
                     )
                 else:
                     self._browser = await self._playwright.chromium.launch(**options)
-                    self._context = await self._browser.new_context(accept_downloads=False)
+                    self._context = await self._browser.new_context(
+                        accept_downloads=False, service_workers="block"
+                    )
                 self._context.set_default_timeout(self._timeout_ms)
                 self._context.set_default_navigation_timeout(self._timeout_ms)
+                if self._network_guard is not None:
+                    await self._network_guard.attach(self._context)
+                else:
+                    await self._context.route("**/*", _deny_route)
+                    await self._context.route_web_socket("**/*", _deny_websocket)
                 self._session_id = uuid4().hex
             except BaseException:
                 # Preserve the startup error even if partially launched resources also fail to close.
@@ -155,6 +178,12 @@ class BrowserSession:
             raise ValueError("Page reference is unknown or closed")
         return page
 
+    async def navigate(self, reference: PageReference, url: str):
+        page = self._resolve_page(reference)
+        if self._network_guard is None:
+            raise ValueError("A task network scope is required for navigation")
+        return await self._network_guard.navigate(page, url)
+
     async def _close_resources(self) -> None:
         self._pages.clear()
         self._session_id = None
@@ -173,9 +202,13 @@ class BrowserSession:
                     if playwright is not None:
                         await playwright.stop()
         finally:
-            if self._profile_lock is not None:
-                self._profile_lock.release()
-                self._profile_lock = None
+            try:
+                if self._network_guard is not None:
+                    await self._network_guard.close()
+            finally:
+                if self._profile_lock is not None:
+                    self._profile_lock.release()
+                    self._profile_lock = None
 
     async def close(self) -> None:
         """Invalidate references and close only resources launched by this session."""

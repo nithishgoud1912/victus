@@ -19,6 +19,8 @@ def engine(monkeypatch):
     def new_context():
         context = Mock()
         context.close = AsyncMock()
+        context.route = AsyncMock()
+        context.route_web_socket = AsyncMock()
         context.new_page = AsyncMock(side_effect=lambda: make_page())
         return context
 
@@ -64,7 +66,9 @@ def test_ephemeral_lifecycle_and_opaque_references(engine):
             await session.new_page()
         await asyncio.gather(session.start(), session.start())
         engine.chromium.launch.assert_awaited_once_with(headless=True, timeout=30_000)
-        engine.browser.new_context.assert_awaited_once_with(accept_downloads=False)
+        engine.browser.new_context.assert_awaited_once_with(
+            accept_downloads=False, service_workers="block"
+        )
         refs = await asyncio.gather(session.new_page(), session.new_page())
         assert refs[0] != refs[1]
         assert all(isinstance(value, str) for value in asdict(refs[0]).values())
@@ -152,6 +156,8 @@ def test_start_failure_closes_partial_resources_and_allows_retry(engine, stage):
             engine.browser.new_context.side_effect = None
             context = Mock()
             context.close = AsyncMock()
+            context.route = AsyncMock()
+            context.route_web_socket = AsyncMock()
             context.set_default_timeout.side_effect = failure
             engine.browser.new_context.return_value = context
         else:
@@ -278,3 +284,51 @@ def test_linked_profile_is_rejected(engine, tmp_path):
         engine.factory.assert_not_called()
 
     asyncio.run(run())
+
+
+def test_default_session_denies_http_and_websockets(engine):
+    async def run():
+        async with BrowserSession():
+            context = engine.contexts[0]
+            route = Mock(abort=AsyncMock())
+            await context.route.call_args.args[1](route)
+            route.abort.assert_awaited_once_with("blockedbyclient")
+            websocket = Mock(close=AsyncMock())
+            await context.route_web_socket.call_args.args[1](websocket)
+            websocket.close.assert_awaited_once()
+
+    asyncio.run(run())
+
+
+def test_guard_installed_before_page_creation_and_used_for_navigation(engine):
+    async def run():
+        guard = Mock(attach=AsyncMock(), close=AsyncMock(), navigate=AsyncMock())
+        async with BrowserSession(network_guard=guard) as session:
+            guard.attach.assert_awaited_once_with(engine.contexts[0])
+            engine.contexts[0].new_page.assert_not_awaited()
+            reference = await session.new_page()
+            await session.navigate(reference, "https://example.test/")
+            guard.navigate.assert_awaited_once_with(
+                session._resolve_page(reference), "https://example.test/"
+            )
+        guard.close.assert_awaited_once()
+
+    asyncio.run(run())
+
+
+def test_guard_setup_failure_closes_browser_and_guard(engine):
+    async def run():
+        guard = Mock(attach=AsyncMock(side_effect=RuntimeError("guard setup")), close=AsyncMock())
+        with pytest.raises(RuntimeError, match="guard setup"):
+            await BrowserSession(network_guard=guard).start()
+        engine.contexts[0].close.assert_awaited_once()
+        engine.browser.close.assert_awaited_once()
+        engine.driver.stop.assert_awaited_once()
+        guard.close.assert_awaited_once()
+
+    asyncio.run(run())
+
+
+def test_task_network_cannot_reuse_persistent_profile(tmp_path):
+    with pytest.raises(ValueError, match="ephemeral"):
+        BrowserSession(data_dir=tmp_path, profile_name="research", network_guard=Mock())
