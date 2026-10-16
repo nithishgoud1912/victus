@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>VICTUS observation fixture</title></head>
+<body>
+<h1>Visible fixture heading</h1>
+<label for="name">Name</label><input id="name" value="PRIVATE_OLD_VALUE">
+<label for="notes">Notes</label><textarea id="notes">PRIVATE_TEXTAREA_VALUE</textarea>
+<label for="password">Password</label><input id="password" type="password" value="PRIVATE_PASSWORD">
+<input type="hidden" value="PRIVATE_HIDDEN_INPUT">
+<input aria-label="PRIVATE_AUTOCOMPLETE_LABEL" autocomplete="section-auth current-password"
+       value="PRIVATE_AUTOCOMPLETE_VALUE">
+<div hidden>PRIVATE_HIDDEN</div>
+<div style="display:none">PRIVATE_DISPLAY_NONE</div>
+<div style="visibility:hidden">PRIVATE_VISIBILITY</div>
+<div style="opacity:0">PRIVATE_TRANSPARENT</div>
+<div aria-hidden="true">PRIVATE_ARIA_HIDDEN</div>
+<div inert>PRIVATE_INERT</div>
+<span id="private-label" hidden>PRIVATE_LABEL</span>
+<input aria-labelledby="private-label">
+<label for="hidden-label-input" hidden>PRIVATE_ASSOCIATED_LABEL</label>
+<input id="hidden-label-input">
+<button type="button">Save</button>
+<button type="button" disabled>Disabled</button>
+<a href="/next">Next</a>
+<div id="shadow-host"></div>
+<script>
+document.querySelector('#shadow-host').attachShadow({mode: 'open'}).innerHTML =
+    '<button>PRIVATE_UNSUPPORTED_SHADOW_TARGET</button>';
+</script>
+<script>window.fixtureHiddenData = "PRIVATE_SCRIPT";</script>
+</body>
+</html>
