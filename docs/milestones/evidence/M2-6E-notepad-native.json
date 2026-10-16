@@ -1,0 +1,12 @@
+{
+  "kind": "notepad",
+  "requested": 20,
+  "runs": [],
+  "native_windows": false,
+  "playwright_version": "1.64.0",
+  "status": "blocked",
+  "executed": 0,
+  "passed": 0,
+  "error_code": "WINDOWS_UIA_UNAVAILABLE",
+  "real_windows_dpi_gate": "pending"
+}

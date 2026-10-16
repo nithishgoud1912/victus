@@ -108,6 +108,14 @@ class WindowsBackend:
     def read_text(self, control):
         return control.iface_text.DocumentRange.GetText(4097)
 
+    def window_dpi(self, root):
+        getter = getattr(self.user, "GetDpiForWindow", None)
+        if getter is None:
+            return None
+        getter.argtypes = [self.w.HWND]
+        getter.restype = self.w.UINT
+        return getter(root.handle) or None
+
     def invoke(self, control):
         try:
             interface = control.iface_invoke

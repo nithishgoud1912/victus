@@ -1,0 +1,31 @@
+{
+  "kind": "browser_research",
+  "status": "succeeded",
+  "required_sources": 2,
+  "observed_count": 2,
+  "sources": [
+    {
+      "url": "http://127.0.0.1:46627/source-a.html",
+      "title": "Fixture source A",
+      "text": "Source A: Local-first automation Deterministic adapters execute approved actions. Independent verification checks actual resulting state.",
+      "observation_id": "805ca6f1e11247d7b862b015f2406a9c",
+      "text_sha256": "050e765058e9489fa4d175e1518351e55c3a7cc84ec776c7cf197d4dfeba292f"
+    },
+    {
+      "url": "http://127.0.0.1:46627/source-b.html",
+      "title": "Fixture source B",
+      "text": "Source B: Evidence and truthful completion A generated summary is not proof that a source was observed. Completion requires the promised number of distinct verified source URLs.",
+      "observation_id": "c4d063a3961e4f0abe3da78933509ff3",
+      "text_sha256": "1ce1fd582b28c1a300b05611cdeca6291bbd1cc79bdc77533e4b11f39c3c81e3"
+    }
+  ],
+  "summary": "Fixture source A: Source A: Local-first automation Deterministic adapters execute approved actions. Independent verification checks actual resulting state. | Fixture source B: Source B: Evidence and truthful completion A generated summary is not proof that a source was observed. Completion requires the promised number of distinct veri",
+  "summary_is_content_generation": true,
+  "environment": {
+    "browser_version": "141.0.7390.37",
+    "playwright_version": "1.64.0",
+    "device_scale_factor": 1.0,
+    "observed_device_pixel_ratio": 1,
+    "explicit_browser_binary": true
+  }
+}

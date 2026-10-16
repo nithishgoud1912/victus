@@ -1,0 +1,332 @@
+{
+  "kind": "browser",
+  "requested": 20,
+  "runs": [
+    {
+      "task_id": "7ff80295eb10425a95e572e0abae9819",
+      "status": "succeeded",
+      "verified": true,
+      "error_code": null,
+      "output_name": "research-01.json",
+      "sha256": "d0a7c59b78cb400b02cf9edb104dafcc543df61a454e0c89951775f7240505c9",
+      "environment": {
+        "browser_version": "141.0.7390.37",
+        "playwright_version": "1.64.0",
+        "device_scale_factor": 1.0,
+        "observed_device_pixel_ratio": 1,
+        "explicit_browser_binary": true
+      },
+      "observed_sources": 2
+    },
+    {
+      "task_id": "9fb297c6d8fa43d98cf17a0c6c9edda2",
+      "status": "succeeded",
+      "verified": true,
+      "error_code": null,
+      "output_name": "research-02.json",
+      "sha256": "7a7c8025df69f3f18f4d6d0bf6ed33db371154c237e48866302171f7d014f37e",
+      "environment": {
+        "browser_version": "141.0.7390.37",
+        "playwright_version": "1.64.0",
+        "device_scale_factor": 1.25,
+        "observed_device_pixel_ratio": 1.25,
+        "explicit_browser_binary": true
+      },
+      "observed_sources": 2
+    },
+    {
+      "task_id": "3b414caf9daf4009b7e4bd46c0a0d70d",
+      "status": "succeeded",
+      "verified": true,
+      "error_code": null,
+      "output_name": "research-03.json",
+      "sha256": "342def1ef1f4bc1697aa20fd78152e4ad86b97e1afd0e7fc55fed734e8550555",
+      "environment": {
+        "browser_version": "141.0.7390.37",
+        "playwright_version": "1.64.0",
+        "device_scale_factor": 1.5,
+        "observed_device_pixel_ratio": 1.5,
+        "explicit_browser_binary": true
+      },
+      "observed_sources": 2
+    },
+    {
+      "task_id": "15f94a66d7084546911da79b0caddb5d",
+      "status": "succeeded",
+      "verified": true,
+      "error_code": null,
+      "output_name": "research-04.json",
+      "sha256": "82817abd951e49200349df76ee053f4d8ac1eacf15d967d4e57679eccaffede1",
+      "environment": {
+        "browser_version": "141.0.7390.37",
+        "playwright_version": "1.64.0",
+        "device_scale_factor": 2.0,
+        "observed_device_pixel_ratio": 2,
+        "explicit_browser_binary": true
+      },
+      "observed_sources": 2
+    },
+    {
+      "task_id": "32643f44958c415687cd2f3ce88e79f0",
+      "status": "succeeded",
+      "verified": true,
+      "error_code": null,
+      "output_name": "research-05.json",
+      "sha256": "75361c7777f83116ed42dde194fef11f0cb83c04f104c7dc541685f5bc37d464",
+      "environment": {
+        "browser_version": "141.0.7390.37",
+        "playwright_version": "1.64.0",
+        "device_scale_factor": 1.0,
+        "observed_device_pixel_ratio": 1,
+        "explicit_browser_binary": true
+      },
+      "observed_sources": 2
+    },
+    {
+      "task_id": "115fdb15733b4ffdadd700a62261180e",
+      "status": "succeeded",
+      "verified": true,
+      "error_code": null,
+      "output_name": "research-06.json",
+      "sha256": "681bcd967103496d14988f4be39fa28713b60d9fc20adf3e360893a9d92fb0f5",
+      "environment": {
+        "browser_version": "141.0.7390.37",
+        "playwright_version": "1.64.0",
+        "device_scale_factor": 1.25,
+        "observed_device_pixel_ratio": 1.25,
+        "explicit_browser_binary": true
+      },
+      "observed_sources": 2
+    },
+    {
+      "task_id": "b5712dff57574f5ba4bbe078343be3e0",
+      "status": "succeeded",
+      "verified": true,
+      "error_code": null,
+      "output_name": "research-07.json",
+      "sha256": "ff33ce00e593f84c218415110307d33cb78b1790906042edc6bd028f6c9ea8b4",
+      "environment": {
+        "browser_version": "141.0.7390.37",
+        "playwright_version": "1.64.0",
+        "device_scale_factor": 1.5,
+        "observed_device_pixel_ratio": 1.5,
+        "explicit_browser_binary": true
+      },
+      "observed_sources": 2
+    },
+    {
+      "task_id": "74d4ad29e0cf4c72bbcb94cd929acbad",
+      "status": "succeeded",
+      "verified": true,
+      "error_code": null,
+      "output_name": "research-08.json",
+      "sha256": "3692978cd657b3ce8ce1d78a707bb2649f49914a9a36ea0aef1db032b02a4aa2",
+      "environment": {
+        "browser_version": "141.0.7390.37",
+        "playwright_version": "1.64.0",
+        "device_scale_factor": 2.0,
+        "observed_device_pixel_ratio": 2,
+        "explicit_browser_binary": true
+      },
+      "observed_sources": 2
+    },
+    {
+      "task_id": "b592eb7fd4cd48ddaa29e109e073142b",
+      "status": "succeeded",
+      "verified": true,
+      "error_code": null,
+      "output_name": "research-09.json",
+      "sha256": "26a04a3e16e8d9a90eee507a3d285fcec66c330f71803c07a9f2998759212e84",
+      "environment": {
+        "browser_version": "141.0.7390.37",
+        "playwright_version": "1.64.0",
+        "device_scale_factor": 1.0,
+        "observed_device_pixel_ratio": 1,
+        "explicit_browser_binary": true
+      },
+      "observed_sources": 2
+    },
+    {
+      "task_id": "a66ed999eb60469182c097eff4bddf78",
+      "status": "succeeded",
+      "verified": true,
+      "error_code": null,
+      "output_name": "research-10.json",
+      "sha256": "643028c0b22e19c95ab1eacbc47d1649f3e5160aaad54e52b380a4e2a31ec447",
+      "environment": {
+        "browser_version": "141.0.7390.37",
+        "playwright_version": "1.64.0",
+        "device_scale_factor": 1.25,
+        "observed_device_pixel_ratio": 1.25,
+        "explicit_browser_binary": true
+      },
+      "observed_sources": 2
+    },
+    {
+      "task_id": "19cb458a34594a6ba3e4512e4705c59f",
+      "status": "succeeded",
+      "verified": true,
+      "error_code": null,
+      "output_name": "research-11.json",
+      "sha256": "0e0c30bf05dced6c2944385af6fd944730890852b40cc036ee08623b800a095a",
+      "environment": {
+        "browser_version": "141.0.7390.37",
+        "playwright_version": "1.64.0",
+        "device_scale_factor": 1.5,
+        "observed_device_pixel_ratio": 1.5,
+        "explicit_browser_binary": true
+      },
+      "observed_sources": 2
+    },
+    {
+      "task_id": "92b50d68d2a0493f82b8318bddb6e8b6",
+      "status": "succeeded",
+      "verified": true,
+      "error_code": null,
+      "output_name": "research-12.json",
+      "sha256": "334bc7ac179f2b9f19096a5a66ec4770f4250736f2612d69be22bad0206c459c",
+      "environment": {
+        "browser_version": "141.0.7390.37",
+        "playwright_version": "1.64.0",
+        "device_scale_factor": 2.0,
+        "observed_device_pixel_ratio": 2,
+        "explicit_browser_binary": true
+      },
+      "observed_sources": 2
+    },
+    {
+      "task_id": "75c0382b1d684793a7bb8b2a70fa2a49",
+      "status": "succeeded",
+      "verified": true,
+      "error_code": null,
+      "output_name": "research-13.json",
+      "sha256": "6270734aaa8a9ed332cf8f306ab29e2a910d8d2a7fa65752f070dec66ed84a98",
+      "environment": {
+        "browser_version": "141.0.7390.37",
+        "playwright_version": "1.64.0",
+        "device_scale_factor": 1.0,
+        "observed_device_pixel_ratio": 1,
+        "explicit_browser_binary": true
+      },
+      "observed_sources": 2
+    },
+    {
+      "task_id": "baf0273b08ec40d190cd701c24dfc707",
+      "status": "succeeded",
+      "verified": true,
+      "error_code": null,
+      "output_name": "research-14.json",
+      "sha256": "243e74facfa74bb92c2aa242c740efee02fb1572a906c21e7df4dbb502f6e421",
+      "environment": {
+        "browser_version": "141.0.7390.37",
+        "playwright_version": "1.64.0",
+        "device_scale_factor": 1.25,
+        "observed_device_pixel_ratio": 1.25,
+        "explicit_browser_binary": true
+      },
+      "observed_sources": 2
+    },
+    {
+      "task_id": "20c67efd3f964724900c50bdcb726392",
+      "status": "succeeded",
+      "verified": true,
+      "error_code": null,
+      "output_name": "research-15.json",
+      "sha256": "7ba713136ffb040d7b9bc8ef9d899975a5e42e8540330ad0e258b2c62fa71053",
+      "environment": {
+        "browser_version": "141.0.7390.37",
+        "playwright_version": "1.64.0",
+        "device_scale_factor": 1.5,
+        "observed_device_pixel_ratio": 1.5,
+        "explicit_browser_binary": true
+      },
+      "observed_sources": 2
+    },
+    {
+      "task_id": "9aca4c0982d246f2b76f4fb218332b93",
+      "status": "succeeded",
+      "verified": true,
+      "error_code": null,
+      "output_name": "research-16.json",
+      "sha256": "bdde09be3b354d5ccb3f60fff4bb4d184d487dac8e582a04cf91c3adf696aef4",
+      "environment": {
+        "browser_version": "141.0.7390.37",
+        "playwright_version": "1.64.0",
+        "device_scale_factor": 2.0,
+        "observed_device_pixel_ratio": 2,
+        "explicit_browser_binary": true
+      },
+      "observed_sources": 2
+    },
+    {
+      "task_id": "233f7dc4a99d4bcba9a6c5dd8b658e76",
+      "status": "succeeded",
+      "verified": true,
+      "error_code": null,
+      "output_name": "research-17.json",
+      "sha256": "d27d1771cba41a850d424b75b87d71a16d55d93d225f2adfa14490befb0f00ca",
+      "environment": {
+        "browser_version": "141.0.7390.37",
+        "playwright_version": "1.64.0",
+        "device_scale_factor": 1.0,
+        "observed_device_pixel_ratio": 1,
+        "explicit_browser_binary": true
+      },
+      "observed_sources": 2
+    },
+    {
+      "task_id": "e5aa3a744a94445a98e7388fecacd957",
+      "status": "succeeded",
+      "verified": true,
+      "error_code": null,
+      "output_name": "research-18.json",
+      "sha256": "a0938e43c7b0ecd733cfc2de400fc9e1da63a063bec08ccaa1cec936b794fbcb",
+      "environment": {
+        "browser_version": "141.0.7390.37",
+        "playwright_version": "1.64.0",
+        "device_scale_factor": 1.25,
+        "observed_device_pixel_ratio": 1.25,
+        "explicit_browser_binary": true
+      },
+      "observed_sources": 2
+    },
+    {
+      "task_id": "8964d6183fbc43abb61953cb172305e7",
+      "status": "succeeded",
+      "verified": true,
+      "error_code": null,
+      "output_name": "research-19.json",
+      "sha256": "b25fa9aafcd25777cd77bc4b6a431d9b39fe042e9b25c2cd1e8b6ec60eb1c586",
+      "environment": {
+        "browser_version": "141.0.7390.37",
+        "playwright_version": "1.64.0",
+        "device_scale_factor": 1.5,
+        "observed_device_pixel_ratio": 1.5,
+        "explicit_browser_binary": true
+      },
+      "observed_sources": 2
+    },
+    {
+      "task_id": "9c3a2a755926429aa2de3d65feadb654",
+      "status": "succeeded",
+      "verified": true,
+      "error_code": null,
+      "output_name": "research-20.json",
+      "sha256": "f20961f1298e0b4c1b8fcf9972542c2e2ac3f5040b45e8d6ab8a85042c684bf3",
+      "environment": {
+        "browser_version": "141.0.7390.37",
+        "playwright_version": "1.64.0",
+        "device_scale_factor": 2.0,
+        "observed_device_pixel_ratio": 2,
+        "explicit_browser_binary": true
+      },
+      "observed_sources": 2
+    }
+  ],
+  "native_windows": false,
+  "playwright_version": "1.64.0",
+  "executed": 20,
+  "passed": 20,
+  "status": "succeeded",
+  "real_windows_dpi_gate": "pending"
+}

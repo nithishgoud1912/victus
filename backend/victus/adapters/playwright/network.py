@@ -103,6 +103,7 @@ class NetworkGuard:
         self._closed = False
         self._transport = None
         self._redirects = {}
+        self._navigating = set()
         self.blocked: deque[str] = deque(maxlen=100)
         self.downloads: deque = deque(maxlen=32)
 
@@ -292,8 +293,22 @@ class NetworkGuard:
                     and request.frame == page.main_frame
                     and request.method in {"GET", "HEAD"}
                     and not body
+                    and page in self._navigating
                 ):
                     self._redirects[page] = target
+                    # Commit an inert, empty document before the explicit next GET.
+                    # Aborting here races Chromium's late error-page commit against
+                    # the next navigation. Never forward an unchecked HTTP redirect.
+                    await route.fulfill(
+                        status=200,
+                        body="",
+                        headers={
+                            "content-type": "text/html",
+                            "content-security-policy": "default-src 'none'",
+                        },
+                    )
+                    self.blocked.append("REDIRECT_REQUIRES_NAVIGATION")
+                    return
                 raise NetworkBlocked("REDIRECT_REQUIRES_NAVIGATION")
             disposition = headers.get("content-disposition", "").lower()
             if "attachment" in disposition:
@@ -332,6 +347,17 @@ class NetworkGuard:
         form and site-initiated redirects fail closed; a new dispatcher decision
         is required. No request with a body is replayed.
         """
+        self._check_owner()
+        if page in self._navigating:
+            raise NetworkBlocked("NAVIGATION_ALREADY_ACTIVE")
+        self._navigating.add(page)
+        try:
+            return await self._navigate(page, url)
+        finally:
+            self._navigating.discard(page)
+            self._redirects.pop(page, None)
+
+    async def _navigate(self, page, url):
         seen = set()
         for _ in range(6):
             await self.validate_url(url)
@@ -340,12 +366,13 @@ class NetworkGuard:
             seen.add(url)
             self._redirects.pop(page, None)
             try:
-                return await page.goto(url, wait_until="domcontentloaded", timeout=15_000)
+                response = await page.goto(url, wait_until="domcontentloaded", timeout=15_000)
             except PlaywrightError:
-                target = self._redirects.pop(page, None)
-                if target is None:
-                    raise NetworkBlocked("NAVIGATION_BLOCKED_OR_UNVERIFIED") from None
-                url = target
+                raise NetworkBlocked("NAVIGATION_BLOCKED_OR_UNVERIFIED") from None
+            target = self._redirects.pop(page, None)
+            if target is None:
+                return response
+            url = target
         raise NetworkBlocked("REDIRECT_LIMIT")
 
     async def close(self):
@@ -354,6 +381,7 @@ class NetworkGuard:
         self._check_owner()
         self._closed = True
         self._redirects.clear()
+        self._navigating.clear()
         if self._transport is not None:
             await self._transport.aclose()
             self._transport = None

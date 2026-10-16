@@ -63,6 +63,8 @@ class BrowserSession:
         data_dir: Path | None = None,
         profile_name: str | None = None,
         network_guard: NetworkGuard | None = None,
+        browser_executable: Path | None = None,
+        device_scale_factor: float = 1,
     ) -> None:
         if not math.isfinite(timeout_ms) or timeout_ms <= 0:
             raise ValueError("Browser timeout must be positive and finite")
@@ -73,6 +75,18 @@ class BrowserSession:
         ):
             raise ValueError("Persistent profiles need a data directory and a safe profile name")
         self._headless = headless
+        if not math.isfinite(device_scale_factor) or not 0.5 <= device_scale_factor <= 4:
+            raise ValueError("Invalid device scale")
+        self._device_scale_factor = device_scale_factor
+        if browser_executable is not None and (
+            channel is not None
+            or not browser_executable.is_absolute()
+            or not browser_executable.is_file()
+        ):
+            raise ValueError(
+                "Explicit browser binary must be an existing absolute path without channel"
+            )
+        self._browser_executable = browser_executable
         if network_guard is not None and profile_name is not None:
             raise ValueError("Task-scoped network requires an ephemeral context")
         self._network_guard = network_guard
@@ -130,15 +144,18 @@ class BrowserSession:
                 options = {"headless": self._headless, "timeout": self._timeout_ms}
                 if self._channel is not None:
                     options["channel"] = self._channel
+                if self._browser_executable is not None:
+                    options["executable_path"] = str(self._browser_executable)
+                context_options = {"accept_downloads": False, "service_workers": "block"}
+                if self._device_scale_factor != 1:
+                    context_options["device_scale_factor"] = self._device_scale_factor
                 if profile is not None:
                     self._context = await self._playwright.chromium.launch_persistent_context(
-                        profile, accept_downloads=False, service_workers="block", **options
+                        profile, **context_options, **options
                     )
                 else:
                     self._browser = await self._playwright.chromium.launch(**options)
-                    self._context = await self._browser.new_context(
-                        accept_downloads=False, service_workers="block"
-                    )
+                    self._context = await self._browser.new_context(**context_options)
                 self._context.set_default_timeout(self._timeout_ms)
                 self._context.set_default_navigation_timeout(self._timeout_ms)
                 if self._network_guard is not None:
