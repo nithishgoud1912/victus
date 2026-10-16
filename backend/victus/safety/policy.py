@@ -2,6 +2,13 @@ from pathlib import Path
 
 from victus.tools.contracts import ActionRequest
 
+
+def validate_step(tool, arguments, context) -> None:
+    """A model cannot grant scopes, waive tool risk floors, or choose verifiers."""
+    if tool.required_scope not in context.scopes or context.authorize(tool, arguments) is not True:
+        raise PermissionError("Workflow step is not approved")
+
+
 _RESERVED = {"CON", "PRN", "AUX", "NUL", "CLOCK$"}
 _RESERVED |= {f"{prefix}{n}" for prefix in ("COM", "LPT") for n in range(1, 10)}
 

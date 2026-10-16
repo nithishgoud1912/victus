@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 import os
 import threading
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from types import MappingProxyType
 from uuid import uuid4
@@ -24,6 +24,7 @@ class ControlSelector:
     control_type: str
     automation_id: str | None = None
     name: str | None = None
+    root_window: str = "main"
 
     def __post_init__(self):
         if not self.control_type or (self.automation_id is None and self.name is None):
@@ -39,6 +40,7 @@ class ApplicationProfile:
     arguments: tuple[str, ...] = ()
     executable_sha256: str | None = None
     allow_keyboard_fallback: bool = False
+    windows: dict[str, ControlSelector] = field(default_factory=dict)
 
     def __post_init__(self):
         if not self.name or not self.executable.is_absolute() or not self.controls:
@@ -46,6 +48,7 @@ class ApplicationProfile:
         if self.executable.suffix.lower() != ".exe":
             raise ValueError("Only allowlisted Windows executables can be launched")
         object.__setattr__(self, "controls", MappingProxyType(dict(self.controls)))
+        object.__setattr__(self, "windows", MappingProxyType(dict(self.windows)))
         object.__setattr__(self, "arguments", tuple(self.arguments))
 
 
@@ -178,6 +181,7 @@ def load_profiles(path: Path) -> tuple[ApplicationProfile, ...]:
         control_type: str
         automation_id: str | None = None
         name: str | None = None
+        root_window: str = "main"
 
     class ProfileConfig(BaseModel):
         model_config = ConfigDict(extra="forbid", strict=True)
@@ -188,6 +192,7 @@ def load_profiles(path: Path) -> tuple[ApplicationProfile, ...]:
         arguments: list[str] = Field(default_factory=list)
         executable_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
         allow_keyboard_fallback: bool = False
+        windows: dict[str, SelectorConfig] = Field(default_factory=dict)
 
     configs = TypeAdapter(list[ProfileConfig]).validate_json(path.read_text(encoding="utf-8"))
     return tuple(
@@ -201,6 +206,9 @@ def load_profiles(path: Path) -> tuple[ApplicationProfile, ...]:
             arguments=tuple(config.arguments),
             executable_sha256=config.executable_sha256,
             allow_keyboard_fallback=config.allow_keyboard_fallback,
+            windows={
+                key: ControlSelector(**value.model_dump()) for key, value in config.windows.items()
+            },
         )
         for config in configs
     )

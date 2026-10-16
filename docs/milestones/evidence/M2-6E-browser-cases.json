@@ -1,0 +1,77 @@
+{
+  "status": "passed",
+  "cases": [
+    {
+      "case": "duplicate-buttons",
+      "status": "passed",
+      "browser_version": "141.0.7390.37",
+      "requested_scale": 1,
+      "actual_device_pixel_ratio": 1
+    },
+    {
+      "case": "stale-fields",
+      "status": "passed",
+      "browser_version": "141.0.7390.37",
+      "requested_scale": 1,
+      "actual_device_pixel_ratio": 1
+    },
+    {
+      "case": "redirects-and-privacy",
+      "status": "passed",
+      "browser_version": "141.0.7390.37",
+      "requested_scale": 1,
+      "actual_device_pixel_ratio": 1
+    },
+    {
+      "case": "blocked-popup",
+      "status": "passed",
+      "browser_version": "141.0.7390.37",
+      "requested_scale": 1,
+      "actual_device_pixel_ratio": 1
+    },
+    {
+      "case": "download-attempt",
+      "status": "passed",
+      "browser_version": "141.0.7390.37",
+      "requested_scale": 1,
+      "actual_device_pixel_ratio": 1
+    },
+    {
+      "case": "step-timeout",
+      "status": "passed",
+      "browser_version": "141.0.7390.37",
+      "requested_scale": 1,
+      "actual_device_pixel_ratio": 1
+    },
+    {
+      "case": "multiple-pages-scale-1",
+      "status": "passed",
+      "browser_version": "141.0.7390.37",
+      "requested_scale": 1,
+      "actual_device_pixel_ratio": 1
+    },
+    {
+      "case": "multiple-pages-scale-1.25",
+      "status": "passed",
+      "browser_version": "141.0.7390.37",
+      "requested_scale": 1.25,
+      "actual_device_pixel_ratio": 1.25
+    },
+    {
+      "case": "multiple-pages-scale-1.5",
+      "status": "passed",
+      "browser_version": "141.0.7390.37",
+      "requested_scale": 1.5,
+      "actual_device_pixel_ratio": 1.5
+    },
+    {
+      "case": "multiple-pages-scale-2",
+      "status": "passed",
+      "browser_version": "141.0.7390.37",
+      "requested_scale": 2,
+      "actual_device_pixel_ratio": 2
+    }
+  ],
+  "public_sites_qualified": false,
+  "windows_native_qualified": false
+}

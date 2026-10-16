@@ -17,9 +17,29 @@
       "save": {
         "control_type": "Button",
         "automation_id": "REPLACE_WITH_OBSERVED_BUTTON_ID",
-        "name": "REPLACE_WITH_OBSERVED_BUTTON_NAME"
+        "name": "REPLACE_WITH_OBSERVED_BUTTON_NAME",
+        "root_window": "save_dialog"
+      },
+      "file_menu": {
+        "control_type": "MenuItem",
+        "automation_id": "REPLACE_WITH_OBSERVED_FILE_MENU_ID"
+      },
+      "save_as": {
+        "control_type": "MenuItem",
+        "automation_id": "REPLACE_WITH_OBSERVED_SAVE_AS_ID"
+      },
+      "filename": {
+        "control_type": "Edit",
+        "automation_id": "REPLACE_WITH_OBSERVED_FILENAME_ID",
+        "root_window": "save_dialog"
       }
     },
-    "allow_keyboard_fallback": false
+    "allow_keyboard_fallback": false,
+    "windows": {
+      "save_dialog": {
+        "control_type": "Window",
+        "automation_id": "REPLACE_WITH_OBSERVED_SAVE_DIALOG_ID"
+      }
+    }
   }
 ]

@@ -6,7 +6,6 @@ from unittest.mock import AsyncMock, Mock
 
 import httpx
 import pytest
-from playwright.async_api import Error as PlaywrightError
 
 from victus.adapters.playwright.downloads import DownloadStaging
 from victus.adapters.playwright.network import NetworkBlocked, NetworkGuard, WebScope
@@ -166,13 +165,15 @@ def test_safe_get_redirect_uses_fresh_explicit_navigation(guard):
             calls.append(url)
             if len(calls) == 1:
                 await guard._route(route)
-                raise PlaywrightError("aborted")
+                return "inert-redirect-document"
             return "verified-response"
 
         page.goto = AsyncMock(side_effect=goto)
         assert await guard.navigate(page, ORIGIN + "/page") == "verified-response"
         assert calls == [ORIGIN + "/page", ORIGIN + "/next"]
-        route.fulfill.assert_not_awaited()
+        route.fulfill.assert_awaited_once()
+        assert route.fulfill.call_args.kwargs["status"] == 200
+        assert route.fulfill.call_args.kwargs["body"] == ""
 
     asyncio.run(run())
 

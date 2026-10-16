@@ -35,11 +35,12 @@ class ToolSpec:
     receive unvalidated dicts.
 
     ``execute`` receives the workspace root and a *validated* argument instance
-    (a subclass of ``BaseModel``).  It returns the ``Path`` of the artefact it
-    produced.
+    (a subclass of ``BaseModel``). Supervised outer tools return an artifact
+    ``Path``; worker-local workflow steps return bounded JSON dictionaries.
 
-    ``verify`` receives the output path and the same argument instance.  It
-    returns ``True`` only when the artefact satisfies the tool's postcondition.
+    ``verify`` receives the output and the same argument instance. It returns
+    ``True`` only when an independent read proves the postcondition. Workflow
+    execute/verify handlers may be async; UIA handlers stay on their owner thread.
     """
 
     # ── identity ──────────────────────────────────────────────────────────
@@ -58,11 +59,14 @@ class ToolSpec:
     retry_class: RetryClass
 
     # ── callables ─────────────────────────────────────────────────────────
-    execute: Callable[[Path, Any], Path]
-    verify: Callable[[Path, Any], bool]
+    execute: Callable[[Path, Any], Any]
+    verify: Callable[[Any, Any], Any]
     # Optional cooperative variant receives a multiprocessing Event. It must
     # check the signal before each effect; the supervisor still enforces time.
     execute_cancellable: Callable[[Path, Any, Any], Path] | None = None
+    # Optional trusted policy for supervised qualification/workflow entry points.
+    # These are not registered by the public API/bootstrap by default.
+    policy: Callable[[Path, BaseModel], None] | None = None
 
 
 class ToolRegistry:
