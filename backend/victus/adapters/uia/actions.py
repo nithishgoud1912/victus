@@ -10,6 +10,12 @@ class PatternUnavailable(Exception):
     """Only an absent pattern, not a failed native action, permits fallback."""
 
 
+def editor_text(value, profile):
+    if profile.editor_newlines == "crlf":
+        return value.replace("\r\n", "\n").replace("\r", "\n").replace("\n", "\r\n")
+    return value
+
+
 @dataclass(frozen=True)
 class UIAResult:
     status: str
@@ -41,12 +47,27 @@ class UIAActions:
             raise UIABlocked("FOCUS_UNAVAILABLE") from None
 
     def set_text(
-        self, reference: ControlReference, text: str, *, allow_keyboard=False
+        self, reference: ControlReference, text: str, *, allow_keyboard=False, require_empty=False
     ) -> UIAResult:
         if not isinstance(text, str) or len(text) > 4096:
             raise UIABlocked("TEXT_LIMIT")
-        _, _, control = self.resolver._reacquire(reference)
+        app, _, control = self.resolver._reacquire(reference)
         backend = self.resolver.worker._backend
+        if app.profile.focus_before_patterns:
+            self._focus(control)
+            _, _, control = self.resolver._reacquire(reference)
+        if require_empty:
+            try:
+                try:
+                    current = backend.read_value(control)
+                except PatternUnavailable:
+                    current = backend.read_text(control)
+                if current != "":
+                    raise UIABlocked("EMPTY_EDITOR_NOT_PROVED")
+            except UIABlocked:
+                raise
+            except Exception:
+                raise UIABlocked("EMPTY_EDITOR_NOT_PROVED") from None
         try:
             backend.set_value(control, text)
         except PatternUnavailable:
@@ -85,15 +106,20 @@ class UIAActions:
             raise UIAUncertain("VALUE_WRITE_UNCERTAIN") from None
         # Reacquire again and read independently; native SetValue returning is not proof.
         try:
-            _, _, current = self.resolver._reacquire(reference)
-            verified = backend.read_value(current) == text
+            app, _, current = self.resolver._reacquire(reference)
+            verified = editor_text(backend.read_value(current), app.profile) == text
         except Exception:
             verified = False
         return UIAResult("verified" if verified else "unverified", "value_pattern")
 
-    def invoke(self, reference: ControlReference, *, allow_keyboard=False) -> UIAResult:
-        _, _, control = self.resolver._reacquire(reference)
+    def invoke(self, reference: ControlReference, *, allow_keyboard=False, before_invoke=None) -> UIAResult:
+        app, _, control = self.resolver._reacquire(reference)
         backend = self.resolver.worker._backend
+        if app.profile.focus_before_patterns and control.element_info.control_type == "Button":
+            self._focus(control)
+            _, _, control = self.resolver._reacquire(reference)
+        if before_invoke is not None:
+            before_invoke()  # After focus/target work, immediately before native Invoke.
         try:
             backend.invoke(control)
         except PatternUnavailable:

@@ -1,15 +1,22 @@
 # Windows release procedure - 0.1.0 candidate
 
+Current source milestone: [V3.6 qualification](../milestones/V3.6-reviewed-voice-release.md).
+The original `dist/windows/Victus` and its M9 evidence are historical. Rebuilds
+must select fresh output/work directories; the build now refuses an existing
+output. Keep the complete previous folder for the real old-binary rollback.
+
 ## Build
 
 Use Windows x64, Python 3.12 and the repository's pinned Node version. Prepare
 dependencies with `uv sync --project backend --group packaging --all-extras`,
 using `UV_PROJECT_ENVIRONMENT` to select `.local/package-venv` for an isolated
-build environment. Then run `scripts/build-windows.ps1`. It builds the dashboard,
-copies it into `build/windows-staging/dashboard`, draws the small original icon,
+build environment. Then run `scripts/build-windows.ps1` with new `-OutputDirectory`
+and `-WorkDirectory` paths. Pass `-SourceManifest` from the source capture script
+to bind the new release manifest to exact source/config/contracts/locks. It builds the dashboard,
+copies it into the isolated work folder's staging area, draws the small original icon,
 freezes the folder bundle and writes a checksummed release manifest.
 
-Output: `dist/windows/Victus/`. Always transfer the whole directory. The
+Output: `OUTPUT/Victus/`. Always transfer the whole directory. The
 application is unsigned and requests normal-user execution. Do not move only
 the EXE. No installer, scheduled task or startup registry entry is created.
 The build downloads libraries only during explicit dependency preparation;
@@ -68,13 +75,29 @@ account or from an unelevated token on an existing administrator account.
    diagnosis; do not overwrite it or try to downgrade its schema in place.
 
 The self-test rehearses same-version backup/restart/restore. Source tests cover a
-schema-6 fixture upgrading to schema 7 and rejection of newer schemas. A real
+schema-6 fixture upgrading to the current schema 8 and rejection of newer schemas. A real
 old-version to new-version upgrade/rollback needs both released binaries and
 remains a separate gate until such a release pair exists. DPAPI-protected data
 may require its original Windows account; portable encrypted-data migration is
 not claimed by copying a database to a fresh account.
 
+`scripts/package-upgrade-rollback.ps1 -PriorBundle OLD -CandidateBundle NEW
+-OutputDirectory FRESH` exercises two actual preserved executables on isolated
+data: old note/backup, candidate migration and verified command, then old restore
+and rollback. Its report distinguishes different artifact/schema identities from
+a formally versioned release pair. The current application version remains 0.1.0;
+milestone numbers are not product release versions. A same-version artifact pair
+does not establish a formal cross-version release pass or fresh-account support.
+
 ## Evidence and public release
+
+V4's first implementation batch is tracked in
+[`V4-progress.md`](../milestones/V4-progress.md). The
+[`v4-starting-evidence.json`](v4-starting-evidence.json) report reconciles exact
+historical bytes and identifies provenance gaps. It does not promote any native,
+browser, voice or release capability. New package self-test reports include
+`source_sha256` and `bundle_manifest_sha256`; older reports without those fields
+remain historical and are not retrospectively bound by a sibling manifest.
 
 Review only the sanitized JSON and workflow matrix for export. Confirm no host
 paths, account names, tokens, prompts, transcripts, credentials or browser session

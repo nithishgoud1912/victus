@@ -15,8 +15,15 @@ class Settings:
     mcp_notes: bool = False
     cloud_model: str | None = None
     cloud_upstream: str | None = None
+    command_model_name: str | None = None
+    command_model_digest: str | None = None
 
     def __post_init__(self):
+        if bool(self.command_model_name) != bool(self.command_model_digest):
+            raise ValueError('Local command model requires an exact name and digest')
+        if self.command_model_name:
+            from victus.models.contracts import ModelPin
+            ModelPin(name=self.command_model_name, digest=self.command_model_digest)
         if bool(self.cloud_model) != bool(self.cloud_upstream):
             raise ValueError("Configure both cloud model and upstream provider")
         if self.dashboard_dev_origin not in {None, "http://127.0.0.1:5173"}:
@@ -37,6 +44,8 @@ class Settings:
         return cls(
             data_dir=root,
             api_token=os.getenv("VICTUS_API_TOKEN", ""),
+            command_model_name=os.getenv('VICTUS_COMMAND_MODEL') or None,
+            command_model_digest=os.getenv('VICTUS_COMMAND_MODEL_DIGEST') or None,
             wake_manifest_path=(Path(os.environ["VICTUS_WAKE_MANIFEST_PATH"]).expanduser().resolve()
                                 if os.getenv("VICTUS_WAKE_MANIFEST_PATH") else None),
             mcp_notes=os.getenv("VICTUS_MCP_NOTES", "0") == "1",

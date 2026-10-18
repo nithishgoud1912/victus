@@ -53,9 +53,9 @@ def review_transcript(text: str) -> Review:
         return Review(
             True,
             clarification=(
-                "Specify the exact filename and note text. "
-                "Supported command: create note filename.txt with text your message. "
-                "Review and correct both fields before submitting."
+                "Review and edit a supported note, checklist or fixture-research command. "
+                "Missing details require clarification before work. "
+                "Speech does not grant Save approval."
             ),
         )
     try:

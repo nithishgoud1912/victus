@@ -1,12 +1,109 @@
 """Tests for the migration runner, action ledger, and payload store."""
 
 import json
+import sqlite3
 
 import pytest
 
-from victus.storage.action_ledger import ActionLedger, ActionRecord
+from victus.storage.action_ledger import ActionLedger
 from victus.storage.migrations import current_version, migrate
 from victus.storage.payloads import PayloadStore
+
+
+def test_migration_failure_rolls_back_schema_data_and_version(tmp_path, monkeypatch):
+    import victus.storage.migrations as migrations
+
+    path = tmp_path / "migration.sqlite3"
+    migrate(path)
+    before = current_version(path)
+    script = tmp_path / "failed.sql"
+    script.write_text(
+        "CREATE TABLE partial_schema(value TEXT);"
+        "INSERT INTO partial_schema VALUES ('partial');"
+        "INSERT INTO missing_table VALUES (1);",
+        encoding="utf-8",
+    )
+    original = migrations._discover_migrations()
+    monkeypatch.setattr(
+        migrations, "_discover_migrations", lambda: original + [(before + 1, script)]
+    )
+    with pytest.raises(sqlite3.OperationalError):
+        migrate(path)
+    with sqlite3.connect(path) as db:
+        assert (
+            db.execute("SELECT name FROM sqlite_master WHERE name='partial_schema'").fetchone()
+            is None
+        )
+    assert current_version(path) == before
+    script.write_text("CREATE TABLE partial_schema(value TEXT);", encoding="utf-8")
+    assert migrate(path) == [before + 1]
+    assert migrate(path) == []
+
+
+def test_task_state_and_event_roll_back_together(tmp_path):
+    from victus.storage.database import Database
+    from victus.tools.contracts import TaskResult
+
+    database = Database(tmp_path)
+    task = TaskResult(task_id="atomic-state", tool="fs.create_note", status="queued")
+    database.save(task)
+    with database.connect() as db:
+        db.execute("""CREATE TRIGGER reject_terminal_event BEFORE INSERT ON task_events
+                    WHEN NEW.event_type='task.cancelled'
+                    BEGIN SELECT RAISE(ABORT, 'injected storage failure'); END""")
+    task.status = "cancelled"
+    with pytest.raises(sqlite3.IntegrityError, match="injected storage failure"):
+        database.save(task, event_type="task.cancelled", event_payload={"reason": "test"})
+    assert database.get(task.task_id).status == "queued"
+    with database.connect() as db:
+        assert db.execute("SELECT COUNT(*) FROM task_retention").fetchone()[0] == 0
+        db.execute("DROP TRIGGER reject_terminal_event")
+    database.save(
+        task, event_type="task.cancelled", event_payload={"text": "private", "reason": "test"}
+    )
+    with database.connect() as db:
+        assert db.execute("SELECT COUNT(*) FROM task_retention").fetchone()[0] == 1
+        payload = db.execute("SELECT safe_payload FROM task_events").fetchone()[0]
+        assert json.loads(payload) == {"reason": "test"}
+
+
+def test_migration_version_marker_failure_rolls_back_ddl(tmp_path, monkeypatch):
+    import victus.storage.migrations as migrations
+
+    path = tmp_path / "marker.sqlite3"
+    migrate(path)
+    before = current_version(path)
+    script = tmp_path / "next.sql"
+    script.write_text("CREATE TABLE partial_schema(value TEXT);", encoding="utf-8")
+    original = migrations._discover_migrations()
+    monkeypatch.setattr(
+        migrations, "_discover_migrations", lambda: original + [(before + 1, script)]
+    )
+    with sqlite3.connect(path) as db:
+        db.execute("""CREATE TRIGGER reject_version BEFORE INSERT ON schema_versions
+                    BEGIN SELECT RAISE(ABORT, 'version marker failure'); END""")
+    with pytest.raises(sqlite3.IntegrityError, match="version marker failure"):
+        migrate(path)
+    assert current_version(path) == before
+    with sqlite3.connect(path) as db:
+        assert (
+            db.execute("SELECT name FROM sqlite_master WHERE name='partial_schema'").fetchone()
+            is None
+        )
+
+
+def test_raw_arguments_stay_in_protected_payload_not_audit(ledger, payloads, db_path):
+    private = "private checklist sentinel V22"
+    action_id = ledger.prepare_action("fs.create_note", "1.0.0", {"text": private})
+    payload_id = payloads.store(action_id, "arguments", {"text": private})
+    assert json.loads(payloads.get(payload_id).data_json) == {"text": private}
+    with sqlite3.connect(db_path) as db:
+        for table in ("action_attempts", "events", "tasks", "task_events", "client_requests"):
+            assert private not in repr(db.execute(f"SELECT * FROM {table}").fetchall())
+        raw = db.execute(
+            "SELECT data_json FROM payloads WHERE payload_id=?", (payload_id,)
+        ).fetchone()[0]
+        assert raw.startswith("protected:v1:") and private not in raw
 
 
 @pytest.fixture
@@ -28,6 +125,7 @@ def payloads(db_path):
 
 # ── migration tests ──────────────────────────────────────────────────────
 
+
 class TestMigrations:
     def test_applies_all_migrations(self, db_path):
         version = current_version(db_path)
@@ -47,15 +145,14 @@ class TestMigrations:
         conn = sqlite3.connect(db_path)
         tables = {
             row[0]
-            for row in conn.execute(
-                "SELECT name FROM sqlite_master WHERE type='table'"
-            ).fetchall()
+            for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
         }
         conn.close()
         assert {"tasks", "action_attempts", "events", "approvals", "payloads"}.issubset(tables)
 
 
 # ── action ledger tests ──────────────────────────────────────────────────
+
 
 class TestActionLedger:
     def test_prepare_and_get(self, ledger):
@@ -132,6 +229,7 @@ class TestActionLedger:
 
 
 # ── payload store tests ──────────────────────────────────────────────────
+
 
 class TestPayloadStore:
     def test_store_and_retrieve(self, ledger, payloads):

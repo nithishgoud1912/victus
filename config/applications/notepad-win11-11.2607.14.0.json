@@ -1,0 +1,25 @@
+[
+  {
+    "name": "notepad-win11-11.2607.14.0",
+    "executable": "C:\\Program Files\\WindowsApps\\Microsoft.WindowsNotepad_11.2607.14.0_x64__8wekyb3d8bbwe\\Notepad\\Notepad.exe",
+    "executable_sha256": "03745e9e21684c0e6d9fdc50d91caa0935f4baf50f626c11987ab7d6991d58d1",
+    "launch_mode": "owned_child",
+    "editor_newlines": "crlf",
+    "focus_before_patterns": true,
+    "new_editor_control": "new_tab",
+    "tab_container": {"control_type": "List", "automation_id": "TabListView"},
+    "window": {"control_type": "Window", "class_name": "Notepad"},
+    "controls": {
+      "new_tab": {"control_type": "Button", "automation_id": "AddButton", "name": "Add New Tab"},
+      "editor": {"control_type": "Document", "class_name": "RichEditD2DPT", "name": "Text editor"},
+      "file_menu": {"control_type": "MenuItem", "automation_id": "File", "name": "File"},
+      "save_as": {"control_type": "MenuItem", "name": "Save as", "class_name": "MenuFlyoutItem"},
+      "filename": {"control_type": "ComboBox", "automation_id": "FileNameControlHost", "name": "File name:", "class_name": "AppControlHost", "root_window": "save_dialog"},
+      "save": {"control_type": "Button", "automation_id": "1", "name": "Save", "root_window": "save_dialog"},
+      "cancel": {"control_type": "Button", "automation_id": "2", "name": "Cancel", "root_window": "save_dialog"},
+      "encoding": {"control_type": "ComboBox", "name": "Encoding:", "class_name": "ComboBox", "root_window": "save_dialog"}
+    },
+    "windows": {"save_dialog": {"control_type": "Window", "name": "Save as", "class_name": "#32770"}},
+    "allow_keyboard_fallback": false
+  }
+]

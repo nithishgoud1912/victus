@@ -2,6 +2,9 @@ import os
 from pathlib import Path
 from typing import BinaryIO
 
+# Failed cleanup must not lose OS ownership merely because its caller unwinds.
+_RETAINED_LOCKS = set()
+
 
 class InstanceLock:
     def __init__(self, root: Path) -> None:
@@ -34,3 +37,9 @@ class InstanceLock:
             # Closing the handle releases the OS lock; keep the file itself.
             self.stream.close()
             self.stream = None
+        _RETAINED_LOCKS.discard(self)
+
+    def retain(self) -> None:
+        """Keep failed-shutdown ownership alive until explicit safe cleanup."""
+        if self.stream is not None:
+            _RETAINED_LOCKS.add(self)

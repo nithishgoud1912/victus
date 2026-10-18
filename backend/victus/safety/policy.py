@@ -1,12 +1,19 @@
 from pathlib import Path
 
 from victus.tools.contracts import ActionRequest
+from victus.tools.registry import RiskLevel
 
 
 def validate_step(tool, arguments, context) -> None:
     """A model cannot grant scopes, waive tool risk floors, or choose verifiers."""
     if tool.required_scope not in context.scopes or context.authorize(tool, arguments) is not True:
         raise PermissionError("Workflow step is not approved")
+    levels = list(RiskLevel)
+    if (
+        levels.index(tool.risk_floor) > levels.index(context.max_unreviewed_risk)
+        and context.permits is None
+    ):
+        raise PermissionError("Risk requires an exact reviewed permit")
 
 
 _RESERVED = {"CON", "PRN", "AUX", "NUL", "CLOCK$"}

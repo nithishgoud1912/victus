@@ -125,6 +125,7 @@ try:
                 body = voice.copy()
             elif path == "/api/session":
                 body = {"authenticated": True, "expires_at": None}
+            elif path == '/api/workflows/capabilities': body = {'notepad_checklist': {'enabled': False, 'profiles': [], 'reason': 'Native qualification and Save review qualification required.'}, 'stopped': False, 'resource_blocked': False}
             elif path == "/api/health":
                 body = {
                     "status": "ok",

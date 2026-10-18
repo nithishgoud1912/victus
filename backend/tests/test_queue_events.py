@@ -3,6 +3,7 @@
 import asyncio
 import json
 import socket
+import sqlite3
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -17,9 +18,10 @@ from victus.api.app import create_app
 from victus.api.routes.events import task_event_stream
 from victus.bootstrap import build_services
 from victus.settings import Settings
-from victus.tasks.events import sanitize_payload
+from victus.storage.database import Database
+from victus.tasks.events import EventManager, sanitize_payload
 from victus.tasks.queue import QueueFullError
-from victus.tools.contracts import ActionRequest
+from victus.tools.contracts import ActionRequest, TaskResult
 
 TOKEN = "test-only-" + "x" * 40
 HEADERS = {"Authorization": f"Bearer {TOKEN}"}
@@ -75,8 +77,7 @@ def wait_for_task(client, task_id: str, timeout: float = 8.0) -> dict:
 
 
 def wait_for_terminal_events(services, task_id: str):
-    # State and its final event are separate commits. Compare complete histories
-    # only after the final event exists, with a bounded delivery deadline.
+    # State and final event commit together; allow the supervised worker to finish.
     deadline = time.monotonic() + 3
     while time.monotonic() < deadline:
         events = services.events.get_events(task_id=task_id)
@@ -198,6 +199,9 @@ class TestTaskQueue:
         # Verify task finishes
         result = wait_for_task(client, task_id_1)
         assert result["status"] == "succeeded"
+        assert (
+            client.app.state.services.settings.workspace / "dedup.txt"
+        ).read_text() == "Initial submission"
 
 
 # ── Sequenced Events Tests ────────────────────────────────────────────────
@@ -380,3 +384,204 @@ def test_event_ids_survive_restart_and_concurrent_producers(settings):
         assert min(ids) > event.event_id
     finally:
         second.close()
+
+
+def test_distinct_concurrent_admissions_respect_capacity(settings):
+    services = build_services(settings)
+    tasks = services.tasks
+    tasks.mutation_lock.acquire()
+    try:
+        first, _ = tasks.enqueue(ActionRequest.model_validate(request_body("active.txt")))
+        deadline = time.monotonic() + 3
+        while tasks.queue.active_task_id != first and time.monotonic() < deadline:
+            time.sleep(0.01)
+        assert tasks.queue.active_task_id == first
+        barrier = threading.Barrier(12)
+
+        def admit(index):
+            barrier.wait(timeout=3)
+            try:
+                return tasks.enqueue(
+                    ActionRequest.model_validate(request_body(f"pending-{index}.txt"))
+                )
+            except QueueFullError:
+                return None
+
+        with ThreadPoolExecutor(max_workers=12) as pool:
+            results = list(pool.map(admit, range(12)))
+        assert sum(result is not None for result in results) == 3
+        assert tasks.queue.queued_count == 3
+        assert len(tasks.database.list_tasks()) == 4
+        assert len(services.events.get_events()) == 4
+    finally:
+        services.stop()
+        tasks.mutation_lock.release()
+        services.close()
+
+
+@pytest.mark.parametrize("failed_table", ["client_requests", "task_events"])
+def test_failed_admission_has_no_rows_or_runnable_work(settings, failed_table):
+    services = build_services(settings)
+    try:
+        with services.tasks.database.connect() as db:
+            db.execute(f"""CREATE TRIGGER reject_admission BEFORE INSERT ON {failed_table}
+                       BEGIN SELECT RAISE(ABORT, 'admission failure'); END""")
+        with pytest.raises(sqlite3.IntegrityError, match="admission failure"):
+            services.tasks.enqueue(ActionRequest.model_validate(request_body()), "failed-request")
+        with services.tasks.database.connect() as db:
+            for table in ("tasks", "client_requests", "task_events", "action_attempts"):
+                assert db.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0] == 0
+        assert services.tasks.queue.queued_count == 0
+        assert services.tasks.queue.active_task_id is None
+        assert list(settings.workspace.iterdir()) == []
+    finally:
+        services.close()
+
+
+def test_admission_commits_before_scheduler_can_see_work(settings, monkeypatch):
+    services = build_services(settings)
+    try:
+        original = services.tasks.queue._queue.put_nowait
+
+        def inspect_committed(item):
+            task_id, _ = item
+            # Independent connection observes only committed admission metadata.
+            assert services.tasks.database.get(task_id).status == "queued"
+            assert services.tasks.queue.get_by_client_request_id("committed") == task_id
+            assert [e.event_type for e in services.events.get_events(task_id=task_id)] == [
+                "task.queued"
+            ]
+            original(item)
+
+        monkeypatch.setattr(services.tasks.queue._queue, "put_nowait", inspect_committed)
+        services.tasks.enqueue(ActionRequest.model_validate(request_body()), "committed")
+    finally:
+        services.close()
+
+
+def test_restart_preserves_request_mapping_and_never_replays_effects(settings):
+    from victus.storage.action_ledger import ActionLedger
+
+    settings.initialize()
+    database = Database(settings.data_dir)
+    ledger = ActionLedger(database.path)
+    events = EventManager(database.path)
+    action_id = ledger.prepare_action(
+        "fs.create_note",
+        "1.0.0",
+        {"filename": "uncertain.txt"},
+        expected_effect_ref="task:interrupted",
+    )
+    ledger.mark_dispatching(action_id)
+    for task_id, status in (("pending", "queued"), ("interrupted", "running")):
+        database.save(
+            TaskResult(
+                task_id=task_id,
+                tool="fs.create_note",
+                status=status,
+                action_id=action_id if status == "running" else None,
+            ),
+            event_type="task.queued" if status == "queued" else "task.started",
+        )
+        with database.connect() as db:
+            db.execute(
+                "INSERT INTO client_requests(client_request_id,task_id) VALUES (?,?)",
+                (task_id + "-request", task_id),
+            )
+    boundary = events.get_latest_event_id()
+    for _ in range(2):
+        services = build_services(settings)
+        try:
+            assert services.tasks.database.get("pending").status == "cancelled"
+            assert services.tasks.database.get("interrupted").status == "unknown"
+            assert services.ledger.get(action_id).status == "unknown"
+            for task_id in ("pending", "interrupted"):
+                assert services.tasks.enqueue(
+                    ActionRequest.model_validate(request_body("do-not-replay.txt")),
+                    task_id + "-request",
+                ) == (task_id, False)
+            assert services.tasks.queue.queued_count == 0
+            assert services.tasks.queue.active_task_id is None
+            assert len(services.ledger.list_for_task("interrupted")) == 1
+            assert list(settings.workspace.iterdir()) == []
+            recovered = services.events.get_events(after_cursor=boundary)
+            assert [e.event_type for e in recovered] == ["task.cancelled", "task.unknown"]
+        finally:
+            services.close()
+
+
+def test_completed_request_survives_restart_and_passive_lookup(settings):
+    headers = {**HEADERS, "X-Client-Request-ID": "persistent-completed"}
+    with TestClient(create_app(settings), base_url="http://127.0.0.1") as first:
+        task_id = first.post(
+            "/api/tasks", headers=headers, json=request_body("persistent.txt", "original")
+        ).json()["task_id"]
+        assert wait_for_task(first, task_id)["status"] == "succeeded"
+        action_id = first.get(f"/api/tasks/{task_id}", headers=HEADERS).json()["action_id"]
+    with TestClient(create_app(settings), base_url="http://127.0.0.1") as restarted:
+        services = restarted.app.state.services
+        boundary = services.events.get_latest_event_id()
+        duplicate = restarted.post(
+            "/api/tasks", headers=headers, json=request_body("replacement.txt", "replacement")
+        )
+        assert duplicate.status_code == 202 and duplicate.json()["task_id"] == task_id
+        for _ in range(3):
+            snapshot = restarted.get(f"/api/tasks/{task_id}", headers=HEADERS)
+            assert snapshot.status_code == 200
+            assert snapshot.json()["status"] == "succeeded"
+            assert snapshot.json()["action_id"] == action_id
+        assert services.events.get_latest_event_id() == boundary
+        assert len(services.tasks.database.list_tasks()) == 1
+        assert len(services.ledger.list_for_task(task_id)) == 1
+        assert services.tasks.queue.queued_count == 0
+        assert (settings.workspace / "persistent.txt").read_text() == "original"
+        assert not (settings.workspace / "replacement.txt").exists()
+
+
+def test_paged_replay_handover_and_reconnect_are_read_only(settings):
+    services = build_services(settings)
+    try:
+        task = TaskResult(task_id="history", tool="fs.create_note", status="running")
+        services.tasks.database.save(task)
+        initial = [services.events.record_event(task.task_id, "task.progress") for _ in range(205)]
+
+        async def check():
+            async def connected():
+                return False
+
+            request = SimpleNamespace(
+                app=SimpleNamespace(state=SimpleNamespace(services=services)),
+                is_disconnected=connected,
+            )
+            for cursor in (0, initial[-1].event_id):
+                stream = task_event_stream(request, cursor, task.task_id)
+                try:
+                    replay = []
+                    while True:
+                        chunk = await asyncio.wait_for(anext(stream), 3)
+                        data = json.loads(
+                            next(
+                                line[6:] for line in chunk.splitlines() if line.startswith("data: ")
+                            )
+                        )
+                        if data["event_type"] == "task.snapshot":
+                            assert data["safe_payload"]["status"] == "running"
+                            break
+                        replay.append(data["event_id"])
+                    assert replay == [
+                        e.event_id for e in services.events.get_events(after_cursor=cursor)
+                    ]
+                    live = services.events.record_event(task.task_id, "task.progress")
+                    assert f"id: {live.event_id}\n" in await asyncio.wait_for(anext(stream), 3)
+                finally:
+                    await stream.aclose()
+            assert len(services.events.get_events()) == 207  # Only explicit producers append.
+
+        asyncio.run(check())
+        assert services.tasks.database.get(task.task_id) == task
+        with services.tasks.database.connect() as db:
+            assert db.execute("SELECT COUNT(*) FROM action_attempts").fetchone()[0] == 0
+            assert db.execute("SELECT COUNT(*) FROM client_requests").fetchone()[0] == 0
+        assert services.tasks.queue.queued_count == 0
+    finally:
+        services.close()

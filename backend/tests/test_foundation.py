@@ -3,12 +3,35 @@ from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 from fastapi.testclient import TestClient
+from pydantic import BaseModel, ConfigDict
 
 from victus.api.app import create_app
 from victus.bootstrap import build_services
 from victus.settings import Settings
 from victus.tools.contracts import ActionRequest, TaskResult
 from victus.tools.registry import ToolRegistry, ToolSpec
+
+
+class TagArguments(BaseModel):
+    model_config = ConfigDict(strict=True, extra="forbid")
+    label: str
+
+
+def tag_policy(root, args):
+    if (root / "typed-tool.txt").exists():
+        raise FileExistsError()
+
+
+def create_tag(root, args):
+    target = root / "typed-tool.txt"
+    with target.open("xb") as stream:
+        stream.write(args.label.encode())
+    return target
+
+
+def verify_tag(target, args):
+    return target.read_bytes() == args.label.encode()
+
 
 TOKEN = "test-only-" + "x" * 40
 HEADERS = {"Authorization": f"Bearer {TOKEN}"}
@@ -173,3 +196,79 @@ def test_failed_verification_is_not_success(settings):
         assert (settings.workspace / "hello.txt").exists()
     finally:
         services.close()
+
+
+def test_registered_tool_uses_its_own_schema_through_the_task_api(client, settings):
+    from dataclasses import replace
+
+    services = client.app.state.services
+    services.tasks.registry.register(
+        replace(
+            services.tasks.registry.get("fs.create_note"),
+            name="fixture.write_tag",
+            argument_model=TagArguments,
+            execute=create_tag,
+            verify=verify_tag,
+            policy=tag_policy,
+        )
+    )
+    response = client.post(
+        "/api/tasks",
+        headers=HEADERS,
+        json={
+            "tool": "fixture.write_tag",
+            "arguments": {"label": "tool-specific schema"},
+        },
+    )
+    assert response.status_code == 202
+    task = wait_for_task(client, response.json()["task_id"])
+    assert task["status"] == "succeeded" and task["verified"]
+    assert (settings.workspace / "typed-tool.txt").read_text() == "tool-specific schema"
+    record = services.ledger.get(task["action_id"])
+    assert record.tool_name == "fixture.write_tag" and record.status == "verified"
+    assert record.expected_effect_ref == "task:" + task["task_id"]
+
+
+@pytest.mark.parametrize(
+    "field", ["task_id", "action_id", "approved", "verifier", "scopes", "permit_token"]
+)
+def test_task_transport_rejects_caller_authority_before_admission(client, settings, field):
+    request = request_body()
+    request[field] = "forged"
+    assert client.post("/api/tasks", headers=HEADERS, json=request).status_code == 422
+    with client.app.state.services.tasks.database.connect() as db:
+        assert db.execute("SELECT COUNT(*) FROM tasks").fetchone()[0] == 0
+        assert db.execute("SELECT COUNT(*) FROM action_attempts").fetchone()[0] == 0
+    assert not (settings.workspace / "hello.txt").exists()
+
+
+def test_python_submission_is_validated_and_queued_arguments_are_snapshotted(settings):
+    services = build_services(settings)
+    tasks = services.tasks
+    tasks.mutation_lock.acquire()
+    try:
+        invalid = ActionRequest.model_construct(
+            tool="fs.create_note", arguments={"filename": "safe.txt", "text": 7}
+        )
+        with pytest.raises(ValueError):
+            tasks.enqueue(invalid)
+        request = ActionRequest.model_validate(request_body())
+        task_id, _ = tasks.enqueue(request)
+        request.arguments.text = "caller changed this after admission"
+    finally:
+        tasks.mutation_lock.release()
+    try:
+        end = time.monotonic() + 8
+        while time.monotonic() < end:
+            result = tasks.database.get(task_id)
+            if result.status not in {"queued", "prepared", "running"}:
+                break
+            time.sleep(0.02)
+        assert result.verified
+        assert (settings.workspace / "hello.txt").read_text() == "Hello VICTUS"
+    finally:
+        services.close()
+
+
+def test_default_registry_contains_only_qualified_core_tools(client):
+    assert client.get("/api/health", headers=HEADERS).json()["tools"] == ["fs.create_note"]

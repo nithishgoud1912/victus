@@ -69,6 +69,9 @@ class ToolSpec:
     policy: Callable[[Path, BaseModel], None] | None = None
     # Fail closed until a reviewed adapter explicitly declares a read-only tool.
     external_write: bool = True
+    # Trusted worker identity is supplied by Dispatcher, never request arguments.
+    execute_owned: Callable | None = None
+    public: bool = True
 
 
 class ToolRegistry:
@@ -86,6 +89,25 @@ class ToolRegistry:
         if name not in self._tools:
             raise ValueError("Unregistered tool")
         return self._tools[name]
+
+    def validate(self, request):
+        """Revalidate even model_construct/mutated Python objects at the boundary."""
+        from victus.tools.contracts import ActionProposal
+
+        if isinstance(request, BaseModel) and set(request.__dict__) - set(
+            type(request).model_fields
+        ):
+            raise ValueError("Unexpected request attributes")
+        raw = request.model_dump(warnings="error") if isinstance(request, BaseModel) else request
+        if isinstance(raw, dict) and isinstance(raw.get("arguments"), BaseModel):
+            raw = {**raw, "arguments": raw["arguments"].model_dump(warnings="error")}
+        proposal = ActionProposal.model_validate(raw, strict=True)
+        tool = self.get(proposal.tool)
+        # Every production argument model is closed; registry additions must be too.
+        if tool.argument_model.model_config.get("extra") != "forbid":
+            raise ValueError("Tool argument schema must forbid extra fields")
+        arguments = tool.argument_model.model_validate(proposal.arguments, strict=True)
+        return proposal, tool, arguments
 
     def names(self) -> list[str]:
         """Return a sorted list of registered tool names."""

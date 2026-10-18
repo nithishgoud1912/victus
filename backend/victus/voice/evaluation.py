@@ -4,6 +4,7 @@ No microphone recording, task submission, model download or raw transcript loggi
 """
 
 import argparse
+import hashlib
 import json
 import re
 import threading
@@ -117,6 +118,7 @@ def evaluate(manifest, worker):
         )
         del pcm, transcript
     return {
+        "manifest_sha256": hashlib.sha256(manifest.read_bytes()).hexdigest(),
         "language": "en",
         "groups": score(rows),
         "samples": rows,

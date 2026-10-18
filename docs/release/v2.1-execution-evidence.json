@@ -1,0 +1,60 @@
+{
+  "milestone": "V2.1",
+  "date": "2026-10-18",
+  "application_version": "0.1.0-source-candidate",
+  "base_revision": "64a0a22127a2d450a8d8bb4047cf76cae0cc4995",
+  "source_sha256": "16a4aac7f5b6fd88fb7bc4f628d3d3d63172671979a90f5ab16de49f8e38aa3a",
+  "dirty_implementation": true,
+  "backend_regression": {
+    "tests": 648,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "seconds": 328.898
+  },
+  "focused_contracts": {
+    "passed": 112,
+    "seconds": 59.96
+  },
+  "frontend": {
+    "build": "passed",
+    "tests_passed": 20,
+    "lint": "passed"
+  },
+  "browser_contracts": {
+    "M5": "passed",
+    "M6": "passed",
+    "M7": "passed",
+    "M8": "passed"
+  },
+  "real_source_note_ui_api": "passed",
+  "real_source_note_ui_api_date": "2026-10-18",
+  "real_source_note_checks": {
+    "dev_memory_session": true,
+    "typed_note_verified": true,
+    "production_http_only_session": true,
+    "production_reload_restored": true,
+    "production_no_bearer_after_bootstrap": true,
+    "logout_revoked": true,
+    "no_browser_storage": true,
+    "mobile_no_overflow": true,
+    "page_errors": []
+  },
+  "resource_safeguard": "Retained; live retry passed after memory became available",
+  "local_browser_workflow": {
+    "executed": 1,
+    "verified": 1,
+    "public_site": false
+  },
+  "qualified_default_tools": [
+    "fs.create_note"
+  ],
+  "new_desktop_qualification": false,
+  "M9_bundle_rebuilt_for_V21": false,
+  "limits": [
+    "Native Notepad/DPI gate remains pending",
+    "No public-site or real-model benchmark qualification",
+    "No physical audio or wake corpus qualification",
+    "Earlier M9 binary and M7 soak qualify only their original snapshots"
+  ]
+}

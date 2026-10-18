@@ -1,0 +1,140 @@
+{
+  "milestone": "V3.0 / V3.1",
+  "date": "2026-10-18",
+  "application_version": "0.1.0-source-candidate",
+  "base_revision": "64a0a22127a2d450a8d8bb4047cf76cae0cc4995",
+  "dirty_source": true,
+  "starting_source_sha256": "780ad7bd82ab730da611df6ed99f8014922ca1edca5ec3ec6e1b44ec6a8b7d7e",
+  "starting_manifest_private": ".local/v30-start-01/source.json",
+  "tested_source_sha256": "4f806da7a418c4885d62eb0f046b11add45994c2daba0c0f4563dc02c767395f",
+  "tested_manifest_private": ".local/v31-tested-source-01/source.json",
+  "source_file_count": 256,
+  "source_unchanged_after_verification": true,
+  "ending_manifest_private": ".local/v31-after-verification-01/source.json",
+  "dependency_files_unchanged_from_start": true,
+  "dependency_hashes": {
+    "backend/uv.lock": "4b6c1a424141cbeb778072e80e1f1a9344dbe38608e7488e98ebeb4033e2e3f4",
+    "backend/pyproject.toml": "31e2b5ac159491b771f6dcc09ca81b661db8a143986ce017cb14cd55a31e1c59",
+    "dashboard/package-lock.json": "8a5d3c261dd45f36cea2f008710a87d44da86876542c36dc06e5431aa9cf86ea",
+    "dashboard/package.json": "04e544dc43a30e0285ba03055e993fc09c92b8838fd807dfa0dafdb97c0e29ed"
+  },
+  "user_runtime_selected": false,
+  "user_runtime_data_modified": false,
+  "runtime_roots": [
+    ".local/v30-start-01",
+    ".local/v30-source-api-01",
+    ".local/v30-final-source-api-01",
+    ".local/v31-reproduce-01",
+    ".local/v31-diagnostic-01",
+    ".local/v31-final-native-01",
+    ".local/v31-regression-01"
+  ],
+  "implemented": [
+    "fresh source/config/contracts/lock manifests and dirty inventory",
+    "bounded private native execute/verify and Save phase evidence",
+    "editor content recheck after filename preparation",
+    "fresh qualification roots",
+    "stop native repetition sequence after first unverified run",
+    "real loopback authenticated API/SSE baseline runner"
+  ],
+  "backend": {
+    "tests": 735,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "seconds": 328.634,
+    "xml_private": ".local/v31-regression-01.xml"
+  },
+  "selected_test_classes": {
+    "tests.test_approval_dispatch": 19,
+    "tests.test_approvals": 49,
+    "tests.test_notepad_workflow": 34,
+    "tests.test_uia_profiles": 35,
+    "tests.test_workflow_api": 30,
+    "tests.test_workflow_diagnostics": 6,
+    "tests.test_workflow_dispatcher": 34
+  },
+  "selected_source_lint": "passed",
+  "real_loopback_api_sse": {
+    "transport": "real loopback HTTP/SSE",
+    "physical_ui_test": false,
+    "memory_safeguard_enabled": true,
+    "selected_user_runtime": null,
+    "checks": {
+      "health_authenticated": true,
+      "health_requires_auth": true,
+      "events_require_auth": true,
+      "native_gated_before_admission": true,
+      "note_admitted": true,
+      "note_verified_exact_bytes": true,
+      "duplicate_same_task_no_effect": true,
+      "snapshot_requires_auth": true,
+      "snapshot_read_only": true,
+      "ordered_event_replay": true,
+      "event_snapshot_read_only": true,
+      "cursor_reconnect_no_resubmission": true,
+      "stop_latched": true,
+      "stop_blocks_later_effect": true
+    },
+    "available_memory_bytes": 3029159936,
+    "note_sha256": "6454de3fe002a9fa622a927a128dd829b7b81f80969e6b5c944c5d25a0366f6b",
+    "passed": true
+  },
+  "native": {
+    "installed_version": "11.2607.14.0",
+    "executable_sha256": "03745e9e21684c0e6d9fdc50d91caa0935f4baf50f626c11987ab7d6991d58d1",
+    "profile": "notepad-win11-11.2607.14.0",
+    "candidate_unchanged": true,
+    "supervised": {
+      "kind": "notepad",
+      "requested": 1,
+      "runs": [
+        {
+          "task_id": "3b8bdfd6a58149909cd936030443b353",
+          "status": "unknown",
+          "verified": false,
+          "error_code": "WORKER_ERROR",
+          "output_name": null,
+          "sha256": null,
+          "diagnostics": {
+            "private_file": "native-3b8bdfd6a58149909cd936030443b353.jsonl",
+            "records": 2,
+            "last_phase": "uia.launch_profile.execute",
+            "error_code": "OWNED_CHILD_UNAVAILABLE"
+          }
+        }
+      ],
+      "native_windows": true,
+      "playwright_version": "1.64.0",
+      "stopped_after_failed_native_run": true,
+      "executed": 1,
+      "passed": 0,
+      "status": "failed",
+      "real_windows_dpi_gate": "pending"
+    },
+    "private_runtime": ".local/v31-final-native-01",
+    "phase_error_ms": 5109,
+    "text_write_phase_entered": false,
+    "save_phase_entered": false,
+    "requested_artifact_present": false,
+    "production_and_config_unchanged_since_native_run": true,
+    "later_manifest_additions": "tests and inventory script only",
+    "twenty_native_successes": false,
+    "physical_dpi_qualified": false
+  },
+  "default_native_registration_enabled": false,
+  "http_native_review_wiring": "pending separate V3.2 gate",
+  "frontend_changed": false,
+  "new_frontend_test_run": false,
+  "package_rebuilt": false,
+  "public_sites_tested": false,
+  "pending": [
+    "first successful owned supervised native workflow",
+    "20 successful native repetitions",
+    "native adversarial matrix",
+    "intended physical display scales",
+    "native target-bound HTTP review wiring before registration",
+    "package rebuild and release qualification"
+  ],
+  "privacy": "Only bounded identities, hashes, timings, statuses and safe error codes exported. Raw XML, native trees, tokens, paths and UI text remain private or are not captured."
+}

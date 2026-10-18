@@ -1,0 +1,69 @@
+{
+  "milestone": "V2.4",
+  "date": "2026-10-18",
+  "base_revision": "64a0a22127a2d450a8d8bb4047cf76cae0cc4995",
+  "dirty_source": true,
+  "source_sha256": "f2c1c4d0bd3c9ee885ccaed3aeb56f7957649f1d0820d4e5a7e200ff15c620d9",
+  "source_manifest_private": ".local/v24-source.json",
+  "python_version": "3.12.14",
+  "lockfile_sha256": "4b6c1a424141cbeb778072e80e1f1a9344dbe38608e7488e98ebeb4033e2e3f4",
+  "runtime_roots": [
+    ".local/v24-native-stable",
+    ".local/v24-native-host"
+  ],
+  "implemented": [
+    "pinned JSON candidate",
+    "exact class and nested modal selectors",
+    "unique direct-child ownership and read-only lease",
+    "immediate empty-editor proof",
+    "explicit CRLF readback normalization"
+  ],
+  "deterministic": {
+    "focused_passed": 58,
+    "backend_passed": 688,
+    "frontend_passed": 20,
+    "dashboard_build": "passed",
+    "selected_lint": "passed",
+    "reports": [
+      ".local/v24-focused.xml",
+      ".local/v24-full.xml",
+      ".local/v24-uia-final.xml"
+    ]
+  },
+  "native": {
+    "application": "Microsoft.WindowsNotepad",
+    "version": "11.2607.14.0",
+    "profile": "notepad-win11-11.2607.14.0",
+    "executable_sha256": "03745e9e21684c0e6d9fdc50d91caa0935f4baf50f626c11987ab7d6991d58d1",
+    "controls_inspected": true,
+    "owned_editor_resolution": "passed",
+    "isolated_save": {
+      "passed": true,
+      "bytes": 55,
+      "encoding": "utf-8",
+      "keyboard": false,
+      "sha256": "c33b0ee05390fb0743a934090ea07e0adf52eb551fe0df6bc7f22be2ec30b7aa"
+    },
+    "supervised_workflow": "unqualified",
+    "latest_supervised_status": "unknown",
+    "latest_supervised_verified_steps": [
+      "uia.launch_profile"
+    ],
+    "latest_supervised_uncertain_step": "uia.inspect_control",
+    "final_launch_probe": {
+      "status": "blocked",
+      "code": "OWNED_CHILD_UNAVAILABLE",
+      "input_sent": false
+    }
+  },
+  "public_sites": "not applicable",
+  "default_registry_native_enabled": false,
+  "pending": [
+    "stable owned launch/save route",
+    "successful supervised repetitions",
+    "stable native two-window/nonempty/missing/restarted matrix",
+    "native DPI gate",
+    "package rebuild after source qualification"
+  ],
+  "privacy": "No tokens, environment contents, raw user documents or UI trees exported."
+}

@@ -11,17 +11,19 @@ from starlette.staticfiles import StaticFiles
 
 from victus.api.auth import BrowserSessions, create_auth
 from victus.api.routes.approvals import create_approvals_router
+from victus.api.routes.commands import create_commands_router
 from victus.api.routes.events import create_events_router
 from victus.api.routes.integrations import create_integrations_router
 from victus.api.routes.memory import create_memory_router
 from victus.api.routes.session import create_session_router
 from victus.api.routes.voice import create_voice_router
+from victus.api.routes.workflows import create_workflows_router
 from victus.bootstrap import build_services
 from victus.runtime.paths import dashboard_root
 from victus.runtime.resources import ResourcePressure
 from victus.settings import Settings
 from victus.tasks.queue import QueueFullError
-from victus.tools.contracts import ActionRequest, TaskQueuedResponse, TaskResult
+from victus.tools.contracts import TaskQueuedResponse, TaskResult, ToolRequest
 
 
 class HealthResponse(BaseModel):
@@ -92,6 +94,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(create_events_router(authorized))
     app.include_router(create_approvals_router(authorized))
     app.include_router(create_session_router(authorized, require_bearer, sessions))
+    app.include_router(create_workflows_router(authorized))
+    app.include_router(create_commands_router(authorized))
 
     @app.get("/api/health", response_model=HealthResponse, dependencies=[Depends(authorized)])
     def health(request: Request):
@@ -104,7 +108,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 if request.app.state.services.hotkey is not None
                 else "disabled"
             ),
-            "tools": request.app.state.services.tasks.registry.names(),
+            "tools": [tool.name for tool in request.app.state.services.tasks.registry.tools() if tool.public],
         }
 
     @app.post(
@@ -114,7 +118,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         dependencies=[Depends(authorized)],
     )
     def create_task(
-        action: ActionRequest,
+        action: ToolRequest,
         request: Request,
         x_client_request_id: str | None = Header(default=None, alias="X-Client-Request-ID"),
         x_request_id: str | None = Header(default=None, alias="X-Request-ID"),
@@ -126,6 +130,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             task_id, _ = tasks.enqueue(action, client_request_id=req_id)
         except ResourcePressure:
             raise HTTPException(503, "Local resource pressure; no cloud fallback") from None
+        except ValueError:
+            raise HTTPException(422, "Unknown tool or invalid tool arguments") from None
         except QueueFullError as e:
             raise HTTPException(status_code=429, detail=str(e))
 

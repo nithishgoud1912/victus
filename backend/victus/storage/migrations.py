@@ -2,12 +2,13 @@
 
 Migrations are numbered SQL files under ``storage/sql/``.  Each file is
 executed at most once; a ``schema_versions`` table tracks which have been
-applied.  Migrations run inside a single transaction so a crash mid-apply
-leaves the database unchanged.
+applied. Each migration and its version marker share one transaction so a
+crash mid-apply leaves that migration unapplied.
 """
 
 from __future__ import annotations
 
+import re
 import sqlite3
 from pathlib import Path
 
@@ -61,18 +62,28 @@ def migrate(db_path: Path) -> list[int]:
         _ensure_version_table(conn)
         already = _applied_versions(conn)
         if already and max(already) > max(n for n, _ in migrations):
-            raise RuntimeError("Database schema is newer than this application; restore a compatible backup")
+            raise RuntimeError(
+                "Database schema is newer than this application; restore a compatible backup"
+            )
         for version, path in migrations:
             if version in already:
                 continue
             sql = path.read_text(encoding="utf-8")
-            # Run each migration inside its own transaction.
-            conn.executescript(sql)
-            conn.execute(
-                "INSERT INTO schema_versions (version, filename) VALUES (?, ?)",
-                (version, path.name),
-            )
-            conn.commit()
+            # Historical files 5-7 already open this transaction. Keep their
+            # contents unchanged while the runner owns begin/commit uniformly.
+            sql = re.sub(r"(?im)^BEGIN IMMEDIATE;[ \t]*(?:\r?\n|$)", "", sql, count=1)
+            # executescript commits any preceding transaction. Start inside the
+            # script itself and keep its DDL/data and version marker together.
+            try:
+                conn.executescript("BEGIN IMMEDIATE;\n" + sql)
+                conn.execute(
+                    "INSERT INTO schema_versions (version, filename) VALUES (?, ?)",
+                    (version, path.name),
+                )
+                conn.commit()
+            except BaseException:
+                conn.rollback()
+                raise
             applied.append(version)
     finally:
         conn.close()

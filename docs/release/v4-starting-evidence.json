@@ -1,0 +1,90 @@
+{
+  "milestone": "V3.6-reconciled-by-V4.0",
+  "observed_utc": "2026-10-18T20:33:09.589660+00:00",
+  "release_qualified": false,
+  "historical_source_sha256": "b3c8a3f6cc25e6d6537f1ea4418c609e7da9e63aa39c0ada3c73ae87b4f1174e",
+  "backend_tested_source_sha256": "e0abc880aac7863a2577dc5a4322b4c8fd6d36495bd7df5dfefdb1a8ba4e402c",
+  "backend_inventory_identical_to_final": false,
+  "backend_application_identical_to_final": true,
+  "ordinary_backend_tests_identical_to_final": true,
+  "live_runners_identical_to_final": false,
+  "historical_junit": {
+    "tests": 791,
+    "errors": 0,
+    "failures": 0,
+    "skipped": 0
+  },
+  "package_self_test": {
+    "reported_passed": true,
+    "checks_recorded": 21,
+    "checks_true": 21,
+    "all_recorded_checks_true": true
+  },
+  "package_report_embeds_artifact_identity": false,
+  "package_provenance_limit": "Self-test report lacks an embedded bundle hash; sibling artifact binding is corroboration only.",
+  "artifact_pair": {
+    "reported_passed": true,
+    "checks_recorded": 8,
+    "checks_true": 8,
+    "all_recorded_checks_true": true
+  },
+  "candidate_manifest_matches_pair_and_source": true,
+  "formal_cross_version_release_qualified": false,
+  "fresh_standard_account_tested": false,
+  "device_component_checks": {
+    "reported_passed": null,
+    "checks_recorded": 8,
+    "checks_true": 8,
+    "all_recorded_checks_true": true
+  },
+  "quiet_samples_measured": 0,
+  "noisy_samples_measured": 0,
+  "soak": {
+    "final_report_available": false,
+    "qualified": false,
+    "progress_is_not_final_evidence": true,
+    "elapsed_seconds": 3857.515000000014,
+    "tasks_verified": 49,
+    "pressure_rejections": 77,
+    "backup_restores": 7,
+    "implementation_start_sha256": "b37c0fcf962aad9b5a6e80dc16e5157083814977fbfd5f4a05e9bb2e57a72017",
+    "implementation_end_sha256": null
+  },
+  "references": {
+    ".local/v36-source-03/source.json": {
+      "available": true,
+      "sha256": "65104ffd2c31baa53bb11c4df49f6dce00a0fe3ecdaa20930bfa285919457885"
+    },
+    ".local/v36-source-01/source.json": {
+      "available": true,
+      "sha256": "169fa6ec533c19b99260637480cbd8326890b2b3266211ffd070fd30eb458218"
+    },
+    ".local/v36-package-check-final-03/report.json": {
+      "available": true,
+      "sha256": "ed5353858058c42161ebacf5a60f20937d1e8e1196a755caab908927b6a7c97f"
+    },
+    ".local/v36-upgrade-pair-final-03/report.json": {
+      "available": true,
+      "sha256": "4993f9127845af40566a7d6bc42d6e9af034975e4399ea003c6fa074efde7f43"
+    },
+    ".local/v36-package-03/Victus/release-manifest.json": {
+      "available": true,
+      "sha256": "92b5f58fa4bbe74413be62c63b15483e2e7861bd98ecd5b9773159d65414257a"
+    },
+    ".local/v36-device-final-01/report.json": {
+      "available": true,
+      "sha256": "8fbb2233be9f63d3c1c60642be0da1f8e035ec7c4889ca546731ec366e1fd97d"
+    },
+    ".local/v36-soak-standard-04/report.json": {
+      "available": false
+    },
+    ".local/v36-soak-standard-04/progress.json": {
+      "available": true,
+      "sha256": "1fff46a422a91fd542543e7f66a8aea242e4452963a5a21b6835a48e3f27d170"
+    },
+    ".local/v36-regression-01.xml": {
+      "available": true,
+      "sha256": "f413530f52c6086715e8af76561ee665415b681ac6fa558fef7f96b9684f43ea"
+    }
+  }
+}

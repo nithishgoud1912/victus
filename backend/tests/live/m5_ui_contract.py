@@ -30,6 +30,7 @@ try:
    elif path=='/api/memory':body=[]
    elif path=='/api/voice':body={'enabled':False,'state':'idle','revision':0}
    elif path=='/api/session':body={'authenticated':True,'expires_at':None}
+   elif path == '/api/workflows/capabilities': body = {'notepad_checklist': {'enabled': False, 'profiles': [], 'reason': 'Native qualification and Save review qualification required.'}, 'stopped': False, 'resource_blocked': False}
    elif path=='/api/health':body={'status':'ok','mode':'fixture','stopped':False,'tools':['fs.create_note'],'emergency_hotkey':'disabled'}
    elif path=='/api/tasks' and method=='POST': submitted=True;body={'task_id':'fixture-task','status':'queued'}
    elif path=='/api/tasks/fixture-task':body=task

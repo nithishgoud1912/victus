@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import hashlib
 import importlib.metadata
 import json
@@ -26,6 +25,7 @@ from victus.storage.database import Database
 from victus.tools.contracts import ActionProposal
 from victus.tools.dispatcher import Dispatcher
 from victus.tools.registry import RetryClass, RiskLevel, ToolRegistry, ToolSpec
+from victus.tools.steps import WorkerAuthority
 from victus.workflows.browser_research import (
     BrowserResearchTools,
     ResearchRequest,
@@ -37,6 +37,8 @@ from victus.workflows.create_notepad_checklist import (
     NotepadTools,
     create_notepad_checklist,
 )
+from victus.workflows.diagnostics import PhaseDiagnostics
+from victus.workflows.qualification_records import runtime_identity
 
 
 class NotepadRun(ChecklistRequest):
@@ -61,13 +63,21 @@ def workflow_policy(workspace, arguments):
         arguments.reviewed_urls()
 
 
-def run_notepad(workspace, args):
-    return run_notepad_cancellable(workspace, args, None)
+async def run_notepad(workspace, args):
+    return await run_notepad_cancellable(workspace, args, None)
 
 
-def run_notepad_cancellable(workspace, args, cancelled):
-    with UIAWorker(load_profiles(Path(args.profiles_file))) as worker:
-        tools = NotepadTools(worker, args, workspace)
+async def run_notepad_cancellable(workspace, args, cancelled):
+    diagnostics = PhaseDiagnostics(workspace.parent / f"native-{args.task_id}.jsonl", args.task_id)
+    try:
+        return await _run_notepad_diagnosed(workspace, args, cancelled, diagnostics)
+    finally:
+        diagnostics.close()
+
+
+async def _run_notepad_diagnosed(workspace, args, cancelled, diagnostics):
+    with UIAWorker(load_profiles(Path(args.profiles_file)), diagnostics=diagnostics) as worker:
+        tools = NotepadTools(worker, args, workspace, diagnostics=diagnostics)
         registry = ToolRegistry()
         tools.register(registry)
         context = context_for(
@@ -82,10 +92,9 @@ def run_notepad_cancellable(workspace, args, cancelled):
                 "filesystem:read",
             },
             tools.authorize,
+            max_unreviewed_risk=RiskLevel.HIGH,
         )
-        result = asyncio.run(
-            create_notepad_checklist(Dispatcher(workspace, registry), context, args)
-        )
+        result = await create_notepad_checklist(Dispatcher(workspace, registry), context, args)
         if result.status != "succeeded":
             raise RuntimeError("CHECKLIST_WORKFLOW_NOT_VERIFIED")
     return workspace / args.filename
@@ -95,11 +104,11 @@ def verify_notepad(path, args):
     return bytes_match(path, args.editor_text().encode(args.encoding))
 
 
-def run_browser(workspace, args):
-    return run_browser_cancellable(workspace, args, None)
+async def run_browser(workspace, args):
+    return await run_browser_cancellable(workspace, args, None)
 
 
-def run_browser_cancellable(workspace, args, cancelled):
+async def run_browser_cancellable(workspace, args, cancelled):
     async def execute():
         reviewed = args.reviewed_urls()
 
@@ -142,7 +151,7 @@ def run_browser_cancellable(workspace, args, cancelled):
             await session.close()
         return workspace / args.filename
 
-    return asyncio.run(execute())
+    return await execute()
 
 
 def verify_research(path, args):
@@ -150,19 +159,24 @@ def verify_research(path, args):
         report = json.loads(path.read_text(encoding="utf-8"))
         sources = report["sources"]
         return (
-            report["status"] == "succeeded"
+            report["kind"] == "browser_research"
+            and report["status"] == "succeeded"
             and report["required_sources"] == args.required_sources
             and report["observed_count"] == len({source["url"] for source in sources})
+            and report["observed_count"] == len(sources)
+            and len({source["observation_id"] for source in sources}) == len(sources)
             and report["observed_count"] >= args.required_sources
             and all(
                 source["text"].strip()
+                and source["url"] in args.reviewed_urls()
+                and len(source["text"]) <= 4000
                 and source["observation_id"]
                 and source["text_sha256"]
                 == hashlib.sha256(source["text"].encode("utf-8")).hexdigest()
                 for source in sources
             )
         )
-    except (OSError, ValueError, KeyError, TypeError):
+    except (OSError, ValueError, KeyError, TypeError, AttributeError):
         return False
 
 
@@ -195,13 +209,15 @@ def supervised_run(workspace, kind, request):
         request.model_dump(),
         expected_effect_ref=f"task:{request.task_id}",
     )
-    ledger.mark_dispatching(outer)
     cancellation = CancellationController()
     supervisor = WorkerSupervisor(cancellation)
     try:
         outcome = supervisor.run(
             Dispatcher(workspace, registry),
             ActionProposal(tool=f"workflow.{kind}", arguments=request.model_dump()),
+            authority=WorkerAuthority(
+                request.task_id, outer, frozenset({"workflow:qualified"}), RiskLevel.HIGH
+            ),
         )
     except KeyboardInterrupt:
         cancellation.stop()
@@ -215,10 +231,10 @@ def supervised_run(workspace, kind, request):
                 ledger.mark_cancelled(action.action_id)
             else:
                 ledger.mark_unknown(action.action_id, error_code="WORKFLOW_WORKER_INTERRUPTED")
-    if outcome.verified:
-        ledger.mark_applied(outer, output_name=outcome.output_name)
-        ledger.mark_verified(outer, sha256=outcome.sha256)
-    else:
+    record = ledger.get(outer)
+    if record.status == "prepared":
+        ledger.mark_failed(outer, error_code=outcome.error_code)
+    elif record.status in {"dispatching", "applied"}:
         ledger.mark_unknown(outer, error_code=outcome.error_code)
     return outcome
 
@@ -291,15 +307,19 @@ def qualify(
     fixture_root=None,
     encoding="utf-8",
 ):
+    if kind not in {"notepad", "browser"}:
+        raise ValueError("Unsupported qualification kind")
     if not 1 <= repetitions <= 20:
         raise ValueError("Qualification supports 1 to 20 independent repetitions")
     data_dir = data_dir.resolve()
-    data_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+    # A new root makes repetitions independent of any previous runtime/authority.
+    data_dir.mkdir(parents=True, exist_ok=False, mode=0o700)
     workspace = data_dir / "workspace"
     workspace.mkdir(exist_ok=True, mode=0o700)
     lock = InstanceLock(data_dir)
     lock.acquire()
     report = {
+        "runtime_sha256": runtime_identity(),
         "kind": kind,
         "requested": repetitions,
         "runs": [],
@@ -343,6 +363,17 @@ def qualify(
                         )
                     outcome = supervised_run(workspace, kind, request)
                     record = {"task_id": task_id, **asdict(outcome)}
+                    if kind == "notepad":
+                        diagnostic = data_dir / f"native-{task_id}.jsonl"
+                        if diagnostic.is_file():
+                            phases = [json.loads(line) for line in diagnostic.read_text().splitlines()]
+                            errors = [phase for phase in phases if phase["state"] == "error"]
+                            record["diagnostics"] = {
+                                "private_file": diagnostic.name,
+                                "records": len(phases),
+                                "last_phase": phases[-1]["phase"] if phases else None,
+                                "error_code": errors[-1]["error_code"] if errors else None,
+                            }
                     if kind == "browser" and outcome.verified:
                         artifact = json.loads(
                             (workspace / request.filename).read_text(encoding="utf-8")
@@ -351,6 +382,9 @@ def qualify(
                         record["observed_sources"] = artifact["observed_count"]
                     report["runs"].append(record)
                     print(f"{kind} {index + 1}/{repetitions}: {outcome.status}", flush=True)
+                    if kind == "notepad" and not outcome.verified:
+                        report["stopped_after_failed_native_run"] = True
+                        break  # Never multiply uncertain native effects to fill a quota.
             finally:
                 if site:
                     site.__exit__()
@@ -361,6 +395,10 @@ def qualify(
         report["real_windows_dpi_gate"] = (
             "pending"  # Labels/simulations cannot qualify physical Windows scaling.
         )
+        report["runtime_end_sha256"] = runtime_identity()
+        if report["runtime_end_sha256"] != report["runtime_sha256"]:
+            report["status"] = "failed"
+            report["error_code"] = "IMPLEMENTATION_CHANGED_DURING_QUALIFICATION"
         destination = write_new(
             data_dir,
             f"{kind}-qualification.json",

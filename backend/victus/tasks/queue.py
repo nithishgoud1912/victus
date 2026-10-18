@@ -9,11 +9,12 @@ Enforces:
 
 from __future__ import annotations
 
-import json
+import math
 import queue
 import sqlite3
 import threading
-from collections.abc import Iterator
+import time
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from pathlib import Path
 from uuid import uuid4
@@ -25,9 +26,10 @@ from victus.safety.cancellation import CancellationController
 from victus.storage.action_ledger import ActionLedger
 from victus.storage.database import Database
 from victus.tasks.events import EventManager
-from victus.tools.contracts import ActionRequest, TaskResult
+from victus.tools.contracts import TaskResult, ToolRequest
 from victus.tools.dispatcher import Dispatcher
-from victus.tools.registry import ToolRegistry
+from victus.tools.registry import RiskLevel, ToolRegistry
+from victus.tools.steps import WorkerAuthority
 
 
 class QueueFullError(Exception):
@@ -48,6 +50,8 @@ class TaskQueue:
         *,
         cancellation: CancellationController | None = None,
         locks: MutationLocks | None = None,
+        scopes=frozenset({"fs:write"}),
+        max_unreviewed_risk=RiskLevel.LOW,
     ) -> None:
         self.workspace = workspace
         self.database = database
@@ -59,9 +63,11 @@ class TaskQueue:
         self.mutation_lock = (locks or MutationLocks()).mutation
         self.supervisor = WorkerSupervisor(self.cancellation)
         self.ledger = ActionLedger(database.path)
+        self.scopes = frozenset(scopes)
+        self.max_unreviewed_risk = RiskLevel(max_unreviewed_risk)
 
         # Queue allows at most MAX_QUEUED pending items.
-        self._queue: queue.Queue[tuple[str, ActionRequest]] = queue.Queue(maxsize=self.MAX_QUEUED)
+        self._queue: queue.Queue[tuple[str, ToolRequest]] = queue.Queue(maxsize=self.MAX_QUEUED)
         self._active_task_id: str | None = None
         self._active_lock = threading.Lock()
         self._admission_lock = threading.RLock()
@@ -106,8 +112,10 @@ class TaskQueue:
 
     def submit(
         self,
-        action: ActionRequest,
+        action: ToolRequest,
         client_request_id: str | None = None,
+        *,
+        pre_admission: Callable[[], None] | None = None,
     ) -> tuple[str, bool]:
         """Submit a task to the queue.
 
@@ -116,15 +124,24 @@ class TaskQueue:
         Raises QueueFullError if the queue is at capacity.
         """
         with self._admission_lock:
-            return self._submit_locked(action, client_request_id)
+            _, _, arguments = self.dispatcher.registry.validate(action)
+            raw = action.model_dump(warnings="error") if hasattr(action, "model_dump") else action
+            action = ToolRequest.model_validate(raw, strict=True)
+            # Snapshot validated data; caller mutations cannot change queued work.
+            action = ToolRequest(tool=action.tool, arguments=arguments.model_dump())
+            return self._submit_locked(action, client_request_id, pre_admission=pre_admission)
 
     def _submit_locked(
-        self, action: ActionRequest, client_request_id: str | None
+        self, action: ToolRequest, client_request_id: str | None,
+        *, pre_admission: Callable[[], None] | None = None,
     ) -> tuple[str, bool]:
         if client_request_id:
             existing = self.get_by_client_request_id(client_request_id)
             if existing:
                 return (existing, False)
+
+        if pre_admission is not None:
+            pre_admission()
 
         stopped = self.stopped.is_set()
         if not stopped:
@@ -150,9 +167,8 @@ class TaskQueue:
                     "INSERT INTO client_requests (client_request_id, task_id) VALUES (?, ?)",
                     (client_request_id, task_id),
                 )
-            conn.execute(
-                "INSERT INTO task_events (task_id, event_type, safe_payload) VALUES (?, ?, ?)",
-                (task_id, f"task.{result.status}", json.dumps({"tool": action.tool})),
+            self.events.record_event_in(
+                conn, task_id, f"task.{result.status}", {"tool": action.tool}
             )
         if not stopped:
             self._queue.put_nowait((task_id, action))
@@ -187,18 +203,15 @@ class TaskQueue:
                     record = self.ledger.get(task.action_id)
                     if record and record.status in {"dispatching", "applied"}:
                         self.ledger.mark_unknown(task.action_id, error_code="WORKER_ERROR")
-                self.database.save(task)
-                self.events.record_event(
-                    task_id,
-                    "task.unknown",
-                    {"error_code": task.error_code},
+                self.database.save(
+                    task, event_type="task.unknown", event_payload={"error_code": task.error_code}
                 )
             finally:
                 with self._active_lock:
                     self._active_task_id = None
                 self._queue.task_done()
 
-    def _execute_task(self, task_id: str, action: ActionRequest) -> None:
+    def _execute_task(self, task_id: str, action: ToolRequest) -> None:
         """Run a single task attempt with stop checks and event tracking."""
         task = self.database.get(task_id) or TaskResult(
             task_id=task_id, tool=action.tool, status="queued"
@@ -206,63 +219,87 @@ class TaskQueue:
 
         if self.stopped.is_set():
             task.status = "cancelled"
-            self.database.save(task)
-            self.events.record_event(task_id, "task.cancelled", {"reason": "service_stopped"})
+            self.database.save(
+                task, event_type="task.cancelled", event_payload={"reason": "service_stopped"}
+            )
             return
 
+        spec = self.dispatcher.registry.get(action.tool)
+        if not math.isfinite(spec.timeout_seconds) or spec.timeout_seconds <= 0:
+            task.status, task.error_code = "failed", "INVALID_DEADLINE"
+            self.database.save(
+                task, event_type="task.failed", event_payload={"error_code": task.error_code}
+            )
+            return
+        deadline = time.monotonic() + spec.timeout_seconds
         acquired = False
         while not self.stopped.is_set():
-            if self.mutation_lock.acquire(timeout=0.05):
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                task.status, task.error_code = "failed", "MUTATION_SLOT_TIMEOUT"
+                self.database.save(
+                    task, event_type="task.failed", event_payload={"error_code": task.error_code}
+                )
+                return
+            if self.mutation_lock.acquire(timeout=min(0.05, remaining)):
                 acquired = True
                 break
         try:
             if self.stopped.is_set():
                 task.status = "cancelled"
-                self.database.save(task)
-                self.events.record_event(task_id, "task.cancelled", {"reason": "service_stopped"})
+                self.database.save(
+                    task, event_type="task.cancelled", event_payload={"reason": "service_stopped"}
+                )
                 return
 
             task.status = "running"
-            self.database.save(task)
-            self.events.record_event(task_id, "task.started", {"tool": action.tool})
+            self.database.save(task, event_type="task.started", event_payload={"tool": action.tool})
 
             # Recheck stop right at the dispatch boundary
             if self.stopped.is_set():
                 task.status = "cancelled"
-                self.database.save(task)
-                self.events.record_event(task_id, "task.cancelled", {"reason": "service_stopped"})
+                self.database.save(
+                    task, event_type="task.cancelled", event_payload={"reason": "service_stopped"}
+                )
                 return
 
-            spec = self.dispatcher.registry.get(action.tool)
             task.action_id = self.ledger.prepare_action(
                 spec.name,
                 spec.version,
-                action.arguments.model_dump(),
+                action.arguments,
                 expected_effect_ref=f"task:{task_id}",
             )
             self.database.save(task)
-            self.ledger.mark_dispatching(task.action_id)
-            outcome = self.supervisor.run(self.dispatcher, action)
-            if outcome.status == "succeeded":
-                self.ledger.mark_applied(task.action_id, output_name=outcome.output_name)
-                self.ledger.mark_verified(task.action_id, sha256=outcome.sha256)
-            elif outcome.status == "cancelled":
-                self.ledger.mark_cancelled(task.action_id)
-            elif outcome.status == "failed":
-                self.ledger.mark_failed(task.action_id, error_code=outcome.error_code)
-            else:
+            authority = WorkerAuthority(
+                task_id, task.action_id, self.scopes, self.max_unreviewed_risk
+            )
+            outcome = self.supervisor.run(
+                self.dispatcher, action, authority=authority, resource_owned=True, deadline=deadline
+            )
+            task = self.database.get(task_id) or task
+            record = self.ledger.get(task.action_id)
+            if outcome.status == "succeeded" and (
+                outcome.verified is not True or record.status != "verified"
+            ):
+                from victus.tools.dispatcher import DispatchOutcome
+
+                outcome = DispatchOutcome("unknown", error_code="INVALID_WORKER_RESULT")
+            if record.status == "prepared":
+                if outcome.status == "cancelled":
+                    self.ledger.mark_cancelled(task.action_id)
+                else:
+                    self.ledger.mark_failed(task.action_id, error_code=outcome.error_code)
+            elif record.status in {"dispatching", "applied"}:
                 self.ledger.mark_unknown(task.action_id, error_code=outcome.error_code)
             task.status = outcome.status
             task.verified = outcome.verified
             task.error_code = outcome.error_code
             task.output_name = outcome.output_name
             task.sha256 = outcome.sha256
-            self.database.save(task)
-
-            self.events.record_event(
-                task_id,
-                f"task.{outcome.status}",
-                {
+            self.database.save(
+                task,
+                event_type=f"task.{outcome.status}",
+                event_payload={
                     "tool": action.tool,
                     "verified": outcome.verified,
                     "error_code": outcome.error_code,
@@ -271,7 +308,13 @@ class TaskQueue:
                 },
             )
         finally:
-            if acquired:
+            if self.supervisor.active_pid is None:
+                from victus.recovery.resume import ResumeManager
+                from victus.safety.approvals import ApprovalStore
+
+                ResumeManager(self.ledger, ApprovalStore(self.database.path)).recover(
+                    quiesced=True, task_id=task_id)
+            if acquired and self.supervisor.active_pid is None:
                 self.mutation_lock.release()
 
     def stop(self) -> None:
@@ -303,6 +346,7 @@ class TaskQueue:
                     task_id=task_id, tool=action.tool, status="cancelled"
                 )
                 task.status = "cancelled"
-                self.database.save(task)
-                self.events.record_event(task_id, "task.cancelled", {"reason": "service_stopped"})
+                self.database.save(
+                    task, event_type="task.cancelled", event_payload={"reason": "service_stopped"}
+                )
             self._queue.task_done()

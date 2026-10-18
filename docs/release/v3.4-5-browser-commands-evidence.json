@@ -1,0 +1,373 @@
+{
+  "milestone": "V3.4 / V3.5",
+  "date": "2026-10-18",
+  "application_version": "0.1.0-source-candidate",
+  "base_revision": "64a0a22127a2d450a8d8bb4047cf76cae0cc4995",
+  "dirty_source": true,
+  "tested_source_sha256": "e7c9a4b93e14ab3e510aa7001427b1d863eb5de18890860dfc5be11e3ded5109",
+  "source_files": 274,
+  "tested_source_manifest_private": ".local/v345-tested-source-03/source.json",
+  "post_verification_manifest_private": ".local/v345-after-verification-03/source.json",
+  "source_unchanged_after_verification": true,
+  "dependency_locks_unchanged": [
+    "backend/uv.lock",
+    "dashboard/package-lock.json"
+  ],
+  "runtime": {
+    "selected_user_runtime": null,
+    "existing_runtime_data_preserved": true,
+    "new_roots_only": true,
+    "schema": 8,
+    "prior_roots_preserved": true
+  },
+  "backend": {
+    "tests": 781,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "backend_seconds": 362.534,
+  "backend_xml_private": ".local/v345-final-regression-03.xml",
+  "backend_layer": "Actual queue/spawned worker, HTTP routes, SQLite, graph/checkpoints and verifiers with controlled unit-test telemetry; deterministic UIA/browser/provider fixtures remain separate from live qualification",
+  "new_boundary_tests": {
+    "command_admission": 13,
+    "research_admission": 10,
+    "model_boundary": 7
+  },
+  "command_workflow_integration": {
+    "simulated_uia_and_research": true,
+    "controlled_telemetry": true,
+    "checks": {
+      "native_command_exact_review_verified": true,
+      "native_command_deny_no_artifact": true,
+      "save_dispatched_once": true,
+      "research_command_graph_verified": true
+    },
+    "passed": true
+  },
+  "command_workflow_integration_private": ".local/v345-command-workflow-proof-02/report.json",
+  "frontend": {
+    "build": "passed",
+    "tests": 23,
+    "lint": "passed",
+    "generated_api": "current backend schema"
+  },
+  "new_command_browser_contract": {
+    "fixture_only": true,
+    "checks": {
+      "uncertain_submit_and_double_click_preserve_identity": true,
+      "new_uncertain_command_hides_previous_clarification": true,
+      "refresh_and_lookup_are_read_only": true,
+      "definite_rejection_allows_correction": true,
+      "uncertain_clarification_same_payload": true,
+      "literal_text_not_html": true,
+      "mobile_reduced_motion": true,
+      "keyboard_stop": true,
+      "no_browser_errors": true
+    },
+    "passed": true
+  },
+  "new_command_browser_private": ".local/v35-ui-03/",
+  "repeated_native_review_browser_contract": {
+    "fixture_only": true,
+    "checks": {
+      "uncertain_retry_same_identity_payload_and_no_double_click": true,
+      "refresh_recovers_review_from_snapshot_without_post": true,
+      "literal_preview": true,
+      "mobile_no_overflow_and_reduced_motion": true,
+      "keyboard_approve_once_and_verified_result": true,
+      "expired_review_disabled": true,
+      "unavailable_reason_and_unknown_not_success": true,
+      "expired_session_blocks_checklist": true,
+      "keyboard_stop_always_available": true,
+      "no_browser_errors": true,
+      "reconnect_uses_cursor": true
+    },
+    "passed": true
+  },
+  "repeated_native_review_browser_private": ".local/v345-ui-v33-final/",
+  "repeated_note_browser_contract": {
+    "fixture_browser_checks": "passed",
+    "duplicate_submission": true,
+    "event_replay": true,
+    "reload_no_mutation": true,
+    "expired_approval": true,
+    "keyboard_deny_and_stop": true,
+    "mobile_no_overflow": true,
+    "page_errors": []
+  },
+  "repeated_note_browser_private": ".local/v345-ui-m5-final/",
+  "python_lint": "new command/research production modules and added tests passed",
+  "live_fixture_research": {
+    "fixture_only": true,
+    "real_browser_requested": true,
+    "normal_memory_guards": true,
+    "checks": {},
+    "passed": false,
+    "failure": "RESOURCE_PRESSURE",
+    "boundary": "admission_sources.json",
+    "host_memory": {
+      "available_bytes": 1197588480,
+      "total_bytes": 16802910208,
+      "process_rss_bytes": 68681728
+    },
+    "playwright_version": "1.64.0",
+    "fixture_sha256": "f1b042c34d92fda54f312da3a9f18907be0465272ff2c322b8df524d942ae267",
+    "browser_sha256": "7f08161bbeb2853ffe1780a9ded4985087f52efb9725d7d8207aabdd42f7cfb9",
+    "browser_relative_path": "chromium-1248/chrome-win64/chrome.exe"
+  },
+  "live_fixture_report_private": ".local/v34-live-03/report.json",
+  "full_30_goal_rerun": {
+    "suite": "m3-30-v1",
+    "suite_sha256": "1a23540e729f3b62f9e0991fd7c53d6cd6e279a514f45f1e4a697949a273e340",
+    "started_utc": "2026-10-18T18:12:13.535757+00:00",
+    "python": "3.12.14",
+    "requested_goals": 30,
+    "runs": [],
+    "pin": null,
+    "scope": "Real local model, real isolated browser fixtures and file outputs; native desktop gate unqualified",
+    "qualified": false,
+    "run_error": "MODEL_UNAVAILABLE"
+  },
+  "benchmark_report_private": ".local/v35-benchmark-02/report.json",
+  "benchmark_cases": [
+    {
+      "id": "B01",
+      "category": "browser",
+      "state": "not_executed",
+      "unavailable_reason": "MODEL_UNAVAILABLE"
+    },
+    {
+      "id": "B02",
+      "category": "browser",
+      "state": "not_executed",
+      "unavailable_reason": "MODEL_UNAVAILABLE"
+    },
+    {
+      "id": "B03",
+      "category": "browser",
+      "state": "not_executed",
+      "unavailable_reason": "MODEL_UNAVAILABLE"
+    },
+    {
+      "id": "B04",
+      "category": "browser",
+      "state": "not_executed",
+      "unavailable_reason": "MODEL_UNAVAILABLE"
+    },
+    {
+      "id": "B05",
+      "category": "browser",
+      "state": "not_executed",
+      "unavailable_reason": "MODEL_UNAVAILABLE"
+    },
+    {
+      "id": "B06",
+      "category": "browser",
+      "state": "not_executed",
+      "unavailable_reason": "MODEL_UNAVAILABLE"
+    },
+    {
+      "id": "B07",
+      "category": "browser",
+      "state": "not_executed",
+      "unavailable_reason": "MODEL_UNAVAILABLE"
+    },
+    {
+      "id": "B08",
+      "category": "browser",
+      "state": "not_executed",
+      "unavailable_reason": "MODEL_UNAVAILABLE"
+    },
+    {
+      "id": "B09",
+      "category": "browser",
+      "state": "not_executed",
+      "unavailable_reason": "MODEL_UNAVAILABLE"
+    },
+    {
+      "id": "B10",
+      "category": "browser",
+      "state": "not_executed",
+      "unavailable_reason": "MODEL_UNAVAILABLE"
+    },
+    {
+      "id": "D01",
+      "category": "desktop",
+      "state": "not_executed",
+      "unavailable_reason": "MODEL_UNAVAILABLE",
+      "additional_gate": "NATIVE_NOTEPAD_UNQUALIFIED"
+    },
+    {
+      "id": "D02",
+      "category": "desktop",
+      "state": "not_executed",
+      "unavailable_reason": "MODEL_UNAVAILABLE",
+      "additional_gate": "NATIVE_NOTEPAD_UNQUALIFIED"
+    },
+    {
+      "id": "D03",
+      "category": "desktop",
+      "state": "not_executed",
+      "unavailable_reason": "MODEL_UNAVAILABLE",
+      "additional_gate": "NATIVE_NOTEPAD_UNQUALIFIED"
+    },
+    {
+      "id": "D04",
+      "category": "desktop",
+      "state": "not_executed",
+      "unavailable_reason": "MODEL_UNAVAILABLE",
+      "additional_gate": "NATIVE_NOTEPAD_UNQUALIFIED"
+    },
+    {
+      "id": "D05",
+      "category": "desktop",
+      "state": "not_executed",
+      "unavailable_reason": "MODEL_UNAVAILABLE",
+      "additional_gate": "NATIVE_NOTEPAD_UNQUALIFIED"
+    },
+    {
+      "id": "D06",
+      "category": "desktop",
+      "state": "not_executed",
+      "unavailable_reason": "MODEL_UNAVAILABLE",
+      "additional_gate": "NATIVE_NOTEPAD_UNQUALIFIED"
+    },
+    {
+      "id": "D07",
+      "category": "desktop",
+      "state": "not_executed",
+      "unavailable_reason": "MODEL_UNAVAILABLE",
+      "additional_gate": "NATIVE_NOTEPAD_UNQUALIFIED"
+    },
+    {
+      "id": "D08",
+      "category": "desktop",
+      "state": "not_executed",
+      "unavailable_reason": "MODEL_UNAVAILABLE",
+      "additional_gate": "NATIVE_NOTEPAD_UNQUALIFIED"
+    },
+    {
+      "id": "D09",
+      "category": "desktop",
+      "state": "not_executed",
+      "unavailable_reason": "MODEL_UNAVAILABLE",
+      "additional_gate": "NATIVE_NOTEPAD_UNQUALIFIED"
+    },
+    {
+      "id": "D10",
+      "category": "desktop",
+      "state": "not_executed",
+      "unavailable_reason": "MODEL_UNAVAILABLE",
+      "additional_gate": "NATIVE_NOTEPAD_UNQUALIFIED"
+    },
+    {
+      "id": "F01",
+      "category": "mixed_file",
+      "state": "not_executed",
+      "unavailable_reason": "MODEL_UNAVAILABLE"
+    },
+    {
+      "id": "F02",
+      "category": "mixed_file",
+      "state": "not_executed",
+      "unavailable_reason": "MODEL_UNAVAILABLE"
+    },
+    {
+      "id": "F03",
+      "category": "mixed_file",
+      "state": "not_executed",
+      "unavailable_reason": "MODEL_UNAVAILABLE"
+    },
+    {
+      "id": "F04",
+      "category": "mixed_file",
+      "state": "not_executed",
+      "unavailable_reason": "MODEL_UNAVAILABLE"
+    },
+    {
+      "id": "F05",
+      "category": "mixed_file",
+      "state": "not_executed",
+      "unavailable_reason": "MODEL_UNAVAILABLE"
+    },
+    {
+      "id": "F06",
+      "category": "mixed_file",
+      "state": "not_executed",
+      "unavailable_reason": "MODEL_UNAVAILABLE"
+    },
+    {
+      "id": "F07",
+      "category": "mixed_file",
+      "state": "not_executed",
+      "unavailable_reason": "MODEL_UNAVAILABLE"
+    },
+    {
+      "id": "F08",
+      "category": "mixed_file",
+      "state": "not_executed",
+      "unavailable_reason": "MODEL_UNAVAILABLE"
+    },
+    {
+      "id": "F09",
+      "category": "mixed_file",
+      "state": "not_executed",
+      "unavailable_reason": "MODEL_UNAVAILABLE"
+    },
+    {
+      "id": "F10",
+      "category": "mixed_file",
+      "state": "not_executed",
+      "unavailable_reason": "MODEL_UNAVAILABLE"
+    }
+  ],
+  "historical_baseline": {
+    "verified": 19,
+    "denominator": 30,
+    "gate": 27,
+    "qualified": false,
+    "browser": {
+      "verified": 10,
+      "total": 10
+    },
+    "desktop": {
+      "verified": 0,
+      "total": 10,
+      "gate": "native qualification missing"
+    },
+    "mixed_file": {
+      "verified": 9,
+      "total": 10,
+      "failed_goal": "F06",
+      "reason": "STEP_VALIDATION_OR_POLICY_DENIED"
+    },
+    "source": "docs/milestones/M3-7D-routing-context.md",
+    "new_run": false
+  },
+  "current_admission": {
+    "note_commands": "enabled subject to Stop and resource pressure",
+    "native_checklist": "disabled: native ownership qualification unresolved",
+    "fixture_research": "disabled: awaiting live qualification; attempt blocked by resource pressure",
+    "public_web": "unavailable: no reviewed scope or live qualification",
+    "local_reasoning": "unavailable: no installed exact reasoning pin established",
+    "cloud_fallback": "not used; existing explicit-consent boundary retained"
+  },
+  "model_configuration": {
+    "command_model_name": null,
+    "command_model_digest": null,
+    "ollama_loopback_readiness": "unavailable",
+    "default_cache_observation": [
+      "nomic-embed-text:latest"
+    ],
+    "downloaded_models": false,
+    "live_model_requests": false
+  },
+  "remaining_acceptance": [
+    "Successful native Notepad qualification, repetitions and physical DPI/adversarial cases",
+    "Successful normal-pressure live fixture browser qualification before enabling registration",
+    "Exact installed local reasoning pin and full executed 30-goal benchmark meeting 27/30",
+    "Public-web scope review/qualification only if later requested",
+    "No new packaged or fresh-account qualification claimed"
+  ]
+}

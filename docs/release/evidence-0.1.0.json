@@ -1,0 +1,98 @@
+{
+  "format": 1,
+  "version": "0.1.0",
+  "date": "2026-10-17",
+  "release_classification": "unsigned-local-candidate-not-fresh-account-qualified",
+  "base_revision": "64a0a22127a2d450a8d8bb4047cf76cae0cc4995",
+  "dirty_working_tree": true,
+  "production_matches_base_revision": true,
+  "source_sha256": "43d7eee05bf12b9d7fb3f728aa57675ac2cbc5ff188fe43d9c785ae781cc1794",
+  "bundle_manifest_sha256": "4cfd0a5fdb12e17ca7453e91564b1e446a1ebbbce575c3a5c0e24102a445b45d",
+  "bundle_file_count": 973,
+  "bundle_bytes": 486454986,
+  "windows_metadata": {
+    "as_invoker": true,
+    "icon_present": true,
+    "version_resource_present": true
+  },
+  "backend_regression": {
+    "tests": "616",
+    "errors": "0",
+    "failures": "0",
+    "skipped": "0",
+    "time": "263.300"
+  },
+  "release_focused_tests": {
+    "passed": 62,
+    "seconds": 7.93
+  },
+  "frontend": {
+    "build": "passed",
+    "tests_passed": 20,
+    "lint": "passed"
+  },
+  "native_package": {
+    "version": "0.1.0",
+    "passed": true,
+    "qualification": "same-account-laptop-only",
+    "checks": {
+      "bundle_checksums": true,
+      "windows_version_metadata": true,
+      "entry_version": true,
+      "dashboard_staged": true,
+      "data_root_selection": true,
+      "missing_dependency_messages": true,
+      "no_autostart_or_listening": true,
+      "api_auth_required": true,
+      "api_authorized": true,
+      "dashboard_http": true,
+      "voice_disabled_without_asset": true,
+      "instance_lock": true,
+      "frozen_worker_verified": true,
+      "stop_then_maintenance": true,
+      "schema_migration": true,
+      "backup_and_restore": true,
+      "rollback_restart": true
+    },
+    "fresh_standard_account_tested": false,
+    "gpu_browser_microphone_tested": false
+  },
+  "mcp_package": {
+    "version": "0.1.0",
+    "passed": true,
+    "qualification": "same-account-laptop-only",
+    "checks": {
+      "bundle_checksums": true,
+      "windows_version_metadata": true,
+      "entry_version": true,
+      "dashboard_staged": true,
+      "data_root_selection": true,
+      "missing_dependency_messages": true,
+      "no_autostart_or_listening": true,
+      "api_auth_required": true,
+      "api_authorized": true,
+      "dashboard_http": true,
+      "voice_disabled_without_asset": true,
+      "instance_lock": true,
+      "frozen_worker_verified": true,
+      "stop_then_maintenance": true,
+      "schema_migration": true,
+      "backup_and_restore": true,
+      "rollback_restart": true
+    },
+    "fresh_standard_account_tested": false,
+    "gpu_browser_microphone_tested": false
+  },
+  "schema_upgrade_fixture": "6-to-7-passed",
+  "newer_schema_rejection": "passed",
+  "rollback": "same-version-stopped-backup-restore-restart-passed",
+  "pending": [
+    "fresh-standard-account-or-dedicated-machine",
+    "real-prior-release-to-new-release-upgrade-and-rollback",
+    "target-GPU-inference",
+    "target-browser-control",
+    "physical-microphone-and-spoken-output",
+    "custom-wake-acoustic-qualification"
+  ],
+  "privacy": "No host identifiers, absolute paths, prompts, tokens, credentials or raw logs included."
+}

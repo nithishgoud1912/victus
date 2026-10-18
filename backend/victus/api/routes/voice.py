@@ -6,7 +6,13 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 
 from victus.runtime.resources import ResourcePressure
 from victus.tasks.queue import QueueFullError
-from victus.voice.contracts import MuteRequest, ReviewedSubmission, SessionCommand, VoiceSnapshot
+from victus.voice.contracts import (
+    MuteRequest,
+    ReviewedClarification,
+    ReviewedSubmission,
+    SessionCommand,
+    VoiceSnapshot,
+)
 from victus.voice.service import VoiceConflict
 
 
@@ -22,6 +28,8 @@ def create_voice_router(auth_dependency: Callable) -> APIRouter:
             raise HTTPException(503, "Local resource pressure") from None
         except QueueFullError:
             raise HTTPException(429, "Task queue is full; review and retry") from None
+        except (ValueError, PermissionError, FileExistsError):
+            raise HTTPException(422, "Invalid reviewed command or clarification") from None
 
     @router.get("", response_model=VoiceSnapshot)
     def voice_status(request: Request):
@@ -57,7 +65,13 @@ def create_voice_router(auth_dependency: Callable) -> APIRouter:
 
     @router.post("/submit", response_model=VoiceSnapshot)
     def voice_submit(body: ReviewedSubmission, request: Request):
-        return invoke(request, "submit", body.session_id, body.revision, body.action)
+        return invoke(
+            request, "submit", body.session_id, body.revision, body.command or body.action
+        )
+
+    @router.post("/clarify", response_model=VoiceSnapshot)
+    def voice_clarify(body: ReviewedClarification, request: Request):
+        return invoke(request, "clarify", body.session_id, body.revision, body.fields)
 
     @router.post("/displayed", response_model=VoiceSnapshot)
     def voice_displayed(body: SessionCommand, request: Request):

@@ -119,6 +119,17 @@ class EventManager:
         safe_payload: dict[str, Any] | None = None,
     ) -> EventRecord:
         """Insert a sequenced event into the database."""
+        with self._connect() as conn:
+            return self.record_event_in(conn, task_id, event_type, safe_payload)
+
+    def record_event_in(
+        self,
+        conn: sqlite3.Connection,
+        task_id: str,
+        event_type: str,
+        safe_payload: dict[str, Any] | None = None,
+    ) -> EventRecord:
+        """Append within the caller's transaction; never commit or publish early."""
         allowed = {
             "tool",
             "tool_name",
@@ -142,18 +153,17 @@ class EventManager:
         sanitized = sanitize_payload(metadata)
         payload_str = json.dumps(sanitized)
 
-        with self._connect() as conn:
-            cursor = conn.execute(
-                """INSERT INTO task_events (task_id, event_type, safe_payload)
-                   VALUES (?, ?, ?)""",
-                (task_id, event_type, payload_str),
-            )
-            event_id = cursor.lastrowid
-            row = conn.execute(
-                "SELECT created_at FROM task_events WHERE event_id = ?",
-                (event_id,),
-            ).fetchone()
-            timestamp = row["created_at"] if row else _now_iso()
+        cursor = conn.execute(
+            """INSERT INTO task_events (task_id, event_type, safe_payload)
+               VALUES (?, ?, ?)""",
+            (task_id, event_type, payload_str),
+        )
+        event_id = cursor.lastrowid
+        row = conn.execute(
+            "SELECT created_at FROM task_events WHERE event_id = ?",
+            (event_id,),
+        ).fetchone()
+        timestamp = row[0] if row else _now_iso()
 
         event = EventRecord(
             event_id=event_id,

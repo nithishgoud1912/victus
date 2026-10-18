@@ -12,7 +12,17 @@ from pydantic import BaseModel
 from victus.storage.action_ledger import ActionLedger
 from victus.storage.payloads import PayloadStore
 from victus.tasks.events import EventManager
-from victus.tools.registry import ToolSpec
+from victus.tools.registry import RiskLevel, ToolSpec
+
+
+@dataclass(frozen=True)
+class WorkerAuthority:
+    """Service-assigned metadata, sent only over the owned worker channel."""
+
+    task_id: str
+    action_id: str | None
+    scopes: frozenset[str]
+    max_unreviewed_risk: RiskLevel = RiskLevel.LOW
 
 
 @dataclass(frozen=True)
@@ -44,6 +54,11 @@ class StepContext:
     permit_token: str | None = None
     approval_binding: Any = None
     revalidate_binding: Any = None
+    owned_action_id: str | None = None
+    max_unreviewed_risk: RiskLevel = RiskLevel.MEDIUM
+    resource_owned: bool = False
+    emit_step_events: bool = True
+    review_save: Any = None
 
     def stopped(self):
         return self.cancelled is not None and self.cancelled.is_set()

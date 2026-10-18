@@ -4,8 +4,9 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from victus.agent.commands import CommandFields, CommandResponse, CommandSubmission
 from victus.tools.contracts import ActionRequest
 
 
@@ -14,6 +15,7 @@ class VoiceState(StrEnum):
     RECORDING = "recording"
     TRANSCRIBING = "transcribing"
     REVIEWING = "reviewing"
+    CLARIFYING = "clarifying"
     SUBMITTED = "submitted"
     SPEAKING = "speaking"
     ERROR = "error"
@@ -52,6 +54,7 @@ class VoiceSnapshot(BaseModel):
     wake_available: bool = False
     wake_listening: bool = False
     wake_error: str | None = None
+    command: CommandResponse | None = None
 
 
 class SessionCommand(BaseModel):
@@ -62,7 +65,19 @@ class SessionCommand(BaseModel):
 
 class ReviewedSubmission(SessionCommand):
     confirmation: Literal["explicit_user_review"]
-    action: ActionRequest
+    action: ActionRequest | None = None
+    command: CommandSubmission | None = None
+
+    @model_validator(mode="after")
+    def one_reviewed_input(self):
+        if (self.action is None) == (self.command is None):
+            raise ValueError("Supply exactly one reviewed input")
+        return self
+
+
+class ReviewedClarification(SessionCommand):
+    confirmation: Literal["explicit_user_review"]
+    fields: CommandFields
 
 
 class MuteRequest(BaseModel):

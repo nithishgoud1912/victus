@@ -37,11 +37,43 @@ def main():
     parser.add_argument("--seconds", type=float, default=7200)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--model", type=Path)
+    parser.add_argument(
+        "--require-ready",
+        action="store_true",
+        help="Record a blocked attempt if normal mutation admission lacks resources",
+    )
+    parser.add_argument(
+        "--fail-fast",
+        action="store_true",
+        help="Abort unqualified on a failure or three pressure rejections; never shorten the passing duration gate",
+    )
     args = parser.parse_args()
     if not 10 <= args.seconds <= 14400:
         parser.error("Duration must be 10 to 14400 seconds")
     root = args.output.resolve()
     root.mkdir(parents=True, exist_ok=False)
+    if args.require_ready:
+        from victus.runtime.resources import resources, system_memory
+
+        try:
+            resources().check_current()
+        except ResourcePressure as error:
+            report = {
+                "requested_seconds": args.seconds,
+                "elapsed_seconds": 0,
+                "full_two_hour_soak": False,
+                "qualified": False,
+                "blocked": "RESOURCE_PRESSURE" if str(error) == "LOCAL_RESOURCE_PRESSURE"
+                else "RESOURCE_TELEMETRY_UNAVAILABLE",
+                "boundary": "preflight",
+                "implementation_start_sha256": implementation_hash(),
+                "host_memory": system_memory(),
+                "normal_memory_guards": True,
+                "tasks_verified": 0,
+            }
+            (root / "report.json").write_text(json.dumps(report, indent=2) + "\n")
+            print(json.dumps(report))
+            return 2
     token = secrets.token_urlsafe(32)
     app = create_app(Settings(root / "runtime", token))
     sock = socket.socket()
@@ -160,6 +192,11 @@ def main():
             base_url=base, headers={"Authorization": "Bearer " + token}, trust_env=False, timeout=3
         ) as client:
             while time.monotonic() - started < args.seconds:
+                if args.fail_fast and (report["failures"] or report["pressure_rejections"] >= 3):
+                    report["abort_reason"] = (
+                        "FAILURE" if report["failures"] else "PERSISTENT_RESOURCE_PRESSURE"
+                    )
+                    break
                 tick = time.monotonic()
                 try:
                     response = client.get("/api/health")
@@ -220,7 +257,8 @@ def main():
         sock.close()
         (root / "report.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
     print(json.dumps({key: value for key, value in report.items() if key != "telemetry"}))
+    return 0 if report["qualified"] or args.seconds < 7200 else 2
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

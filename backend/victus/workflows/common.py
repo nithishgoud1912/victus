@@ -10,7 +10,7 @@ from pydantic import BaseModel, ConfigDict
 
 from victus.adapters.playwright.downloads import read_reviewed_file
 from victus.storage.action_ledger import ActionLedger
-from victus.storage.database import Database
+from victus.storage.migrations import migrate
 from victus.storage.payloads import PayloadStore
 from victus.tasks.events import EventManager
 from victus.tools.contracts import ActionProposal
@@ -61,16 +61,22 @@ def spec(name, model, execute, verify, scope, *, risk=RiskLevel.MEDIUM, timeout=
     )
 
 
-def context_for(workspace, task_id, cancelled, scopes, authorize):
-    database = Database(workspace.parent)
+def context_for(
+    workspace, task_id, cancelled, scopes, authorize, *, max_unreviewed_risk=RiskLevel.MEDIUM
+):
+    # Context creation is not an application restart. Never run task recovery
+    # here: a worker would otherwise retire the live task that owns it.
+    db_path = workspace.parent / "victus.sqlite3"
+    migrate(db_path)
     return StepContext(
         task_id=task_id,
         scopes=frozenset(scopes),
         authorize=authorize,
-        ledger=ActionLedger(database.path),
-        payloads=PayloadStore(database.path),
-        events=EventManager(database.path),
+        ledger=ActionLedger(db_path),
+        payloads=PayloadStore(db_path),
+        events=EventManager(db_path),
         cancelled=cancelled,
+        max_unreviewed_risk=max_unreviewed_risk,
     )
 
 

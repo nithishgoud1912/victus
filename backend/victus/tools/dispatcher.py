@@ -9,6 +9,19 @@ from victus.tools.contracts import ActionRequest
 from victus.tools.registry import ToolRegistry
 
 
+class PostconditionFailed(ValueError):
+    pass
+
+
+def _is_graph_interrupt(error):
+    # Graph execution already imports this class. A plain note must not load the
+    # full planning stack merely to recognize its control-flow exception.
+    import sys
+
+    kind = getattr(sys.modules.get("langgraph.errors"), "GraphInterrupt", None)
+    return kind is not None and isinstance(error, kind)
+
+
 @dataclass(frozen=True)
 class DispatchOutcome:
     """The observable result of a single action attempt."""
@@ -60,68 +73,115 @@ class Dispatcher:
             else:
                 context.ledger.mark_failed(action_id, error_code="APPROVAL_OR_TARGET_STALE")
 
-    def dispatch(self, action: ActionRequest, cancelled: Any = None) -> DispatchOutcome:
-        """Execute *action* inside the workspace and return an outcome.
+    def dispatch(self, action, cancelled: Any = None, *, authority=None) -> DispatchOutcome:
+        """Owned-worker compatibility entry; all execution uses dispatch_step."""
+        import asyncio
+        from uuid import uuid4
 
-        All exceptions that represent known failure modes are caught and mapped
-        to an appropriate ``DispatchOutcome``.  Unknown exceptions propagate so
-        the caller can decide on a fallback status.
-        """
-        dispatched = False
-        try:
-            tool = self.registry.get(action.tool)
-            raw = (
-                action.arguments.model_dump()
-                if hasattr(action.arguments, "model_dump")
-                else action.arguments
-            )
-            validated = tool.argument_model.model_validate(raw)
-            if tool.policy is not None:
-                tool.policy(self.workspace, validated)
-            else:
-                validate_action(
-                    ActionRequest(tool=action.tool, arguments=validated), self.workspace
-                )
-            if cancelled is not None and cancelled.is_set():
-                return DispatchOutcome(status="cancelled", error_code="SERVICE_STOPPED")
-            dispatched = True
-            if tool.execute_cancellable is not None and cancelled is not None:
-                output = tool.execute_cancellable(self.workspace, validated, cancelled)
-            else:
-                output = tool.execute(self.workspace, validated)
-            if cancelled is not None and cancelled.is_set():
-                return DispatchOutcome(status="unknown", error_code="STOPPED_DURING_ACTION")
-            if tool.verify(output, validated):
-                return DispatchOutcome(
-                    status="succeeded",
-                    verified=True,
-                    output_name=output.name,
-                    sha256=hashlib.sha256(output.read_bytes()).hexdigest(),
-                )
-            return DispatchOutcome(
-                status="unknown",
-                error_code="POSTCONDITION_FAILED",
-                output_name=output.name,
-            )
-        except FileExistsError:
-            return DispatchOutcome(status="failed", error_code="TARGET_EXISTS")
-        except PermissionError:
-            return DispatchOutcome(
-                status="unknown" if dispatched else "failed",
-                error_code="ACCESS_DENIED" if dispatched else "POLICY_DENIED",
-            )
-        except ValueError:
-            return DispatchOutcome(
-                status="unknown" if dispatched else "failed",
-                error_code="INVALID_ACTION",
-            )
-        except OSError:
-            return DispatchOutcome(
-                status="unknown" if dispatched else "failed",
-                error_code="IO_ERROR",
-            )
+        from victus.storage.action_ledger import ActionLedger
+        from victus.storage.migrations import migrate
+        from victus.storage.payloads import PayloadStore
+        from victus.tasks.events import EventManager
+        from victus.tools.steps import StepContext, WorkerAuthority
+
+        resource_owned = authority is not None
+        authority = authority or WorkerAuthority(uuid4().hex, None, frozenset({"fs:write"}))
+        db_path = self.workspace.parent / "victus.sqlite3"
+        if not db_path.exists():
+            migrate(db_path)
+        context = StepContext(
+            task_id=authority.task_id,
+            scopes=authority.scopes,
+            authorize=lambda *_: True,
+            ledger=ActionLedger(db_path),
+            payloads=PayloadStore(db_path),
+            events=EventManager(db_path),
+            cancelled=cancelled,
+            max_unreviewed_risk=authority.max_unreviewed_risk,
+        )
+        context.owned_action_id = authority.action_id
+        # Supervisor/TaskQueue holds the process-wide slot for this entire worker.
+        context.resource_owned = resource_owned
+        context.emit_step_events = False  # TaskQueue owns public task lifecycle events.
+        outcome = asyncio.run(self.dispatch_step(action, context))
+        data = outcome.data
+        code = (
+            "WORKER_ERROR"
+            if outcome.error_code == "STEP_POSTCONDITION_OR_EXECUTION_UNCERTAIN"
+            else outcome.error_code
+        )
+        return DispatchOutcome(
+            status="failed" if outcome.status == "blocked" else outcome.status,
+            verified=outcome.verified,
+            error_code=code,
+            output_name=data.get("output_name"),
+            sha256=data.get("sha256"),
+        )
 
     async def dispatch_step(self, action, context):
+        """One slot for task workers, deterministic workflows and planner actions."""
+        import asyncio
+        import math
+        import time
+
+        from victus.runtime.resources import ResourcePressure, resources
+        from victus.tools.steps import StepOutcome
+
+        if context.stopped():
+            self._reject_review(context, cancelled=True)
+            return StepOutcome("cancelled", error_code="SERVICE_STOPPED")
+        try:
+            # Reject forged envelopes/schema before any lock, ledger or adapter call.
+            action, tool, arguments = self.registry.validate(action)
+            self._policy(tool, arguments, context)
+            if not math.isfinite(tool.timeout_seconds) or tool.timeout_seconds <= 0:
+                return StepOutcome("blocked", error_code="INVALID_DEADLINE")
+        except BaseException as error:
+            if _is_graph_interrupt(error) or not isinstance(error, Exception):
+                raise
+            self._reject_review(context)
+            code = (
+                "TARGET_EXISTS"
+                if isinstance(error, FileExistsError)
+                else "POLICY_DENIED"
+                if isinstance(error, PermissionError)
+                else "STEP_VALIDATION_OR_POLICY_DENIED"
+            )
+            return StepOutcome("blocked", error_code=code)
+        acquired = False
+        deadline = min(context.deadline, time.monotonic() + tool.timeout_seconds)
+        try:
+            if not context.resource_owned:
+                while True:
+                    if context.stopped():
+                        self._reject_review(context, cancelled=True)
+                        return StepOutcome("cancelled", error_code="SERVICE_STOPPED")
+                    if time.monotonic() >= deadline:
+                        self._reject_review(context)
+                        return StepOutcome("failed", error_code="STEP_DEADLINE_OR_STOP")
+                    resources().check()
+                    if resources().mutation.acquire(blocking=False):
+                        acquired = True
+                        break
+                    await asyncio.sleep(0.01)
+            return await self._dispatch_step(action, context, deadline)
+        except ResourcePressure:
+            self._reject_review(context)
+            return StepOutcome("blocked", error_code="LOCAL_RESOURCE_PRESSURE")
+        finally:
+            if acquired:
+                resources().mutation.release()
+
+    def _policy(self, tool, arguments, context):
+        from victus.safety.policy import validate_step
+
+        validate_step(tool, arguments, context)
+        if tool.policy is not None:
+            tool.policy(self.workspace, arguments)
+        elif tool.name == "fs.create_note":
+            validate_action(ActionRequest(tool=tool.name, arguments=arguments), self.workspace)
+
+    async def _dispatch_step(self, action, context, deadline):
         """Execute a typed workflow step through this registry/policy/ledger boundary.
 
         Construct in the supervised owner process. Async handlers stay on its loop;
@@ -134,10 +194,7 @@ class Dispatcher:
         import math
         import time
 
-        from langgraph.errors import GraphInterrupt
-
         from victus.safety.approvals import argument_hash
-        from victus.safety.policy import validate_step
         from victus.storage.action_ledger import _canonical_hash
         from victus.tools.steps import StepOutcome
 
@@ -155,28 +212,16 @@ class Dispatcher:
                 return StepOutcome("failed", error_code="WORKFLOW_BUDGET_EXHAUSTED")
             context.remaining_steps -= 1
             try:
-                tool = self.registry.get(action.tool)
-                raw = (
-                    action.arguments.model_dump()
-                    if hasattr(action.arguments, "model_dump")
-                    else action.arguments
-                )
-                arguments = tool.argument_model.model_validate(raw)
-                validate_step(tool, arguments, context)
-                if tool.policy is not None:
-                    tool.policy(self.workspace, arguments)
-                elif tool.name == "fs.create_note":
-                    validate_action(
-                        ActionRequest(tool=tool.name, arguments=arguments), self.workspace
-                    )
+                action, tool, arguments = self.registry.validate(action)
+                self._policy(tool, arguments, context)
                 if not math.isfinite(tool.timeout_seconds) or tool.timeout_seconds <= 0:
                     raise ValueError("Invalid deadline")
-            except GraphInterrupt:
-                raise
-            except Exception:
+            except BaseException as error:
+                if _is_graph_interrupt(error) or not isinstance(error, Exception):
+                    raise
                 self._reject_review(context)
                 return StepOutcome("blocked", error_code="STEP_VALIDATION_OR_POLICY_DENIED")
-            action_id = context.prepared_action_id
+            action_id = context.prepared_action_id or context.owned_action_id
             if action_id is not None:
                 record = context.ledger.get(action_id)
                 if (
@@ -186,8 +231,11 @@ class Dispatcher:
                     or record.tool_version != tool.version
                     or record.expected_effect_ref != f"task:{context.task_id}"
                     or record.canonical_args_hash != _canonical_hash(arguments.model_dump())
-                    or context.permits is None
-                    or context.permit_token is None
+                    or (
+                        context.prepared_action_id is not None
+                        and (context.permits is None or context.permit_token is None)
+                    )
+                    or (context.owned_action_id is not None and context.permits is not None)
                 ):
                     return StepOutcome("blocked", error_code="APPROVAL_BINDING_INVALID")
             else:
@@ -241,6 +289,8 @@ class Dispatcher:
                         if context.stopped():
                             context.ledger.mark_cancelled(action_id)
                             return StepOutcome("cancelled", action_id, error_code="SERVICE_STOPPED")
+                        # Reacquire target/policy after waiting; no earlier check grants a lease.
+                        self._policy(tool, arguments, context)
                         if context.permits is not None:
                             context.permits.consume_permit(
                                 context.permit_token, live, cancelled=context.stopped
@@ -248,11 +298,27 @@ class Dispatcher:
                         if context.stopped():
                             context.ledger.mark_cancelled(action_id)
                             return StepOutcome("cancelled", action_id, error_code="SERVICE_STOPPED")
+                        if time.monotonic() >= deadline:
+                            raise TimeoutError
                         context.ledger.mark_dispatching(action_id)
                         dispatched = True
-                    deadline = min(context.deadline, time.monotonic() + tool.timeout_seconds)
                     async with asyncio.timeout(max(0, deadline - time.monotonic())):
-                        output = tool.execute(self.workspace, arguments)
+                        # Durable intent can block on storage. Stop/deadline may
+                        # have arrived during that I/O; do not enter the adapter.
+                        if context.stopped() or time.monotonic() >= deadline:
+                            raise TimeoutError
+                        from victus.tools.steps import WorkerAuthority
+
+                        output = (
+                            tool.execute_owned(
+                                self.workspace, arguments, context.cancelled,
+                                WorkerAuthority(context.task_id, action_id, context.scopes,
+                                                context.max_unreviewed_risk),
+                            ) if tool.execute_owned is not None else
+                            tool.execute_cancellable(self.workspace, arguments, context.cancelled)
+                            if tool.execute_cancellable is not None
+                            else tool.execute(self.workspace, arguments)
+                        )
                         if inspect.isawaitable(output):
                             output = await output
                         if context.stopped() or time.monotonic() >= deadline:
@@ -262,6 +328,10 @@ class Dispatcher:
                             if (
                                 output.is_symlink()
                                 or output.resolve().parent != self.workspace.resolve()
+                                or (
+                                    tool.name == "fs.create_note"
+                                    and output.name != arguments.filename
+                                )
                             ):
                                 raise ValueError("Artifact outside workspace")
                             with output.open("rb") as stream:
@@ -278,19 +348,33 @@ class Dispatcher:
                         encoded = json.dumps(output, ensure_ascii=True, allow_nan=False)
                         if len(encoded.encode("utf-8")) > 128_000:
                             raise ValueError("Step output limit")
-                        context.ledger.mark_applied(action_id)
+                        context.ledger.mark_applied(
+                            action_id, output_name=output.get("output_name")
+                        )
                         verified = tool.verify(verification_output, arguments)
                         if inspect.isawaitable(verified):
                             verified = await verified
                         if context.stopped() or time.monotonic() >= deadline:
                             raise TimeoutError
                         if verified is not True:
-                            raise ValueError("Postcondition not proved")
+                            raise PostconditionFailed("Postcondition not proved")
+                        if isinstance(verification_output, Path):
+                            if (
+                                verification_output.is_symlink()
+                                or verification_output.resolve().parent != self.workspace.resolve()
+                            ):
+                                raise PostconditionFailed(
+                                    "Artifact target changed during verification"
+                                )
+                            with verification_output.open("rb") as stream:
+                                reread = stream.read(128001)
+                            if hashlib.sha256(reread).hexdigest() != output["sha256"]:
+                                raise PostconditionFailed("Artifact changed during verification")
                         context.payloads.store(action_id, "output", output, retention_hours=24)
-                        context.ledger.mark_verified(action_id)
+                        context.ledger.mark_verified(action_id, sha256=output.get("sha256"))
                         outcome = StepOutcome("succeeded", action_id, output)
             except BaseException as error:
-                if isinstance(error, GraphInterrupt):
+                if _is_graph_interrupt(error):
                     raise
                 if (
                     isinstance(error, PermissionError)
@@ -308,7 +392,11 @@ class Dispatcher:
                     )
                     return outcome
                 code = (
-                    "STEP_DEADLINE_OR_STOP"
+                    "POSTCONDITION_FAILED"
+                    if isinstance(error, PostconditionFailed)
+                    else "TARGET_EXISTS"
+                    if isinstance(error, FileExistsError) and not dispatched
+                    else "STEP_DEADLINE_OR_STOP"
                     if isinstance(error, (TimeoutError, asyncio.CancelledError))
                     else "STEP_POSTCONDITION_OR_EXECUTION_UNCERTAIN"
                 )
@@ -330,5 +418,6 @@ class Dispatcher:
                         "error_code": outcome.error_code,
                     }
                     context.trace.append(safe)
-                    context.events.record_event(context.task_id, "workflow.step", safe)
+                    if context.emit_step_events:
+                        context.events.record_event(context.task_id, "workflow.step", safe)
             return outcome

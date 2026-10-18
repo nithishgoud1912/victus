@@ -181,6 +181,20 @@ class ResourceSupervisor:
             ) or self._allocation_errors >= 2:
                 raise ResourcePressure("LOCAL_RESOURCE_PRESSURE")
 
+    def check_current(self):
+        """Explicit live preflight; an empty or stale cache cannot prove readiness."""
+        try:
+            sample = self.probe()
+            available = sample.get("available_bytes")
+            if type(available) is not int or available <= 0:
+                raise ValueError
+        except Exception:
+            raise ResourcePressure("LOCAL_RESOURCE_TELEMETRY_UNAVAILABLE") from None
+        with self._lock:
+            self._sample.update(sample, sampled_at=time.time())
+        self.check()
+        return sample
+
     def check_disk(self, root, *, required=64 * 1024**2):
         try:
             if shutil.disk_usage(root).free < required:

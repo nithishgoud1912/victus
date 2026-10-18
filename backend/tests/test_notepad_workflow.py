@@ -14,7 +14,7 @@ from victus.adapters.uia.applications import (
     UIAWorker,
 )
 from victus.tools.dispatcher import Dispatcher
-from victus.tools.registry import ToolRegistry
+from victus.tools.registry import RiskLevel, ToolRegistry
 from victus.workflows.common import context_for
 from victus.workflows.create_notepad_checklist import (
     ChecklistRequest,
@@ -121,7 +121,10 @@ class FakeBackend:
             self.main.enabled = True
 
 
-def execute(tmp_path, *, dpi=96, duplicate=False, initial="", wrong_bytes=False):
+def execute(
+    tmp_path, *, dpi=96, duplicate=False, initial="", wrong_bytes=False, configure=None,
+    diagnostics=None,
+):
     root = tmp_path / "workspace"
     root.mkdir()
     executable = tmp_path / "qualified-notepad.exe"
@@ -147,7 +150,7 @@ def execute(tmp_path, *, dpi=96, duplicate=False, initial="", wrong_bytes=False)
         profile="qualified-notepad", items=["Inspect", "Save", "Verify"], filename="checklist.txt"
     )
     with UIAWorker((profile,), _backend=backend) as worker:
-        tools = NotepadTools(worker, request, root)
+        tools = NotepadTools(worker, request, root, diagnostics=diagnostics)
         registry = ToolRegistry()
         tools.register(registry)
         context = context_for(
@@ -162,7 +165,11 @@ def execute(tmp_path, *, dpi=96, duplicate=False, initial="", wrong_bytes=False)
                 "filesystem:read",
             },
             tools.authorize,
+            # This harness reviews the bounded workflow and its domain save permit.
+            max_unreviewed_risk=RiskLevel.HIGH,
         )
+        if configure is not None:
+            configure(tools, context, backend, registry)
         result = asyncio.run(create_notepad_checklist(Dispatcher(root, registry), context, request))
     return result, backend, context, root, request
 
@@ -199,3 +206,152 @@ def test_unsafe_or_unproved_notepad_workflow_never_succeeds(tmp_path, case):
     if case != "wrong-bytes":
         assert not (root / "checklist.txt").exists()
         assert ("set", "editor") not in backend.calls
+
+
+@pytest.mark.parametrize("case", ["existing", "denied", "expired", "stop", "stale", "changed-path"])
+def test_save_boundaries_preserve_files_and_prevent_native_save(tmp_path, case):
+    from dataclasses import replace
+
+    def configure(tools, context, backend, registry):
+        if case == "existing":
+            (tools._workspace / tools.request.filename).write_bytes(b"existing contents")
+            return
+        original = registry.get("uia.save_checklist")
+
+        def before_save(root, args):
+            if case == "denied":
+                raise PermissionError("review denied")
+            if case == "stop":
+                context.cancelled.set()
+            elif case == "expired":
+                path, app, _ = tools._permits[args.permit]
+                tools._permits[args.permit] = (path, app, 0)
+            elif case == "stale":
+                backend.editor.element_info.runtime_id = (999, "restarted")
+            elif case == "changed-path":
+                path, app, expiry = tools._permits[args.permit]
+                tools._permits[args.permit] = (path.with_name("changed.txt"), app, expiry)
+
+        registry._tools[original.name] = replace(original, policy=before_save)
+
+    result, backend, context, root, request = execute(tmp_path, configure=configure)
+    assert result.status != "succeeded"
+    assert ("invoke", "save") not in backend.calls
+    assert not (root / "changed.txt").exists()
+    target = root / request.filename
+    if case == "existing":
+        assert target.read_bytes() == b"existing contents"
+    else:
+        assert not target.exists()
+
+
+def test_filename_changes_after_value_write_never_invoke_save(tmp_path):
+    def configure(tools, context, backend, registry):
+        set_value = backend.set_value
+
+        def changed(control, text):
+            set_value(control, text)
+            if control is backend.filename:
+                control.value = str(tools._workspace / "changed.txt")
+
+        backend.set_value = changed
+
+    result, backend, context, root, request = execute(tmp_path, configure=configure)
+    assert result.status == "unknown"
+    assert ("invoke", "save") not in backend.calls
+    assert not list(root.glob("*.txt"))
+
+
+def test_stop_during_filename_write_prevents_save_and_keeps_partial_effect_unknown(tmp_path):
+    def configure(tools, context, backend, registry):
+        set_value = backend.set_value
+
+        def stopped(control, text):
+            set_value(control, text)
+            if control is backend.filename:
+                context.cancelled.set()
+
+        backend.set_value = stopped
+
+    result, backend, context, root, request = execute(tmp_path, configure=configure)
+    assert result.status == "unknown"
+    assert backend.editor.value == request.editor_text()
+    assert ("invoke", "save") not in backend.calls
+    assert not (root / request.filename).exists()
+
+
+def test_editor_change_during_filename_preparation_prevents_native_save(tmp_path):
+    import json
+
+    from victus.workflows.diagnostics import PhaseDiagnostics
+
+    def configure(tools, context, backend, registry):
+        set_value = backend.set_value
+
+        def changed(control, text):
+            set_value(control, text)
+            if control is backend.filename:
+                backend.editor.value = "changed during filename preparation"
+
+        backend.set_value = changed
+
+    path = tmp_path / "diagnostics.jsonl"
+    diagnostics = PhaseDiagnostics(path, "a" * 32)
+    try:
+        result, backend, context, root, request = execute(
+            tmp_path, configure=configure, diagnostics=diagnostics)
+    finally:
+        diagnostics.close()
+    assert result.status == "unknown"
+    assert ("invoke", "save") not in backend.calls
+    assert not (root / request.filename).exists()
+    records = [json.loads(line) for line in path.read_text().splitlines()]
+    assert any(row["phase"] == "save.pre_dispatch" and row["state"] == "error"
+               for row in records)
+    assert "changed during filename preparation" not in path.read_text()
+
+
+def test_diagnosed_workflow_keeps_exact_output_and_reports_save_phases(tmp_path):
+    import json
+
+    from victus.workflows.diagnostics import PhaseDiagnostics
+
+    path = tmp_path / "diagnostics.jsonl"
+    diagnostics = PhaseDiagnostics(path, "b" * 32)
+    try:
+        result, backend, context, root, request = execute(tmp_path, diagnostics=diagnostics)
+    finally:
+        diagnostics.close()
+    assert result.status == "succeeded"
+    assert (root / request.filename).read_bytes() == request.editor_text().encode()
+    records = [json.loads(line) for line in path.read_text().splitlines()]
+    assert {"save.filename_write", "save.filename_readback", "save.pre_dispatch", "save.invoke",
+            "save.postcondition"} <= {row["phase"] for row in records}
+    assert len(records) <= 256
+    assert "Checklist" not in path.read_text()
+
+
+def test_matching_bytes_do_not_hide_pending_overwrite_dialog(tmp_path, monkeypatch):
+    async def immediate_sleep(_):
+        pass
+
+    monkeypatch.setattr("victus.workflows.create_notepad_checklist.asyncio.sleep", immediate_sleep)
+
+    def configure(tools, context, backend, registry):
+        invoke = backend.invoke
+
+        def pending(control):
+            if control is backend.save_button:
+                backend.calls.append(("invoke", "save"))
+                Path(backend.filename.value).write_bytes(backend.editor.value.encode())
+                # Simulate a concurrent matching file plus unconfirmed overwrite UI.
+                assert backend.dialog_open and not backend.main.enabled
+            else:
+                invoke(control)
+
+        backend.invoke = pending
+
+    result, backend, context, root, request = execute(tmp_path, configure=configure)
+    assert result.status == "unknown"
+    assert (root / request.filename).read_bytes() == request.editor_text().encode()
+    assert backend.dialog_open and not backend.main.enabled

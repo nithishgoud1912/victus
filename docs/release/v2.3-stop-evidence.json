@@ -1,0 +1,73 @@
+{
+  "milestone": "V2.3",
+  "date": "2026-10-18",
+  "application_version": "0.1.0-source-candidate",
+  "base_revision": "64a0a22127a2d450a8d8bb4047cf76cae0cc4995",
+  "source_sha256": "b6ba61c40a54577e594afa6ab5c05c214bf4aff6ad898d6ec6679b680e96ec20",
+  "dirty_implementation": true,
+  "backend": {
+    "focused": {
+      "tests": 88,
+      "errors": 0,
+      "failures": 0,
+      "skipped": 0,
+      "seconds": 43.161
+    },
+    "regression": {
+      "tests": 672,
+      "errors": 0,
+      "failures": 0,
+      "skipped": 0,
+      "seconds": 232.096
+    }
+  },
+  "frontend": {
+    "build": "passed",
+    "tests_passed": 20,
+    "lint": "passed"
+  },
+  "browser_contracts": {
+    "fixture_browser_checks": "passed",
+    "duplicate_submission": true,
+    "event_replay": true,
+    "reload_no_mutation": true,
+    "expired_approval": true,
+    "keyboard_deny_and_stop": true,
+    "mobile_no_overflow": true,
+    "page_errors": []
+  },
+  "real_source_note_ui": {
+    "dev_memory_session": true,
+    "typed_note_verified": true,
+    "production_http_only_session": true,
+    "production_reload_restored": true,
+    "production_no_bearer_after_bootstrap": true,
+    "logout_revoked": true,
+    "no_browser_storage": true,
+    "mobile_no_overflow": true,
+    "page_errors": []
+  },
+  "stop_supervision": {
+    "owned_windows_spawn_stop_deadline_crash": "passed",
+    "partial_effect_bytes_preserved_and_unknown": "passed",
+    "queued_late_and_post_intent_stop": "passed",
+    "cooperative_exit_before_owned_forced_reaping": "passed",
+    "finite_shared_mutation_wait_and_execution_budget": "passed",
+    "unreapable_process_retains_mutation_and_directory": "passed - deterministic process fake",
+    "partial_launch_failure_is_owned_and_reaped": "passed - deterministic process fake",
+    "shutdown_and_startup_cleanup_faults": "passed",
+    "failed_cleanup_os_lock_survives_caller_unwind": "passed",
+    "shortcut_service_wiring_and_failure_cleanup": "passed - backend fixture"
+  },
+  "physical_global_shortcut_tested": false,
+  "new_native_uia_qualification": false,
+  "public_sites_tested": false,
+  "package_rebuilt": false,
+  "new_soak": false,
+  "limits": [
+    "Physical Ctrl+Alt+Pause remains pending",
+    "Native Notepad/UIA/DPI and device gates remain separate",
+    "No new package or long-duration soak qualification",
+    "Unreapable ownership stays latched; no automatic unsafe reset or replay"
+  ]
+}

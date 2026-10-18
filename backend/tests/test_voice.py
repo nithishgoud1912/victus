@@ -282,7 +282,7 @@ def test_stop_cancels_voice_from_each_active_state(services, state):
     if state in {VoiceState.SUBMITTED, VoiceState.SPEAKING}:
         voice.submit(s.session_id, s.revision, ACTION)
     if state == VoiceState.SPEAKING:
-        for _ in range(200):
+        for _ in range(1500):
             s = voice.snapshot()
             if s.speech_pending:
                 break
@@ -324,12 +324,12 @@ def test_spoken_results_require_display_ack_and_suppress_capture(services):
     voice = voice_service(services)
     s = review(voice)
     voice.submit(s.session_id, s.revision, ACTION)
-    for _ in range(200):
+    for _ in range(1500):
         s = voice.snapshot()
         if s.speech_pending:
             break
         time.sleep(0.01)
-    assert s.summary == "Your note was created and verified."
+    assert s.summary == "Your task completed with a verified output."
     assert not voice.playback.output.started.is_set()
     voice.acknowledge(s.session_id, s.revision)
     assert voice.playback.output.started.wait(1)

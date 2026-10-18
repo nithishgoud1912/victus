@@ -1,0 +1,72 @@
+{
+  "milestone": "V2.2",
+  "date": "2026-10-18",
+  "application_version": "0.1.0-source-candidate",
+  "base_revision": "64a0a22127a2d450a8d8bb4047cf76cae0cc4995",
+  "source_sha256": "01f18ac2364ba7b6cfc1f89e58e7091b6153ce86fc7316522cda0f0954b68bce",
+  "dirty_implementation": true,
+  "schema_version": 7,
+  "new_migrations": [],
+  "backend": {
+    "focused": {
+      "tests": 42,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 23.857
+    },
+    "regression": {
+      "tests": 659,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 278.517
+    }
+  },
+  "frontend": {
+    "tests": 20,
+    "build": "passed",
+    "lint": "passed"
+  },
+  "browser_contracts": {
+    "fixture_browser_checks": "passed",
+    "duplicate_submission": true,
+    "event_replay": true,
+    "reload_no_mutation": true,
+    "expired_approval": true,
+    "keyboard_deny_and_stop": true,
+    "mobile_no_overflow": true,
+    "page_errors": []
+  },
+  "verified_behaviors": [
+    "one active task and at most three pending",
+    "atomic task/event/request mapping before scheduling",
+    "concurrent duplicate IDs execute once and preserve original content",
+    "completed request mapping survives restart",
+    "task state, terminal retention marker and lifecycle event commit together",
+    "migration SQL or version-marker failure rolls back schema and data",
+    "restart cancels queued tasks and leaves dispatched effects unknown without replay",
+    "authenticated ordered replay and live delivery use one durable log",
+    "205-event paginated replay and handover do not create tasks or actions",
+    "dashboard refresh and reconnect do not submit or approve",
+    "raw argument bodies use restricted payload storage rather than audit metadata"
+  ],
+  "public_sites_tested": false,
+  "package_rebuilt": false,
+  "limits": [
+    "Existing task retention bounds request-ID lifetime",
+    "Queued commands are cancelled, not automatically resumed, on restart",
+    "No new hardware, public-site or two-hour soak qualification"
+  ],
+  "real_source_note_ui": {
+    "dev_memory_session": true,
+    "typed_note_verified": true,
+    "production_http_only_session": true,
+    "production_reload_restored": true,
+    "production_no_bearer_after_bootstrap": true,
+    "logout_revoked": true,
+    "no_browser_storage": true,
+    "mobile_no_overflow": true,
+    "page_errors": []
+  }
+}

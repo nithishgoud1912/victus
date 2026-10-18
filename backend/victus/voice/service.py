@@ -2,6 +2,7 @@
 
 import threading
 import time
+from pathlib import Path
 from uuid import uuid4
 
 from victus.voice.audio import resample_pcm16
@@ -27,12 +28,18 @@ class VoiceService:
         playback=None,
         review_seconds=120.0,
         result_seconds=180.0,
+        commands=None,
     ):
         self.tasks = tasks
+        from victus.tasks.commands import CommandService
+
+        self.commands = commands or CommandService(tasks)
         self.wake = None
         self.capture_factory = capture_factory
         self.transcriber = transcriber or (
-            TranscriptionWorker(str(model_path)) if model_path else None
+            TranscriptionWorker(str(model_path))
+            if model_path and (Path(model_path) / "model.bin").is_file()
+            else None
         )
         self.playback = playback or Playback()
         self.review_seconds, self.result_seconds = review_seconds, result_seconds
@@ -53,7 +60,7 @@ class VoiceService:
     def snapshot(self):
         with self.lock:
             if (
-                self.snapshot_value.state == VoiceState.REVIEWING
+                self.snapshot_value.state in {VoiceState.REVIEWING, VoiceState.CLARIFYING}
                 and time.monotonic() >= self.review_deadline
             ):
                 self._cancel("TRANSCRIPT_REVIEW_EXPIRED")
@@ -94,9 +101,13 @@ class VoiceService:
             if self.playback.wake_suppressed:
                 raise VoiceConflict("Wait for speech playback and its echo cooldown to finish")
             self.cancelled = threading.Event()
-            self.capture = (self.capture_factory(max_seconds=command_seconds,
-                            initial_silence_seconds=min(4.0, command_seconds))
-                            if from_wake else self.capture_factory())
+            self.capture = (
+                self.capture_factory(
+                    max_seconds=command_seconds, initial_silence_seconds=min(4.0, command_seconds)
+                )
+                if from_wake
+                else self.capture_factory()
+            )
             self._update(
                 state=VoiceState.RECORDING,
                 session_id=uuid4().hex,
@@ -107,6 +118,7 @@ class VoiceService:
                 task_id=None,
                 summary=None,
                 speech_pending=False,
+                command=None,
             )
             self.thread = threading.Thread(
                 target=self._run,
@@ -169,7 +181,7 @@ class VoiceService:
                     if self.tasks.stopped.is_set():
                         self._cancel("VOICE_STOPPED")
                         return
-                    if self.snapshot_value.state == VoiceState.REVIEWING:
+                    if self.snapshot_value.state in {VoiceState.REVIEWING, VoiceState.CLARIFYING}:
                         if time.monotonic() >= self.review_deadline:
                             self._cancel("TRANSCRIPT_REVIEW_EXPIRED")
                             return
@@ -181,9 +193,14 @@ class VoiceService:
             deadline = time.monotonic() + self.result_seconds
             while not cancel.wait(0.05):
                 task = self.tasks.database.get(task_id)
-                if task and task.status not in {"queued", "prepared", "running"}:
+                if task and task.status not in {
+                    "queued",
+                    "prepared",
+                    "running",
+                    "waiting_for_review",
+                }:
                     if task.status == "succeeded" and task.verified:
-                        summary = "Your note was created and verified."
+                        summary = "Your task completed with a verified output."
                     else:
                         summary = "The task ended without a verified output. Check the task result."
                     with self.lock:
@@ -210,7 +227,11 @@ class VoiceService:
         except Exception as error:
             with self.lock:
                 if not cancel.is_set():
+                    from victus.runtime.resources import ResourcePressure
+
                     code = str(error)
+                    if isinstance(error, ResourcePressure):
+                        code = "VOICE_RESOURCE_PRESSURE"
                     safe_codes = {
                         "MICROPHONE_BUSY",
                         "MICROPHONE_UNAVAILABLE",
@@ -225,6 +246,7 @@ class VoiceService:
                         "STT_FAILED",
                         "SPEECH_OUTPUT_UNAVAILABLE",
                         "VOICE_RESULT_DEADLINE_EXCEEDED",
+                        "VOICE_RESOURCE_PRESSURE",
                     }
                     self._update(
                         state=VoiceState.ERROR,
@@ -245,15 +267,43 @@ class VoiceService:
                 self._cancel("TRANSCRIPT_REVIEW_EXPIRED")
                 raise VoiceConflict("Transcript review expired")
             # Only this explicit human-reviewed call can submit. No tool adapter calls here.
-            task_id, _ = self.tasks.enqueue(action, client_request_id="voice-" + session_id)
-            self._update(
-                state=VoiceState.SUBMITTED,
-                transcript=None,
-                proposal=None,
-                clarification=None,
-                task_id=task_id,
+            from victus.agent.commands import CommandFields, CommandSubmission
+            from victus.tools.contracts import ActionRequest
+
+            if isinstance(action, ActionRequest):
+                action = CommandSubmission(
+                    text="Reviewed voice note",
+                    fields=CommandFields(
+                        intent="note",
+                        filename=action.arguments.filename,
+                        content=action.arguments.text,
+                    ),
+                )
+            action = CommandSubmission.model_validate(action.model_dump(), strict=True)
+            result = self.commands.submit(action, "voice-" + session_id, origin="voice")
+            return self._command_result(result)
+
+    def _command_result(self, result):
+        task_id = result.task_id
+        self._update(
+            state=VoiceState.SUBMITTED if task_id else VoiceState.CLARIFYING,
+            transcript=None,
+            proposal=None,
+            clarification=None,
+            task_id=task_id,
+            command=result,
+        )
+        return self.snapshot()
+
+    def clarify(self, session_id, revision, fields):
+        with self.lock:
+            self._require(session_id, revision, VoiceState.CLARIFYING)
+            if time.monotonic() >= self.review_deadline:
+                self._cancel("TRANSCRIPT_REVIEW_EXPIRED")
+                raise VoiceConflict("Transcript review expired")
+            return self._command_result(
+                self.commands.complete(self.snapshot_value.command.command_id, fields)
             )
-            return self.snapshot()
 
     def acknowledge(self, session_id, revision):
         with self.lock:
@@ -286,6 +336,7 @@ class VoiceService:
             summary=None,
             speech_pending=False,
             error_code=code,
+            command=None,
         )
 
     def cancel(self):

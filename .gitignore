@@ -1,22 +1,61 @@
+# Secrets and machine-local configuration.
 .env
 .env.*
 !.env.example
+
+# Isolated runtime roots, dependency environments and Python caches.
 .local/
 **/.venv/
+**/venv/
 **/__pycache__/
 *.py[cod]
 **/*.egg-info/
 .pytest_cache/
 .ruff_cache/
 .mypy_cache/
+**/.cache/
+.tox/
+.nox/
+.coverage
+.coverage.*
+htmlcov/
+coverage/
+
+# Runtime data, private backups and downloaded model assets (not source modules).
+/data/
+/runtime/
+/backups/
+/models/
+/recordings/
+evaluation/voice/recordings/
+evaluation/voice/private/
+*.gguf
+*.safetensors
 *.sqlite3
 *.sqlite3-wal
 *.sqlite3-shm
 *.log
+*.tmp
+*.temp
+
+# These admit an exact locally qualified installation; never ship another
+# machine's admission record as ordinary source or sanitized release evidence.
+/backend/victus/workflows/fixture-qualification.json
+/backend/victus/workflows/native-qualification.json
+
+# Frontend dependencies, generated build output and test/browser artifacts.
 **/node_modules/
 dashboard/dist/
+*.tsbuildinfo
+playwright-report/
+test-results/
+.vite/
+.vitest/
 build/
 dist/
+
+# Preserve the existing imported-document boundary. Reviewed documentation and
+# sanitized release summaries remain trackable; raw milestone evidence is local.
 docs/*
 !docs/milestones/
 !docs/decisions/
@@ -25,6 +64,15 @@ docs/*
 docs/milestones/evidence/
 pytest_tmp/
 .local-tests/
+
+# OS/editor temporary files; shared editor settings remain trackable.
+Thumbs.db
+Desktop.ini
+.DS_Store
+*.swp
+*.swo
+~$*
+
 # Large wake training material is never source code.
 experiments/wake-word-training/**/*.wav
 experiments/wake-word-training/**/*.flac

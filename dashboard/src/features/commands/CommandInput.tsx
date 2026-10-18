@@ -1,6 +1,12 @@
 import { useState, useRef, type FormEvent } from 'react'
 import { apiRequest } from '../../api/client'
-export function CommandInput({ disabled, onTask }: { disabled: boolean; onTask: (id: string) => void }) {
+import type { WorkflowCapabilities } from '../../api/generated/types.gen'
+import { ChecklistForm } from './ChecklistForm'
+import { TextCommandForm } from './TextCommandForm'
+export function CommandInput(props: { disabled: boolean; onTask: (id: string) => void; capabilities: WorkflowCapabilities | null; capabilityError: string }) {
+ return <><TextCommandForm disabled={props.disabled} onTask={props.onTask} capabilities={props.capabilities}/><NoteInput disabled={props.disabled} onTask={props.onTask}/><ChecklistForm {...props}/></>
+}
+function NoteInput({ disabled, onTask }: { disabled: boolean; onTask: (id: string) => void }) {
  const [filename, setFilename] = useState(''); const [text, setText] = useState(''); const [busy, setBusy] = useState(false); const [error, setError] = useState(''); const lock = useRef(false); const [uncertain, setUncertain] = useState(false)
  // Keep an uncertain submission bound to the same idempotency key and payload.
  const pending = useRef<{ id: string; filename: string; text: string } | null>(null)

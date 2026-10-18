@@ -202,9 +202,10 @@ def restore(archive, destination):
         with closing(sqlite3.connect(ledger.db_path)) as db, db:
             db.execute("DELETE FROM approval_permits")
             db.execute("DELETE FROM approval_previews")
+            db.execute("UPDATE command_intakes SET payload=NULL,state='invalidated' WHERE task_id IS NULL")
             for task_id, raw in db.execute("SELECT task_id,result_json FROM tasks").fetchall():
                 value = json.loads(raw)
-                if value["status"] in {"queued", "prepared", "running"}:
+                if value["status"] in {"queued", "prepared", "running", "waiting_for_review"}:
                     value.update(
                         status="unknown", verified=False, error_code="RESTORE_REQUIRES_REVIEW"
                     )

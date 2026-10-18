@@ -18,15 +18,21 @@ class NoteArguments(BaseModel):
     text: str = Field(min_length=1, max_length=8192)
 
 
-class ActionProposal(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    tool: str
+class ToolRequest(BaseModel):
+    """Untrusted transport data; identity, approval and verifier are never inputs."""
+
+    model_config = ConfigDict(extra="forbid", strict=True, validate_assignment=True)
+    tool: str = Field(min_length=1, max_length=100, pattern=r"^[A-Za-z0-9_.:-]+$")
     arguments: dict[str, Any]
-    target_ref: str | None = None
-    observation_id: str | None = None
+
+
+class ActionProposal(ToolRequest):
+    target_ref: str | None = Field(default=None, min_length=1, max_length=128)
+    observation_id: str | None = Field(default=None, min_length=1, max_length=128)
 
 
 class ActionResult(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
     action_id: str
     status: ActionStatus
     side_effect: str
@@ -41,10 +47,12 @@ class ActionRequest(BaseModel):
 
 
 class TaskResult(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
     task_id: str
     tool: str
     action_id: str | None = None
-    status: Literal["queued", "prepared", "running", "succeeded", "failed", "cancelled", "unknown"]
+    status: Literal["queued", "prepared", "running", "waiting_for_review", "succeeded", "failed", "cancelled", "unknown"]
+    approval_id: str | None = None
     verified: bool = False
     error_code: str | None = None
     output_name: str | None = None
@@ -52,5 +60,6 @@ class TaskResult(BaseModel):
 
 
 class TaskQueuedResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
     task_id: str
     status: Literal["queued", "cancelled"] = "queued"

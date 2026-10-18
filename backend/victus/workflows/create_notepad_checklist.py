@@ -4,13 +4,15 @@ from __future__ import annotations
 
 import asyncio
 import time
+from contextlib import nullcontext
+from dataclasses import replace
 from pathlib import Path
 from uuid import uuid4
 
 from pydantic import Field
 
-from victus.adapters.uia.actions import PatternUnavailable, UIAActions
-from victus.adapters.uia.applications import ApplicationReference
+from victus.adapters.uia.actions import PatternUnavailable, UIAActions, editor_text
+from victus.adapters.uia.applications import ApplicationReference, UIABlocked
 from victus.adapters.uia.selectors import ControlReference, SelectorResolver
 from victus.tools.registry import RiskLevel
 from victus.workflows.common import (
@@ -23,6 +25,7 @@ from victus.workflows.common import (
     spec,
     step,
 )
+from victus.workflows.diagnostics import safe_error
 
 
 class ChecklistRequest(Arguments):
@@ -89,7 +92,7 @@ class VerifyFile(Arguments):
 class NotepadTools:
     """Bound only inside the owner worker; no UIA handles are returned as data."""
 
-    def __init__(self, worker, request: ChecklistRequest, workspace: Path):
+    def __init__(self, worker, request: ChecklistRequest, workspace: Path, *, diagnostics=None):
         self.worker = worker
         self.request = request
         self.text = request.editor_text()
@@ -101,6 +104,24 @@ class NotepadTools:
         self._permits = {}
         self._control_refs = {}
         self._workspace = workspace
+        self._cancelled = None
+        self.diagnostics = diagnostics
+        self.review_guard = None
+
+    def _phase(self, name):
+        return self.diagnostics.phase(name) if self.diagnostics is not None else nullcontext()
+
+    def _check_stop(self):
+        if self._cancelled is not None and self._cancelled.is_set():
+            raise PermissionError("Workflow stopped before native action")
+
+    def _cancellable(self, execute):
+        def run(workspace, args, cancelled):
+            self._cancelled = cancelled
+            self._check_stop()
+            return execute(workspace, args)
+
+        return run
 
     def register(self, registry):
         definitions = [
@@ -141,7 +162,13 @@ class NotepadTools:
             ),
         ]
         for tool in definitions:
-            registry.register(tool)
+            if self.diagnostics is not None:
+                tool = replace(
+                    tool,
+                    execute=self.diagnostics.wrap(tool.name + ".execute", tool.execute),
+                    verify=self.diagnostics.wrap(tool.name + ".verify", tool.verify),
+                )
+            registry.register(replace(tool, execute_cancellable=self._cancellable(tool.execute)))
 
     def authorize(self, tool, arguments):
         if tool.name == "uia.launch_profile":
@@ -175,22 +202,24 @@ class NotepadTools:
         )
 
     def _read(self, reference):
-        _, _, control = self.resolver._reacquire(ControlReference(reference), read_only=True)
+        app, _, control = self.resolver._reacquire(ControlReference(reference), read_only=True)
         backend = self.worker._backend
         try:
-            return backend.read_value(control)
+            return editor_text(backend.read_value(control), app.profile)
         except Exception as error:
             if isinstance(error, PatternUnavailable) or isinstance(
                 error, getattr(backend, "NoPattern", PatternUnavailable)
             ):
-                return backend.read_text(control)
+                return editor_text(backend.read_text(control), app.profile)
             raise
 
     def launch(self, workspace, args):
         # The first inspected editor must also be empty: never replace existing work.
         app = self.worker.launch(args.profile)
         self.app_ref = app.ref
-        return {"app_ref": app.ref}
+        owned = self.worker._resolve_app(app)
+        return {"app_ref": app.ref, "owned_pid": owned.identity.pid,
+                "process_created": owned.identity.created}
 
     def verify_launch(self, data, args):
         self.worker._resolve_app(ApplicationReference(data["app_ref"]))
@@ -201,7 +230,7 @@ class NotepadTools:
         self._control_refs[args.key] = reference.ref
         if args.key == self.request.editor_key:
             if self._read(reference.ref) != "":
-                raise ValueError("New empty editor not proved")
+                raise UIABlocked("EMPTY_EDITOR_NOT_PROVED")
             self.editor_ref = reference.ref
         _, root, _ = self.resolver._reacquire(reference)
         return {"control_ref": reference.ref, "window_dpi": self.worker._backend.window_dpi(root)}
@@ -215,6 +244,7 @@ class NotepadTools:
             ControlReference(args.control_ref),
             args.text,
             allow_keyboard=self.request.allow_keyboard,
+            require_empty=True,
         )
         return {"control_ref": args.control_ref, "text_sha256": digest(args.text.encode("utf-8"))}
 
@@ -261,22 +291,68 @@ class NotepadTools:
         approved = self._permits.pop(args.permit, None)
         if approved is None or approved[1] != args.app_ref or time.monotonic() > approved[2]:
             raise PermissionError("Save permit missing or expired")
-        path = new_destination(workspace, approved[0].name)
+        path = new_destination(workspace, self.request.filename)
+        if approved[0] != path:
+            raise PermissionError("Save destination changed; new review required")
         if self._read(self.editor_ref) != self.text:
             raise ValueError("Editor changed before save")
-        self.actions.set_text(ControlReference(args.filename_ref), str(path), allow_keyboard=False)
-        if self._read(args.filename_ref) != str(path):
-            raise ValueError("Save filename was not verified")
-        new_destination(workspace, path.name)  # Recheck immediately before native Save.
-        self.actions.invoke(ControlReference(args.save_ref), allow_keyboard=False)
+        self._check_stop()
+        with self._phase("save.filename_write"):
+            self.actions.set_text(ControlReference(args.filename_ref), str(path), allow_keyboard=False)
+        with self._phase("save.filename_readback"):
+            if self._read(args.filename_ref) != str(path):
+                raise ValueError("Save filename was not verified")
+        with self._phase("save.pre_dispatch"):
+            if self._read(self.editor_ref) != self.text:
+                raise ValueError("Editor changed during filename preparation")
+            new_destination(workspace, path.name)  # Recheck immediately before native Save.
+            self._check_stop()
+            if self.review_guard is not None:
+                self.review_guard()
+        with self._phase("save.invoke"):
+            def before_invoke():
+                self._check_stop()
+                if self.review_guard is not None:
+                    self.review_guard()
+            self.actions.invoke(ControlReference(args.save_ref), allow_keyboard=False,
+                                before_invoke=before_invoke)
         return {"filename": path.name, "expected_sha256": digest(self.expected)}
 
     async def verify_save(self, data, args):
-        for _ in range(80):
-            if bytes_match(self._workspace / data["filename"], self.expected):
-                return True
-            await asyncio.sleep(0.05)
-        return False
+        verified = False
+        observed_failure = False
+        last_code = "SAVE_POSTCONDITION_PENDING"
+        try:
+            for _ in range(80):
+                try:
+                    # A matching file alone cannot prove Save completed: an overwrite
+                    # prompt or another modal dialog may still be awaiting input.
+                    self.resolver._reacquire(ControlReference(self.editor_ref))
+                    if self._read(self.editor_ref) != self.text:
+                        last_code = "SAVE_EDITOR_CHANGED"
+                    elif bytes_match(self._workspace / data["filename"], self.expected):
+                        verified = True
+                        return True
+                    else:
+                        last_code = (
+                            "SAVE_BYTES_MISMATCH"
+                            if (self._workspace / data["filename"]).exists()
+                            else "SAVE_ARTIFACT_MISSING"
+                        )
+                except Exception as error:
+                    last_code = safe_error(error)
+                    if not observed_failure:
+                        observed_failure = True
+                        profile = self.worker._profiles[self.request.profile]
+                        self.worker._observe_launch("ownership.save_unverified", profile.executable)
+                await asyncio.sleep(0.05)
+            return False
+        finally:
+            if self.diagnostics is not None:
+                self.diagnostics.record(
+                    "save.postcondition", "returned" if verified else "unverified",
+                    error_code=None if verified else last_code,
+                )
 
     def verify_file(self, workspace, args):
         return {
@@ -335,9 +411,15 @@ async def create_notepad_checklist(
         save = await step(
             dispatcher, context, "uia.inspect_control", app_ref=app, key=request.save_key
         )
+        save_context = context
+        if context.review_save is not None:
+            save_context = await context.review_save(Save(
+                app_ref=app, permit=destination["permit"],
+                filename_ref=filename["control_ref"], save_ref=save["control_ref"],
+            ))
         await step(
             dispatcher,
-            context,
+            save_context,
             "uia.save_checklist",
             app_ref=app,
             permit=destination["permit"],

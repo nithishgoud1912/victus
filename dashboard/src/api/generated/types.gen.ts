@@ -78,6 +78,139 @@ export type ApprovalRecord = {
 };
 
 /**
+ * BrowserResearchSubmission
+ */
+export type BrowserResearchSubmission = {
+    /**
+     * Source Ids
+     */
+    source_ids: Array<string>;
+    /**
+     * Required Sources
+     */
+    required_sources: number;
+    /**
+     * Filename
+     */
+    filename: string;
+};
+
+/**
+ * ChecklistCapability
+ */
+export type ChecklistCapability = {
+    /**
+     * Enabled
+     */
+    enabled: boolean;
+    /**
+     * Profiles
+     */
+    profiles: Array<string>;
+    /**
+     * Reason
+     */
+    reason: string | null;
+};
+
+/**
+ * CommandCapability
+ */
+export type CommandCapability = {
+    /**
+     * Deterministic
+     */
+    deterministic: Array<string>;
+    /**
+     * Model Name
+     */
+    model_name: string | null;
+    /**
+     * Model Digest
+     */
+    model_digest: string | null;
+    /**
+     * Reasoning Ready
+     */
+    reasoning_ready: boolean;
+    /**
+     * Reason
+     */
+    reason: string | null;
+};
+
+/**
+ * CommandFields
+ */
+export type CommandFields = {
+    /**
+     * Intent
+     */
+    intent?: 'note' | 'checklist' | 'research' | null;
+    /**
+     * Filename
+     */
+    filename?: string | null;
+    /**
+     * Content
+     */
+    content?: string | null;
+    /**
+     * Items
+     */
+    items?: Array<string> | null;
+    /**
+     * Source Ids
+     */
+    source_ids?: Array<string> | null;
+    /**
+     * Required Sources
+     */
+    required_sources?: number | null;
+};
+
+/**
+ * CommandResponse
+ */
+export type CommandResponse = {
+    /**
+     * Command Id
+     */
+    command_id: string;
+    /**
+     * State
+     */
+    state: 'clarification' | 'submitted' | 'unavailable' | 'expired' | 'stopped';
+    /**
+     * Task Id
+     */
+    task_id?: string | null;
+    /**
+     * Missing
+     */
+    missing?: Array<string>;
+    /**
+     * Message
+     */
+    message: string;
+};
+
+/**
+ * CommandSubmission
+ */
+export type CommandSubmission = {
+    /**
+     * Text
+     */
+    text: string;
+    fields?: CommandFields;
+    /**
+     * Reasoning
+     */
+    reasoning?: boolean;
+};
+
+/**
  * DiagnosticExport
  */
 export type DiagnosticExport = {
@@ -297,6 +430,24 @@ export type NoteArguments = {
 };
 
 /**
+ * NotepadChecklistSubmission
+ */
+export type NotepadChecklistSubmission = {
+    /**
+     * Profile
+     */
+    profile: string;
+    /**
+     * Items
+     */
+    items: Array<string>;
+    /**
+     * Filename
+     */
+    filename: string;
+};
+
+/**
  * ProviderMessage
  */
 export type ProviderMessage = {
@@ -374,6 +525,28 @@ export type ProviderUsage = {
 };
 
 /**
+ * ResearchCapability
+ */
+export type ResearchCapability = {
+    /**
+     * Enabled
+     */
+    enabled: boolean;
+    /**
+     * Scope
+     */
+    scope?: string;
+    /**
+     * Source Ids
+     */
+    source_ids: Array<string>;
+    /**
+     * Reason
+     */
+    reason: string | null;
+};
+
+/**
  * Resolution
  */
 export type Resolution = {
@@ -385,6 +558,25 @@ export type Resolution = {
      * Confirmation
      */
     confirmation: 'explicit_user_review';
+};
+
+/**
+ * ReviewedClarification
+ */
+export type ReviewedClarification = {
+    /**
+     * Session Id
+     */
+    session_id: string;
+    /**
+     * Revision
+     */
+    revision: number;
+    /**
+     * Confirmation
+     */
+    confirmation: 'explicit_user_review';
+    fields: CommandFields;
 };
 
 /**
@@ -403,7 +595,8 @@ export type ReviewedSubmission = {
      * Confirmation
      */
     confirmation: 'explicit_user_review';
-    action: ActionRequest;
+    action?: ActionRequest | null;
+    command?: CommandSubmission | null;
 };
 
 /**
@@ -481,7 +674,11 @@ export type TaskResult = {
     /**
      * Status
      */
-    status: 'queued' | 'prepared' | 'running' | 'succeeded' | 'failed' | 'cancelled' | 'unknown';
+    status: 'queued' | 'prepared' | 'running' | 'waiting_for_review' | 'succeeded' | 'failed' | 'cancelled' | 'unknown';
+    /**
+     * Approval Id
+     */
+    approval_id?: string | null;
     /**
      * Verified
      */
@@ -498,6 +695,24 @@ export type TaskResult = {
      * Sha256
      */
     sha256?: string | null;
+};
+
+/**
+ * ToolRequest
+ *
+ * Untrusted transport data; identity, approval and verifier are never inputs.
+ */
+export type ToolRequest = {
+    /**
+     * Tool
+     */
+    tool: string;
+    /**
+     * Arguments
+     */
+    arguments: {
+        [key: string]: unknown;
+    };
 };
 
 /**
@@ -652,12 +867,30 @@ export type VoiceSnapshot = {
      * Wake Error
      */
     wake_error?: string | null;
+    command?: CommandResponse | null;
 };
 
 /**
  * VoiceState
  */
-export type VoiceState = 'idle' | 'recording' | 'transcribing' | 'reviewing' | 'submitted' | 'speaking' | 'error';
+export type VoiceState = 'idle' | 'recording' | 'transcribing' | 'reviewing' | 'clarifying' | 'submitted' | 'speaking' | 'error';
+
+/**
+ * WorkflowCapabilities
+ */
+export type WorkflowCapabilities = {
+    notepad_checklist: ChecklistCapability;
+    /**
+     * Stopped
+     */
+    stopped: boolean;
+    /**
+     * Resource Blocked
+     */
+    resource_blocked: boolean;
+    browser_research: ResearchCapability;
+    commands: CommandCapability;
+};
 
 export type RecallApiMemoryGetData = {
     body?: never;
@@ -1039,6 +1272,31 @@ export type VoiceSubmitApiVoiceSubmitPostResponses = {
 
 export type VoiceSubmitApiVoiceSubmitPostResponse = VoiceSubmitApiVoiceSubmitPostResponses[keyof VoiceSubmitApiVoiceSubmitPostResponses];
 
+export type VoiceClarifyApiVoiceClarifyPostData = {
+    body: ReviewedClarification;
+    path?: never;
+    query?: never;
+    url: '/api/voice/clarify';
+};
+
+export type VoiceClarifyApiVoiceClarifyPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type VoiceClarifyApiVoiceClarifyPostError = VoiceClarifyApiVoiceClarifyPostErrors[keyof VoiceClarifyApiVoiceClarifyPostErrors];
+
+export type VoiceClarifyApiVoiceClarifyPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: VoiceSnapshot;
+};
+
+export type VoiceClarifyApiVoiceClarifyPostResponse = VoiceClarifyApiVoiceClarifyPostResponses[keyof VoiceClarifyApiVoiceClarifyPostResponses];
+
 export type VoiceDisplayedApiVoiceDisplayedPostData = {
     body: SessionCommand;
     path?: never;
@@ -1316,6 +1574,184 @@ export type CreateSessionApiSessionPostResponses = {
 
 export type CreateSessionApiSessionPostResponse = CreateSessionApiSessionPostResponses[keyof CreateSessionApiSessionPostResponses];
 
+export type CapabilitiesApiWorkflowsCapabilitiesGetData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/workflows/capabilities';
+};
+
+export type CapabilitiesApiWorkflowsCapabilitiesGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: WorkflowCapabilities;
+};
+
+export type CapabilitiesApiWorkflowsCapabilitiesGetResponse = CapabilitiesApiWorkflowsCapabilitiesGetResponses[keyof CapabilitiesApiWorkflowsCapabilitiesGetResponses];
+
+export type SubmitResearchApiWorkflowsBrowserResearchPostData = {
+    body: BrowserResearchSubmission;
+    headers?: {
+        /**
+         * X-Client-Request-Id
+         */
+        'X-Client-Request-ID'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/workflows/browser-research';
+};
+
+export type SubmitResearchApiWorkflowsBrowserResearchPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SubmitResearchApiWorkflowsBrowserResearchPostError = SubmitResearchApiWorkflowsBrowserResearchPostErrors[keyof SubmitResearchApiWorkflowsBrowserResearchPostErrors];
+
+export type SubmitResearchApiWorkflowsBrowserResearchPostResponses = {
+    /**
+     * Successful Response
+     */
+    202: TaskQueuedResponse;
+};
+
+export type SubmitResearchApiWorkflowsBrowserResearchPostResponse = SubmitResearchApiWorkflowsBrowserResearchPostResponses[keyof SubmitResearchApiWorkflowsBrowserResearchPostResponses];
+
+export type SubmitNotepadApiWorkflowsNotepadChecklistPostData = {
+    body: NotepadChecklistSubmission;
+    headers?: {
+        /**
+         * X-Client-Request-Id
+         */
+        'X-Client-Request-ID'?: string | null;
+        /**
+         * X-Request-Id
+         */
+        'X-Request-ID'?: string | null;
+    };
+    path?: never;
+    query?: {
+        /**
+         * Client Request Id
+         */
+        client_request_id?: string | null;
+    };
+    url: '/api/workflows/notepad-checklist';
+};
+
+export type SubmitNotepadApiWorkflowsNotepadChecklistPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SubmitNotepadApiWorkflowsNotepadChecklistPostError = SubmitNotepadApiWorkflowsNotepadChecklistPostErrors[keyof SubmitNotepadApiWorkflowsNotepadChecklistPostErrors];
+
+export type SubmitNotepadApiWorkflowsNotepadChecklistPostResponses = {
+    /**
+     * Successful Response
+     */
+    202: TaskQueuedResponse;
+};
+
+export type SubmitNotepadApiWorkflowsNotepadChecklistPostResponse = SubmitNotepadApiWorkflowsNotepadChecklistPostResponses[keyof SubmitNotepadApiWorkflowsNotepadChecklistPostResponses];
+
+export type SubmitApiCommandsPostData = {
+    body: CommandSubmission;
+    headers: {
+        /**
+         * X-Client-Request-Id
+         */
+        'X-Client-Request-ID': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/commands';
+};
+
+export type SubmitApiCommandsPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SubmitApiCommandsPostError = SubmitApiCommandsPostErrors[keyof SubmitApiCommandsPostErrors];
+
+export type SubmitApiCommandsPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: CommandResponse;
+};
+
+export type SubmitApiCommandsPostResponse = SubmitApiCommandsPostResponses[keyof SubmitApiCommandsPostResponses];
+
+export type SnapshotApiCommandsCommandIdGetData = {
+    body?: never;
+    path: {
+        /**
+         * Command Id
+         */
+        command_id: string;
+    };
+    query?: never;
+    url: '/api/commands/{command_id}';
+};
+
+export type SnapshotApiCommandsCommandIdGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SnapshotApiCommandsCommandIdGetError = SnapshotApiCommandsCommandIdGetErrors[keyof SnapshotApiCommandsCommandIdGetErrors];
+
+export type SnapshotApiCommandsCommandIdGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: CommandResponse;
+};
+
+export type SnapshotApiCommandsCommandIdGetResponse = SnapshotApiCommandsCommandIdGetResponses[keyof SnapshotApiCommandsCommandIdGetResponses];
+
+export type ClarifyApiCommandsCommandIdClarifyPostData = {
+    body: CommandFields;
+    path: {
+        /**
+         * Command Id
+         */
+        command_id: string;
+    };
+    query?: never;
+    url: '/api/commands/{command_id}/clarify';
+};
+
+export type ClarifyApiCommandsCommandIdClarifyPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ClarifyApiCommandsCommandIdClarifyPostError = ClarifyApiCommandsCommandIdClarifyPostErrors[keyof ClarifyApiCommandsCommandIdClarifyPostErrors];
+
+export type ClarifyApiCommandsCommandIdClarifyPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: CommandResponse;
+};
+
+export type ClarifyApiCommandsCommandIdClarifyPostResponse = ClarifyApiCommandsCommandIdClarifyPostResponses[keyof ClarifyApiCommandsCommandIdClarifyPostResponses];
+
 export type HealthApiHealthGetData = {
     body?: never;
     path?: never;
@@ -1333,7 +1769,7 @@ export type HealthApiHealthGetResponses = {
 export type HealthApiHealthGetResponse = HealthApiHealthGetResponses[keyof HealthApiHealthGetResponses];
 
 export type CreateTaskApiTasksPostData = {
-    body: ActionRequest;
+    body: ToolRequest;
     headers?: {
         /**
          * X-Client-Request-Id

@@ -64,7 +64,7 @@ def test_missing_prerequisite_messages_are_safe_and_explicit(monkeypatch, tmp_pa
     assert "private endpoint" not in json.dumps(result)
 
 
-def test_v6_schema_fixture_migrates_to_v7_offline(tmp_path):
+def test_v6_schema_fixture_migrates_to_current_offline(tmp_path):
     root = tmp_path / "data"
     root.mkdir()
     path = root / "victus.sqlite3"
@@ -78,7 +78,7 @@ def test_v6_schema_fixture_migrates_to_v7_offline(tmp_path):
             db.commit()
     assert current_version(path) == 6
     result = maintain("migrate", Settings(root, "x" * 40))
-    assert result == {"applied": [7], "schema": 7}
+    assert result == {"applied": [7, 8], "schema": 8}
     assert maintain("migrate", Settings(root, "x" * 40))["applied"] == []
 
 

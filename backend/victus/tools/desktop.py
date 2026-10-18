@@ -14,8 +14,8 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from victus.tools.registry import RetryClass, RiskLevel, ToolSpec
 
-
 # ── argument models ──────────────────────────────────────────────────────
+
 
 class ListWindowsArguments(BaseModel):
     """Arguments for enumerating visible top-level windows."""
@@ -45,6 +45,7 @@ class TypeTextArguments(BaseModel):
 
 # ── stub callables ───────────────────────────────────────────────────────
 
+
 def _not_implemented_execute(workspace: Path, arguments: BaseModel) -> Path:
     raise NotImplementedError("Desktop adapter not wired")
 
@@ -54,6 +55,7 @@ def _not_implemented_verify(target: Path, arguments: BaseModel) -> bool:
 
 
 # ── tool specs ───────────────────────────────────────────────────────────
+
 
 def desktop_list_windows() -> ToolSpec:
     """List visible top-level windows via UIA or Win32."""
@@ -106,8 +108,6 @@ def desktop_type_text() -> ToolSpec:
     )
 
 
-DESKTOP_TOOLS: list[ToolSpec] = [
-    desktop_list_windows(),
-    desktop_click_element(),
-    desktop_type_text(),
-]
+# The declarations above are retained for compatibility, but no stub is runnable.
+# Qualified NotepadTools registers only its bound workflow operations locally.
+DESKTOP_TOOLS: list[ToolSpec] = []

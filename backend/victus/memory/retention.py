@@ -20,6 +20,7 @@ def purge_task_context(root, task_id):
     path = root / "victus.sqlite3"
     with closing(sqlite3.connect(path, timeout=2)) as db, db:
         db.execute("PRAGMA secure_delete=ON")
+        db.execute("UPDATE command_intakes SET payload=NULL WHERE task_id=?", (task_id,))
         actions = [
             r[0]
             for r in db.execute(
@@ -139,6 +140,8 @@ class RetentionService:
             "evidence": 0,
         }
         with closing(sqlite3.connect(self.path, timeout=2)) as db:
+            db.execute('UPDATE command_intakes SET payload=NULL, state=CASE WHEN task_id IS NULL THEN ? ELSE state END WHERE expires_at<=?', ('invalidated', now))
+            db.commit()
             expired = [
                 r[0]
                 for r in db.execute(
@@ -172,7 +175,7 @@ class RetentionService:
         with closing(sqlite3.connect(self.path, timeout=2)) as db, db:
             db.execute("PRAGMA secure_delete=ON")
             for task_id, raw in db.execute("SELECT task_id,result_json FROM tasks").fetchall():
-                if json.loads(raw)["status"] not in {"queued", "prepared", "running"}:
+                if json.loads(raw)["status"] not in {"queued", "prepared", "running", "waiting_for_review"}:
                     db.execute(
                         "INSERT OR IGNORE INTO task_retention(task_id,terminal_at) VALUES (?,?)",
                         (task_id, now),
@@ -214,7 +217,7 @@ class RetentionService:
                         db.execute(f"DELETE FROM {table} WHERE action_id=?", (action,))
                     db.execute("DELETE FROM action_attempts WHERE action_id=?", (action,))
                 db.execute("DELETE FROM approvals WHERE task_id=?", (task_id,))
-                for table in ("task_events", "client_requests", "tasks", "task_retention"):
+                for table in ("task_events", "client_requests", "tasks", "task_retention", "command_intakes"):
                     db.execute(f"DELETE FROM {table} WHERE task_id=?", (task_id,))
             counts["tasks"] += 1
         with closing(sqlite3.connect(self.path, timeout=2)) as db, db:

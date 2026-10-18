@@ -1,0 +1,124 @@
+{
+  "milestone": "V3.2 / V3.3",
+  "date": "2026-10-18",
+  "application_version": "0.1.0-source-candidate",
+  "base_revision": "64a0a22127a2d450a8d8bb4047cf76cae0cc4995",
+  "dirty_source": true,
+  "tested_source_sha256": "1c7fcb89e778085121469e799aa2efa5aec7db3ba6d9460637281589471ff3c1",
+  "tested_source_manifest_private": ".local/v32-tested-source-01/source.json",
+  "post_verification_manifest_private": ".local/v32-after-verification-01/source.json",
+  "source_unchanged_after_verification": true,
+  "source_files": 262,
+  "backend": {
+    "tests": 751,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "backend_seconds": 318.909,
+  "backend_xml_private": ".local/v32-regression-01.xml",
+  "review_http_tests": 16,
+  "review_http_evidence_layer": "actual queue/spawned worker/SQLite/HTTP routes with simulated UIA and controlled telemetry",
+  "frontend": {
+    "build": "passed",
+    "tests": 23,
+    "lint": "passed",
+    "api": "regenerated from current backend"
+  },
+  "browser": {
+    "fixture_only": true,
+    "checks": {
+      "uncertain_retry_same_identity_payload_and_no_double_click": true,
+      "refresh_recovers_review_from_snapshot_without_post": true,
+      "literal_preview": true,
+      "mobile_no_overflow_and_reduced_motion": true,
+      "keyboard_approve_once_and_verified_result": true,
+      "expired_review_disabled": true,
+      "unavailable_reason_and_unknown_not_success": true,
+      "expired_session_blocks_checklist": true,
+      "keyboard_stop_always_available": true,
+      "no_browser_errors": true,
+      "reconnect_uses_cursor": true
+    },
+    "passed": true
+  },
+  "browser_private_artifacts": ".local/v33-browser-03/",
+  "legacy_browser_contracts": [
+    "M5 passed",
+    "M6 passed",
+    "M7 passed",
+    "M8 passed"
+  ],
+  "screenshots_inspected": [
+    "desktop-review.png",
+    "mobile-review.png"
+  ],
+  "real_loopback_api_sse": {
+    "transport": "real loopback HTTP/SSE",
+    "physical_ui_test": false,
+    "memory_safeguard_enabled": true,
+    "selected_user_runtime": null,
+    "checks": {
+      "health_authenticated": true,
+      "health_requires_auth": true,
+      "events_require_auth": true,
+      "native_gated_before_admission": true,
+      "note_admitted": true,
+      "note_verified_exact_bytes": true,
+      "duplicate_same_task_no_effect": true,
+      "snapshot_requires_auth": true,
+      "snapshot_read_only": true,
+      "ordered_event_replay": true,
+      "event_snapshot_read_only": true,
+      "cursor_reconnect_no_resubmission": true,
+      "stop_latched": true,
+      "stop_blocks_later_effect": true
+    },
+    "available_memory_bytes": 3790049280,
+    "note_sha256": "6454de3fe002a9fa622a927a128dd829b7b81f80969e6b5c944c5d25a0366f6b",
+    "passed": true
+  },
+  "default_capability_source_http": {
+    "source_http_in_process": true,
+    "native_ui_test": false,
+    "production_memory_guards": true,
+    "checks": {
+      "requires_auth": true,
+      "native_disabled": true,
+      "no_client_configurable_profile": true,
+      "clear_reason": true,
+      "read_only_no_tasks": true,
+      "stop_reported": true
+    },
+    "passed": true
+  },
+  "implemented": [
+    "trusted owned-execution identity callback",
+    "bounded native owner review wait retaining mutation slot",
+    "exact target/profile/process/control/path/payload approval binding",
+    "single-use permit and final pre-Invoke guard",
+    "persisted waiting task and approval identity",
+    "Stop/timeout/restart invalidation without replay",
+    "separate server native/review profile gates",
+    "read-only authenticated capability response",
+    "bounded dashboard checklist with stable uncertain request identity",
+    "literal previews, expiry/status, snapshot recovery and keyboard Stop"
+  ],
+  "schema_migration_added": false,
+  "dependencies_upgraded": false,
+  "user_runtime_selected": false,
+  "default_native_registered": false,
+  "native_qualified": false,
+  "new_native_ui_run": false,
+  "public_sites_tested": false,
+  "windows_package_rebuilt": false,
+  "pending": [
+    "V3.1 owned native launch/Save qualification",
+    "first successful supervised native run",
+    "20 successful native repetitions",
+    "native adversarial cases and real display scales",
+    "actual installed-app HTTP review qualification before registration",
+    "package rebuild/release qualification"
+  ],
+  "privacy": "Raw test XML, UI trees, credentials and runtime payloads are not exported. Browser images contain synthetic fixtures only."
+}

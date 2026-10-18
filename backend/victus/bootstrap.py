@@ -17,12 +17,21 @@ from victus.storage.database import Database
 from victus.storage.payloads import PayloadStore
 from victus.tasks.events import EventManager
 from victus.tasks.service import TaskService
-from victus.tools.browser import BROWSER_TOOLS
-from victus.tools.desktop import DESKTOP_TOOLS
 from victus.tools.filesystem import FILESYSTEM_TOOLS
 from victus.tools.registry import ToolRegistry
 from victus.voice.service import VoiceService
 from victus.voice.wake import WakeListener
+
+
+def _cleanup_all(operations):
+    """Attempt independent cleanup even if an optional component fails."""
+    errors = []
+    for operation in operations:
+        try:
+            operation()
+        except Exception as error:
+            errors.append(error)
+    return errors
 
 
 @dataclass
@@ -41,6 +50,8 @@ class Services:
     backups: Backups | None = None
     diagnostics: Diagnostics | None = None
     cloud: CloudService | None = None
+    commands: object = None
+    fixture_site: object = None
 
     @property
     def approvals(self) -> ApprovalStore:
@@ -49,29 +60,46 @@ class Services:
     def stop(self) -> None:
         # Trip both independent cancellation paths before queue/storage cleanup.
         self.tasks.cancellation.stop()
+        operations = [self.tasks.stop]
         if self.cloud is not None:
-            self.cloud.clear()
+            operations.append(self.cloud.clear)
         if self.voice is not None:
-            self.voice.stop()
-        self.tasks.stop()
+            operations.append(self.voice.stop)
+        if _cleanup_all(operations):
+            raise RuntimeError("Stop latched; component cleanup incomplete") from None
 
     def close(self) -> None:
+        # Latch Stop before any optional cleanup can block or fail. Task close
+        # signals, drains and joins its owned worker before other owners close.
+        self.tasks.cancellation.stop()
+        operations = [self.tasks.close]
+        if self.fixture_site is not None:
+            operations.append(self.fixture_site.close)
         if self.cloud is not None:
-            self.cloud.clear()
+            operations.append(self.cloud.clear)
         if self.hotkey is not None:
-            self.hotkey.close()
+            operations.append(self.hotkey.close)
         if self.voice is not None:
-            self.voice.close()
+            operations.append(self.voice.close)
         if self.retention is not None:
-            self.retention.close()
-        self.tasks.close()
+            operations.append(self.retention.close)
+        errors = _cleanup_all(operations)
+        if errors:
+            self.lock.retain()
+            raise RuntimeError(
+                "Service shutdown incomplete; data-directory ownership retained"
+            ) from None
         try:
             if self.retention is not None:
                 self.retention.cleanup(end_session=True)
-        finally:
             if self.resources is not None:
                 self.resources.close()
-            self.lock.release()
+        except Exception:
+            self.lock.retain()
+            raise RuntimeError(
+                "Service cleanup incomplete; data-directory ownership retained"
+            ) from None
+        self.lock.release()
 
 
 def build_services(settings: Settings) -> Services:
@@ -83,9 +111,13 @@ def build_services(settings: Settings) -> Services:
     voice = None
     resource_started = False
     retention = None
+    fixture_site = None
     try:
         registry = ToolRegistry()
-        for spec in FILESYSTEM_TOOLS + BROWSER_TOOLS + DESKTOP_TOOLS:
+        # Native workflow-local registries bind reviewed owners/targets separately.
+        # Never advertise unimplemented browser or broad desktop stubs as runnable.
+        # Only server-owned, exact-runtime qualification can enable native tools.
+        for spec in FILESYSTEM_TOOLS:
             if settings.mcp_notes and spec.name == "fs.create_note":
                 from victus.adapters.mcp.mapping import mcp_create_note
 
@@ -102,7 +134,32 @@ def build_services(settings: Settings) -> Services:
         payloads = PayloadStore(db_path)
         events = EventManager(db_path)
         tasks = TaskService(settings.workspace, database, registry, events)
-        voice = VoiceService(tasks, settings.voice_model_path)
+        from victus.workflows.qualification_records import qualified_native
+
+        native = qualified_native()
+        if native is not None:
+            from victus.workflows.native_review import native_checklist_spec
+
+            registry.register(native_checklist_spec(native.profiles_file, native.profiles,
+                native_qualified=True, review_qualified=True))
+            tasks.qualified_notepad_profiles = native.profiles
+            tasks.reviewed_notepad_profiles = native.profiles
+        from victus.models.contracts import ModelPin
+        from victus.tasks.commands import CommandService
+        from victus.workflows.fixture_research import (
+            FixtureSite,
+            ResearchExecutor,
+            qualified_browser,
+        )
+
+        browser = qualified_browser()
+        if browser is not None:
+            fixture_site = FixtureSite()
+            tasks.research = ResearchExecutor(fixture_site.origin, str(browser))
+            registry.register(tasks.research.spec())
+        commands = CommandService(tasks, ModelPin(name=settings.command_model_name,
+            digest=settings.command_model_digest) if settings.command_model_name else None)
+        voice = VoiceService(tasks, settings.voice_model_path, commands=commands)
         voice.wake = WakeListener(voice, settings.wake_manifest_path)
         resources().start()
         resource_started = True
@@ -127,8 +184,12 @@ def build_services(settings: Settings) -> Services:
             resources=resources(),
             backups=Backups(settings.data_dir, guard),
             diagnostics=Diagnostics(resources()),
-            cloud=(CloudService(settings.cloud_model, settings.cloud_upstream, tasks.stopped)
-                   if settings.cloud_model else None),
+            cloud=(
+                CloudService(settings.cloud_model, settings.cloud_upstream, tasks.stopped)
+                if settings.cloud_model
+                else None
+            ),
+            commands=commands, fixture_site=fixture_site,
         )
         if settings.emergency_hotkey:
             hotkey = EmergencyShortcut(services.stop)
@@ -137,15 +198,21 @@ def build_services(settings: Settings) -> Services:
         retention.start()
         return services
     except Exception:
-        if hotkey is not None:
-            hotkey.close()
-        if voice is not None:
-            voice.close()
+        operations = []
+        if fixture_site is not None:
+            operations.append(fixture_site.close)
         if tasks is not None:
-            tasks.close()
+            operations.append(tasks.close)
+        if hotkey is not None:
+            operations.append(hotkey.close)
+        if voice is not None:
+            operations.append(voice.close)
         if retention is not None:
-            retention.close()
+            operations.append(retention.close)
         if resource_started:
-            resources().close()
-        lock.release()
+            operations.append(resources().close)
+        if _cleanup_all(operations):
+            lock.retain()
+        else:
+            lock.release()
         raise

@@ -37,6 +37,7 @@ try:
                 mutations.append(path)
             if path == "/api/session":
                 body = {"authenticated": True, "expires_at": None}
+            elif path == '/api/workflows/capabilities': body = {'notepad_checklist': {'enabled': False, 'profiles': [], 'reason': 'Native qualification and Save review qualification required.'}, 'stopped': False, 'resource_blocked': False}
             elif path == "/api/health":
                 body = {"status": "ok", "mode": "fixture", "stopped": False,
                         "tools": ["fs.create_note"], "emergency_hotkey": "registered"}

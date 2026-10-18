@@ -18,6 +18,7 @@ def _matches(control, selector, pid):
         and info.control_type == selector.control_type
         and (selector.automation_id is None or info.automation_id == selector.automation_id)
         and (selector.name is None or info.name == selector.name)
+        and (selector.class_name is None or info.class_name == selector.class_name)
     )
 
 
@@ -37,10 +38,15 @@ class SelectorResolver:
         )
         if window_selector is None:
             raise UIABlocked("WINDOW_NOT_IN_PROFILE")
+        candidates = app.connection.windows()
+        if selector.root_window != "main":
+            mains = [w for w in candidates if _matches(w, app.profile.window, app.identity.pid)]
+            if len(mains) != 1:
+                raise UIABlocked("WINDOW_MISSING_OR_AMBIGUOUS")
+            candidates = [*candidates, *mains[0].descendants(control_type="Window")]
+            candidates = list({tuple(w.element_info.runtime_id): w for w in candidates}.values())
         windows = [
-            window
-            for window in app.connection.windows()
-            if _matches(window, window_selector, app.identity.pid)
+            window for window in candidates if _matches(window, window_selector, app.identity.pid)
         ]
         if len(windows) != 1:
             raise UIABlocked("WINDOW_MISSING_OR_AMBIGUOUS")

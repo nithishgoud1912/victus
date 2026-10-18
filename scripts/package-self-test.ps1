@@ -14,11 +14,11 @@ $OutputDirectory = (Resolve-Path -LiteralPath $OutputDirectory).Path
 $executable = Join-Path $Bundle 'Victus.exe'
 $testData = Join-Path $OutputDirectory 'data'
 $saved = @{}
-$names = @('VICTUS_DATA_DIR','VICTUS_API_TOKEN','VICTUS_VOICE_MODEL_PATH','VICTUS_WAKE_MANIFEST_PATH','VICTUS_MCP_NOTES','VICTUS_CLOUD_MODEL','VICTUS_CLOUD_UPSTREAM','VICTUS_EMERGENCY_HOTKEY','VICTUS_DASHBOARD_DEV_ORIGIN')
+$names = @('VICTUS_DATA_DIR','VICTUS_API_TOKEN','VICTUS_VOICE_MODEL_PATH','VICTUS_WAKE_MANIFEST_PATH','VICTUS_MCP_NOTES','VICTUS_CLOUD_MODEL','VICTUS_CLOUD_UPSTREAM','VICTUS_EMERGENCY_HOTKEY','VICTUS_DASHBOARD_DEV_ORIGIN','VICTUS_COMMAND_MODEL','VICTUS_COMMAND_MODEL_DIGEST')
 foreach ($name in $names) { $saved[$name] = [Environment]::GetEnvironmentVariable($name, 'Process'); [Environment]::SetEnvironmentVariable($name, $null, 'Process') }
 $server = $null
 $checks = [ordered]@{}
-$report = [ordered]@{ version=''; passed=$false; qualification='same-account-laptop-only'; checks=$checks; fresh_standard_account_tested=$false; gpu_browser_microphone_tested=$false }
+$report = [ordered]@{ version=''; passed=$false; qualification='same-account-laptop-only'; checks=$checks; fresh_standard_account_tested=$false; gpu_browser_microphone_tested=$false; source_sha256=$null; bundle_manifest_sha256=$null }
 
 function Assert-Check([string]$Name, [bool]$Condition) {
     $checks[$Name] = $Condition
@@ -49,6 +49,8 @@ try {
     $env:VICTUS_API_TOKEN = [Convert]::ToHexString([Security.Cryptography.RandomNumberGenerator]::GetBytes(32))
     $headers = @{ Authorization = 'Bearer ' + $env:VICTUS_API_TOKEN }
     $manifest = Get-Content -LiteralPath (Join-Path $Bundle 'release-manifest.json') -Raw | ConvertFrom-Json
+    $report.bundle_manifest_sha256 = (Get-FileHash -LiteralPath (Join-Path $Bundle 'release-manifest.json') -Algorithm SHA256).Hash.ToLowerInvariant()
+    $report.source_sha256 = $manifest.source_sha256
     $bundlePrefix = [IO.Path]::GetFullPath($Bundle) + [IO.Path]::DirectorySeparatorChar
     $validHashes = $manifest.files.Count -gt 0 -and $manifest.files.Count -lt 20000
     foreach ($file in $manifest.files) {
@@ -88,6 +90,22 @@ try {
         Start-Sleep -Milliseconds 100
     }
     Assert-Check 'frozen_worker_verified' ($task.status -eq 'succeeded' -and $task.verified)
+    $commandHeaders = @{Authorization=$headers.Authorization; 'X-Client-Request-ID'='package-command'}
+    $commandBody = @{text='Create a note command-proof.txt containing "Command package proof"'} | ConvertTo-Json
+    $command = Invoke-RestMethod -Method Post -Uri 'http://127.0.0.1:8765/api/commands' -Headers $commandHeaders -ContentType 'application/json' -Body $commandBody
+    Assert-Check 'frozen_command_admitted' ($command.state -eq 'submitted')
+    for ($i=0; $i -lt 200; $i++) {
+        $commandTask = Invoke-RestMethod -Uri ('http://127.0.0.1:8765/api/tasks/' + $command.task_id) -Headers $headers
+        if ($commandTask.status -notin @('queued','prepared','running','waiting_for_review')) { break }
+        Start-Sleep -Milliseconds 100
+    }
+    Assert-Check 'frozen_command_graph_verified' ($commandTask.verified -and (Get-Content -LiteralPath (Join-Path $testData 'workspace/command-proof.txt') -Raw) -eq 'Command package proof')
+    $replay = Invoke-RestMethod -Method Post -Uri 'http://127.0.0.1:8765/api/commands' -Headers $commandHeaders -ContentType 'application/json' -Body $commandBody
+    Assert-Check 'frozen_command_replay' ($replay.task_id -eq $command.task_id)
+    $commandHeaders['X-Client-Request-ID'] = 'package-clarification'
+    $clarification = Invoke-RestMethod -Method Post -Uri 'http://127.0.0.1:8765/api/commands' -Headers $commandHeaders -ContentType 'application/json' -Body '{"text":"Create a note"}'
+    $snapshot = Invoke-RestMethod -Uri ('http://127.0.0.1:8765/api/commands/' + $clarification.command_id) -Headers $headers
+    Assert-Check 'frozen_clarification_read_only' ($snapshot.state -eq 'clarification' -and $snapshot.missing.Count -eq 2)
     Invoke-RestMethod -Method Post -Uri 'http://127.0.0.1:8765/api/stop' -Headers $headers | Out-Null
     $stopped = Invoke-RestMethod -Uri 'http://127.0.0.1:8765/api/health' -Headers $headers
     Assert-Check 'stop_then_maintenance' $stopped.stopped
@@ -96,7 +114,7 @@ try {
     $backup = Join-Path $OutputDirectory 'pre-update-backup'
     Invoke-CLI -Arguments @('backup','--destination',$backup) | Out-Null
     $migration = (Invoke-CLI -Arguments @('migrate')) | ConvertFrom-Json
-    Assert-Check 'schema_migration' ($migration.schema -eq 7)
+    Assert-Check 'schema_migration' ($migration.schema -eq 8)
     $server = Start-TestService
     $null = Wait-Service
     Invoke-RestMethod -Method Post -Uri 'http://127.0.0.1:8765/api/stop' -Headers $headers | Out-Null

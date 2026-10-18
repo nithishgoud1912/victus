@@ -8,11 +8,29 @@ from victus.settings import Settings
 def main() -> None:
     parser = argparse.ArgumentParser(prog="victus")
     parser.add_argument("command", choices=["doctor", "serve", "export-openapi", "cloud-key",
-                                            "backup", "restore", "migrate", "version"])
+                                            "backup", "restore", "migrate", "version",
+                                            "qualify-fixture", "promote-fixture"])
     parser.add_argument("--output", type=Path)
     parser.add_argument("--source", type=Path)
     parser.add_argument("--destination", type=Path)
     args = parser.parse_args()
+    if args.command == "qualify-fixture":
+        if args.output is None:
+            parser.error("qualify-fixture requires a new --output directory")
+        from victus.workflows.fixture_qualification import main as qualify
+
+        raise SystemExit(qualify(["--output", str(args.output)]))
+    if args.command == "promote-fixture":
+        if args.source is None:
+            parser.error("promote-fixture requires --source report.json")
+        from victus.workflows.qualification_records import promote_fixture
+
+        try:
+            promote_fixture(args.source)
+        except (OSError, ValueError, KeyError, TypeError):
+            parser.error("Qualification promotion refused; require complete current evidence and no existing record")
+        print("Qualified bundled-fixture scope installed. Restart to admit it.")
+        return
     if args.command == "version":
         from victus.runtime.release import version
 

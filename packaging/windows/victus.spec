@@ -1,16 +1,22 @@
 # Folder bundle only. Build from the isolated pinned packaging environment.
 from pathlib import Path
+import os
 from PyInstaller.utils.hooks import collect_data_files, collect_submodules, copy_metadata
 
 root = Path(SPECPATH).resolve().parents[1]
-staging = root / 'build' / 'windows-staging'
+staging = Path(os.environ.get('VICTUS_BUILD_STAGE') or root / 'build' / 'windows-staging')
 if not (staging / 'dashboard' / 'index.html').is_file():
     raise RuntimeError('Build and stage dashboard before freezing')
 
 datas = [(str(staging / 'dashboard'), 'dashboard'),
+         (str(root / 'config/applications'), 'config/applications'),
          (str(root / 'backend/victus/storage/sql'), 'victus/storage/sql'),
          # MCP's reviewed source pin remains independently inspectable when frozen.
          (str(root / 'backend/victus/adapters/mcp/reference_server.py'), 'victus/adapters/mcp')]
+for qualification in ('fixture-qualification.json', 'native-qualification.json'):
+    record = root / 'backend/victus/workflows' / qualification
+    if record.is_file():
+        datas.append((str(record), 'victus/workflows'))
 for distribution in ('victus-assistant', 'langgraph', 'langgraph-checkpoint',
                      'langgraph-checkpoint-sqlite', 'openwakeword', 'numpy',
                      'onnxruntime', 'scipy', 'scikit-learn'):

@@ -1,0 +1,144 @@
+{
+  "milestone": "V4-first-implementation-batch",
+  "v4_complete": false,
+  "release_qualified": false,
+  "source_sha256": "636ecbec8eeb8413e724f72845674fa3d018cc332c749b73eef5798db1aecbdd",
+  "base_revision": "64a0a22127a2d450a8d8bb4047cf76cae0cc4995",
+  "implementation_files": 290,
+  "changed_implementation_paths": [
+    "backend/tests/live/m7_soak.py",
+    "backend/tests/live/v3_baseline.py",
+    "backend/tests/test_evidence_reconciliation.py",
+    "backend/tests/test_resource_readiness.py",
+    "backend/tests/test_uia_profiles.py",
+    "backend/victus/adapters/uia/applications.py",
+    "backend/victus/adapters/uia/native.py",
+    "backend/victus/runtime/resources.py",
+    "backend/victus/workflows/create_notepad_checklist.py",
+    "backend/victus/workflows/diagnostics.py",
+    "backend/victus/workflows/qualification.py",
+    "scripts/package-self-test.ps1",
+    "scripts/reconcile-v36-evidence.py"
+  ],
+  "initial_real_http_baseline": {
+    "passed": true,
+    "checks": 14,
+    "source_sha256": "b3c8a3f6cc25e6d6537f1ea4418c609e7da9e63aa39c0ada3c73ae87b4f1174e"
+  },
+  "extended_current_http_baseline": {
+    "passed": false,
+    "expected_checks": 23,
+    "admission_status": 503,
+    "available_memory_bytes": 1401315328
+  },
+  "native_attempts": [
+    {
+      "executed": 1,
+      "passed": 0,
+      "status": "failed",
+      "outcome": "unknown",
+      "last_phase": "uia.save_checklist.verify",
+      "last_error_code": "PHASE_FAILED"
+    },
+    {
+      "executed": 1,
+      "passed": 0,
+      "status": "failed",
+      "outcome": "unknown",
+      "last_phase": "uia.inspect_control.execute",
+      "last_error_code": "PHASE_VALUE_REJECTED"
+    }
+  ],
+  "browser": {
+    "passed": false,
+    "failure": "RESOURCE_PRESSURE",
+    "boundary": "admission_sources.json",
+    "normal_memory_guards": true,
+    "fixture_sha256": "f1b042c34d92fda54f312da3a9f18907be0465272ff2c322b8df524d942ae267",
+    "browser_sha256": "7f08161bbeb2853ffe1780a9ded4985087f52efb9725d7d8207aabdd42f7cfb9",
+    "playwright_version": "1.64.0"
+  },
+  "model": {
+    "requested_goals": 30,
+    "executed_goals": 0,
+    "measured_score": null,
+    "run_error": "MODEL_UNAVAILABLE",
+    "suite_sha256": "1a23540e729f3b62f9e0991fd7c53d6cd6e279a514f45f1e4a697949a273e340",
+    "pin": null
+  },
+  "readiness": {
+    "memory": {
+      "available_bytes": 485285888,
+      "total_bytes": 16802910208,
+      "process_rss_bytes": 36646912
+    },
+    "gpu_memory": {
+      "used_bytes": 0,
+      "total_bytes": 6439305216
+    },
+    "disk_free_bytes": 114092986368,
+    "ollama_executable_available": true,
+    "ollama_executable_sha256": "e4fe6bd835fe146659f5c969dccaff2e25a9de63d90ee204ca5d11b9034b0ca5",
+    "ollama_service_available": false,
+    "cached_manifest_names": [
+      "nomic-embed-text/latest"
+    ],
+    "reasoning_pin_established": false,
+    "model_downloaded": false,
+    "service_configuration_changed": false,
+    "cloud_used": false
+  },
+  "soak": {
+    "qualified": false,
+    "blocked": "RESOURCE_PRESSURE",
+    "requested_seconds": 7200.0,
+    "elapsed_seconds": 0,
+    "tasks_verified": 0,
+    "normal_memory_guards": true,
+    "implementation_start_sha256": "8352f934cf505881fbb36d99d1c52ca2a1b223daf931ffe6dc7f605387da7c37"
+  },
+  "native_enabled": false,
+  "browser_qualification_promoted": false,
+  "physical_voice_qualified": false,
+  "new_source_package_tested": false,
+  "fresh_standard_account_tested": false,
+  "formal_cross_version_release_qualified": false,
+  "references_sha256": {
+    ".local/v4-final-source-01/source.json": "9b568b4c24b44053b75fea6f754a661da42a817f15cf6df4667255b290c92a8f",
+    ".local/v40-start-01/source.json": "65104ffd2c31baa53bb11c4df49f6dce00a0fe3ecdaa20930bfa285919457885",
+    ".local/v40-baseline-01/report.json": "7a57f8d27ff2fbe92fc3245bde6a6f66854b7cbc2aecd3572ee37ab32166ef37",
+    ".local/v40-baseline-02/report.json": "1f4bca873880ae52909b71d8390e8ed64182de8fd9e0b8fecd6ec992fba1f372",
+    ".local/v41-native-one-01/notepad-qualification.json": "1f2885774f0c7b8a264a3f6537ef0a828d362ba3fc52c6143748783f26b187c1",
+    ".local/v41-native-one-02/notepad-qualification.json": "05fa9a5239342a0b31942081f9796c282252eedcbd24ab78f6cea08db3972770",
+    ".local/v42-browser-one-01/report.json": "4a0da8af828a89a4584ff2138d4e6687849812d9ce753244cdeae6a7aaafe2e5",
+    ".local/v43-model-benchmark-01/report.json": "15c782fd46668d933deb12ce896f10295bee9759cb2865033ee55afca2056f01",
+    ".local/v43-readiness-01/report.json": "d30948aad5f306209072439958245082945ad14f5019252f25f9e34c74141475",
+    ".local/v45-soak-01/report.json": "f1f3ea34d4dd0bbd5de9dfa4dfd83ff3345b609a4a16cb633fe40e8ff92f3aba",
+    ".local/v40-baseline-final-03/report.json": "59c0011c95ffa2c18db2f0f1af2c69324049eec18f21ca3cce119af31b862355",
+    ".local/v4-regression-01.xml": "1f7fce49168b9eff963e4a114687e5fadacae5f96c2087ad2f49f9bd4743658e"
+  },
+  "backend_regression": {
+    "tests": 804,
+    "errors": 0,
+    "failures": 0,
+    "skipped": 0,
+    "junit_sha256": "1f7fce49168b9eff963e4a114687e5fadacae5f96c2087ad2f49f9bd4743658e"
+  },
+  "frontend": {
+    "tests_passed": 23,
+    "lint_passed": true,
+    "build_passed": true,
+    "generated_contracts_unchanged": true
+  },
+  "powershell_syntax_passed": true,
+  "source_unchanged_after_regression": true,
+  "native_attempt_source_binding": "Diagnostic attempts from earlier source during this turn; no per-attempt source manifest. Not eligible for qualification promotion.",
+  "extended_final_http_baseline": {
+    "passed": false,
+    "expected_checks": 23,
+    "admission_status": 503,
+    "available_memory_bytes": 558235648,
+    "memory_safeguard_enabled": true
+  },
+  "implementation_plan_sha256": "6e1407a77f340ce2aade242d0484a084d5c9d516a2e7da77d32493ed163e58f9"
+}

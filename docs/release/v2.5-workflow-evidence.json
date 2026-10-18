@@ -1,0 +1,220 @@
+{
+  "milestone": "V2.5",
+  "date": "2026-10-18",
+  "application_version": "0.1.0-source-candidate",
+  "base_revision": "64a0a22127a2d450a8d8bb4047cf76cae0cc4995",
+  "dirty_source": true,
+  "source_sha256": "9048a976a159a2f60c745fba93cabe5afa0ca952989f7319dafe1f15674f8e63",
+  "source_manifest_private": ".local/v25-source.json",
+  "source_unchanged_since_final_suite_started": true,
+  "python_version": "3.12.14",
+  "lockfile_sha256": "4b6c1a424141cbeb778072e80e1f1a9344dbe38608e7488e98ebeb4033e2e3f4",
+  "implemented": [
+    "strict authenticated checklist route",
+    "trusted profile gate on both task routes",
+    "atomic deduplication before destination check",
+    "exact approved-basename check",
+    "cooperative stop recheck before native Save",
+    "modal/editor and byte save verification"
+  ],
+  "backend": {
+    "tests": 727,
+    "errors": 0,
+    "failures": 0,
+    "skipped": 0,
+    "seconds": 343.804
+  },
+  "selected_test_classes": {
+    "tests.test_approval_dispatch": 19,
+    "tests.test_approvals": 49,
+    "tests.test_notepad_workflow": 32,
+    "tests.test_queue_events.TestTaskQueue": 4,
+    "tests.test_queue_events.TestSequencedEvents": 3,
+    "tests.test_queue_events.TestEventStreaming": 7,
+    "tests.test_queue_events": 8,
+    "tests.test_recovery": 28,
+    "tests.test_uia_profiles": 35,
+    "tests.test_workflow_api": 30,
+    "tests.test_workflow_dispatcher": 34
+  },
+  "earlier_focused_passed": 213,
+  "frontend": {
+    "build": "passed",
+    "tests_passed": 20,
+    "lint": "passed",
+    "generated_api": "regenerated"
+  },
+  "selected_backend_lint": "passed",
+  "real_source_api": {
+    "source_api": true,
+    "physical_ui_test": false,
+    "memory_safeguard_enabled": true,
+    "available_memory_bytes": 2913832960,
+    "health_responsive": true,
+    "unqualified_native_blocked_before_admission": true,
+    "native_rejection_created_no_task": true,
+    "note_admission_status": 202,
+    "note_terminal_status": "succeeded",
+    "note_exact_bytes_verified": true,
+    "note_output_sha256": "7b9f1cf8a2567434ebb961ca0e1ed5d47e649a3c6d3af34b512b33054c5d780a",
+    "duplicate_returned_original_task": true,
+    "snapshot_is_read_only": true,
+    "stop_latched": true,
+    "stop_prevents_later_write": true
+  },
+  "native_runs": [
+    {
+      "runtime_root": ".local/v25-native-first",
+      "request_id": "9c067820fb6e4a32aa0f99645029eaef",
+      "request_id_kind": "trusted CLI task/run identity",
+      "profile": "notepad-win11-11.2607.14.0",
+      "application_version": "11.2607.14.0",
+      "task_outcome": "unknown",
+      "verified_output_hash": null,
+      "manual_intervention_during_run": false,
+      "requested_artifact_present": false,
+      "action_effects": [
+        {
+          "tool": "workflow.notepad",
+          "status": "unknown",
+          "error_code": "STEP_POSTCONDITION_OR_EXECUTION_UNCERTAIN"
+        },
+        {
+          "tool": "uia.launch_profile",
+          "status": "verified",
+          "error_code": null
+        },
+        {
+          "tool": "uia.inspect_control",
+          "status": "unknown",
+          "error_code": "STEP_POSTCONDITION_OR_EXECUTION_UNCERTAIN"
+        }
+      ]
+    },
+    {
+      "runtime_root": ".local/v25-native-diagnosis",
+      "request_id": "7f7e95fb662342f58191a9d7153c46c6",
+      "request_id_kind": "trusted CLI task/run identity",
+      "profile": "notepad-win11-11.2607.14.0",
+      "application_version": "11.2607.14.0",
+      "task_outcome": "unknown",
+      "verified_output_hash": null,
+      "manual_intervention_during_run": false,
+      "requested_artifact_present": false,
+      "action_effects": [
+        {
+          "tool": "workflow.notepad",
+          "status": "unknown",
+          "error_code": "STEP_POSTCONDITION_OR_EXECUTION_UNCERTAIN"
+        },
+        {
+          "tool": "uia.launch_profile",
+          "status": "unknown",
+          "error_code": "STEP_POSTCONDITION_OR_EXECUTION_UNCERTAIN"
+        }
+      ]
+    },
+    {
+      "runtime_root": ".local/v25-native-diagnosis-2",
+      "request_id": "0bd881ef1a3d40cf926bf8f9e3692f90",
+      "request_id_kind": "trusted CLI task/run identity",
+      "profile": "notepad-win11-11.2607.14.0",
+      "application_version": "11.2607.14.0",
+      "task_outcome": "unknown",
+      "verified_output_hash": null,
+      "manual_intervention_during_run": false,
+      "requested_artifact_present": false,
+      "action_effects": [
+        {
+          "tool": "workflow.notepad",
+          "status": "unknown",
+          "error_code": "STEP_POSTCONDITION_OR_EXECUTION_UNCERTAIN"
+        },
+        {
+          "tool": "uia.launch_profile",
+          "status": "verified",
+          "error_code": null
+        },
+        {
+          "tool": "uia.inspect_control",
+          "status": "verified",
+          "error_code": null
+        },
+        {
+          "tool": "uia.set_checklist",
+          "status": "verified",
+          "error_code": null
+        },
+        {
+          "tool": "uia.verify_editor",
+          "status": "verified",
+          "error_code": null
+        },
+        {
+          "tool": "fs.choose_save_destination",
+          "status": "verified",
+          "error_code": null
+        },
+        {
+          "tool": "uia.inspect_control",
+          "status": "verified",
+          "error_code": null
+        },
+        {
+          "tool": "uia.invoke_save_control",
+          "status": "verified",
+          "error_code": null
+        },
+        {
+          "tool": "uia.inspect_control",
+          "status": "verified",
+          "error_code": null
+        },
+        {
+          "tool": "uia.invoke_save_control",
+          "status": "verified",
+          "error_code": null
+        },
+        {
+          "tool": "uia.inspect_control",
+          "status": "verified",
+          "error_code": null
+        },
+        {
+          "tool": "uia.inspect_control",
+          "status": "verified",
+          "error_code": null
+        },
+        {
+          "tool": "uia.save_checklist",
+          "status": "unknown",
+          "error_code": "STEP_DEADLINE_OR_STOP"
+        }
+      ]
+    }
+  ],
+  "native_measured_window_dpi": 120,
+  "native_save_verified": false,
+  "native_save_detail": {
+    "handler_applied": true,
+    "handler_seconds_approx": 2.57,
+    "verification": "finite deadline reached without proving requested artifact",
+    "effect_state": "unknown",
+    "automatic_retry": false
+  },
+  "default_native_registration_enabled": false,
+  "http_native_review_wiring": "pending; mandatory before registration",
+  "public_sites_tested": false,
+  "new_physical_dashboard_test": false,
+  "new_soak": false,
+  "package_rebuilt": false,
+  "pending": [
+    "stable owned native launch/save route",
+    "native adversarial matrix",
+    "20 successful supervised repetitions",
+    "intended real display scales",
+    "native target-bound HTTP review wiring before registration",
+    "package rebuild after source qualification"
+  ],
+  "privacy": "Only IDs, statuses, hashes, timings and reviewed application metadata exported; private UI trees, text, credentials and environment contents excluded."
+}

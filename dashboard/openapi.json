@@ -693,6 +693,55 @@
         ]
       }
     },
+    "/api/voice/clarify": {
+      "post": {
+        "tags": [
+          "voice"
+        ],
+        "summary": "Voice Clarify",
+        "operationId": "voice_clarify_api_voice_clarify_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewedClarification"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VoiceSnapshot"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          },
+          {
+            "APIKeyCookie": []
+          }
+        ]
+      }
+    },
     "/api/voice/displayed": {
       "post": {
         "tags": [
@@ -1220,6 +1269,353 @@
         ]
       }
     },
+    "/api/workflows/capabilities": {
+      "get": {
+        "summary": "Capabilities",
+        "operationId": "capabilities_api_workflows_capabilities_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkflowCapabilities"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          },
+          {
+            "APIKeyCookie": []
+          }
+        ]
+      }
+    },
+    "/api/workflows/browser-research": {
+      "post": {
+        "summary": "Submit Research",
+        "operationId": "submit_research_api_workflows_browser_research_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          },
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-Client-Request-ID",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Client-Request-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BrowserResearchSubmission"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskQueuedResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/workflows/notepad-checklist": {
+      "post": {
+        "summary": "Submit Notepad",
+        "operationId": "submit_notepad_api_workflows_notepad_checklist_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          },
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "client_request_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Client Request Id"
+            }
+          },
+          {
+            "name": "X-Client-Request-ID",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Client-Request-Id"
+            }
+          },
+          {
+            "name": "X-Request-ID",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Request-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NotepadChecklistSubmission"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskQueuedResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/commands": {
+      "post": {
+        "summary": "Submit",
+        "operationId": "submit_api_commands_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          },
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-Client-Request-ID",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "X-Client-Request-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommandSubmission"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/commands/{command_id}": {
+      "get": {
+        "summary": "Snapshot",
+        "operationId": "snapshot_api_commands__command_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          },
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "command_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Command Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/commands/{command_id}/clarify": {
+      "post": {
+        "summary": "Clarify",
+        "operationId": "clarify_api_commands__command_id__clarify_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          },
+          {
+            "APIKeyCookie": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "command_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Command Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommandFields"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommandResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/health": {
       "get": {
         "summary": "Health",
@@ -1313,7 +1709,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ActionRequest"
+                "$ref": "#/components/schemas/ToolRequest"
               }
             }
           }
@@ -1538,6 +1934,291 @@
           "updated_at"
         ],
         "title": "ApprovalRecord"
+      },
+      "BrowserResearchSubmission": {
+        "properties": {
+          "source_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 10,
+            "minItems": 1,
+            "title": "Source Ids"
+          },
+          "required_sources": {
+            "type": "integer",
+            "maximum": 10.0,
+            "minimum": 1.0,
+            "title": "Required Sources"
+          },
+          "filename": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,63}\\.json$",
+            "title": "Filename"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "source_ids",
+          "required_sources",
+          "filename"
+        ],
+        "title": "BrowserResearchSubmission"
+      },
+      "ChecklistCapability": {
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          },
+          "profiles": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Profiles"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "enabled",
+          "profiles",
+          "reason"
+        ],
+        "title": "ChecklistCapability"
+      },
+      "CommandCapability": {
+        "properties": {
+          "deterministic": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Deterministic"
+          },
+          "model_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Name"
+          },
+          "model_digest": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Digest"
+          },
+          "reasoning_ready": {
+            "type": "boolean",
+            "title": "Reasoning Ready"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "deterministic",
+          "model_name",
+          "model_digest",
+          "reasoning_ready",
+          "reason"
+        ],
+        "title": "CommandCapability"
+      },
+      "CommandFields": {
+        "properties": {
+          "intent": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "note",
+                  "checklist",
+                  "research"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Intent"
+          },
+          "filename": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 70
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Filename"
+          },
+          "content": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 8192
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content"
+          },
+          "items": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array",
+                "maxItems": 50
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Items"
+          },
+          "source_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array",
+                "maxItems": 10
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Ids"
+          },
+          "required_sources": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 10.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Required Sources"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "CommandFields"
+      },
+      "CommandResponse": {
+        "properties": {
+          "command_id": {
+            "type": "string",
+            "title": "Command Id"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "clarification",
+              "submitted",
+              "unavailable",
+              "expired",
+              "stopped"
+            ],
+            "title": "State"
+          },
+          "task_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Task Id"
+          },
+          "missing": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Missing"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "command_id",
+          "state",
+          "message"
+        ],
+        "title": "CommandResponse"
+      },
+      "CommandSubmission": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "maxLength": 4096,
+            "minLength": 1,
+            "title": "Text"
+          },
+          "fields": {
+            "$ref": "#/components/schemas/CommandFields"
+          },
+          "reasoning": {
+            "type": "boolean",
+            "title": "Reasoning",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "CommandSubmission"
       },
       "DiagnosticExport": {
         "properties": {
@@ -1881,6 +2562,37 @@
         ],
         "title": "NoteArguments"
       },
+      "NotepadChecklistSubmission": {
+        "properties": {
+          "profile": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,95}$",
+            "title": "Profile"
+          },
+          "items": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 50,
+            "minItems": 1,
+            "title": "Items"
+          },
+          "filename": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]{0,63}\\.txt$",
+            "title": "Filename"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "profile",
+          "items",
+          "filename"
+        ],
+        "title": "NotepadChecklistSubmission"
+      },
       "ProviderMessage": {
         "properties": {
           "role": {
@@ -2011,6 +2723,44 @@
         ],
         "title": "ProviderUsage"
       },
+      "ResearchCapability": {
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          },
+          "scope": {
+            "type": "string",
+            "title": "Scope",
+            "default": "fixture_only"
+          },
+          "source_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Source Ids"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "enabled",
+          "source_ids",
+          "reason"
+        ],
+        "title": "ResearchCapability"
+      },
       "Resolution": {
         "properties": {
           "decision": {
@@ -2035,6 +2785,36 @@
         ],
         "title": "Resolution"
       },
+      "ReviewedClarification": {
+        "properties": {
+          "session_id": {
+            "type": "string",
+            "title": "Session Id"
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Revision"
+          },
+          "confirmation": {
+            "type": "string",
+            "const": "explicit_user_review",
+            "title": "Confirmation"
+          },
+          "fields": {
+            "$ref": "#/components/schemas/CommandFields"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "session_id",
+          "revision",
+          "confirmation",
+          "fields"
+        ],
+        "title": "ReviewedClarification"
+      },
       "ReviewedSubmission": {
         "properties": {
           "session_id": {
@@ -2052,7 +2832,24 @@
             "title": "Confirmation"
           },
           "action": {
-            "$ref": "#/components/schemas/ActionRequest"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ActionRequest"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "command": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CommandSubmission"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "additionalProperties": false,
@@ -2060,8 +2857,7 @@
         "required": [
           "session_id",
           "revision",
-          "confirmation",
-          "action"
+          "confirmation"
         ],
         "title": "ReviewedSubmission"
       },
@@ -2144,6 +2940,7 @@
             "default": "queued"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "task_id"
@@ -2177,12 +2974,24 @@
               "queued",
               "prepared",
               "running",
+              "waiting_for_review",
               "succeeded",
               "failed",
               "cancelled",
               "unknown"
             ],
             "title": "Status"
+          },
+          "approval_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approval Id"
           },
           "verified": {
             "type": "boolean",
@@ -2223,6 +3032,7 @@
             "title": "Sha256"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "task_id",
@@ -2230,6 +3040,30 @@
           "status"
         ],
         "title": "TaskResult"
+      },
+      "ToolRequest": {
+        "properties": {
+          "tool": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9_.:-]+$",
+            "title": "Tool"
+          },
+          "arguments": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Arguments"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "tool",
+          "arguments"
+        ],
+        "title": "ToolRequest",
+        "description": "Untrusted transport data; identity, approval and verifier are never inputs."
       },
       "Transcript": {
         "properties": {
@@ -2493,6 +3327,16 @@
               }
             ],
             "title": "Wake Error"
+          },
+          "command": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CommandResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -2509,11 +3353,42 @@
           "recording",
           "transcribing",
           "reviewing",
+          "clarifying",
           "submitted",
           "speaking",
           "error"
         ],
         "title": "VoiceState"
+      },
+      "WorkflowCapabilities": {
+        "properties": {
+          "notepad_checklist": {
+            "$ref": "#/components/schemas/ChecklistCapability"
+          },
+          "stopped": {
+            "type": "boolean",
+            "title": "Stopped"
+          },
+          "resource_blocked": {
+            "type": "boolean",
+            "title": "Resource Blocked"
+          },
+          "browser_research": {
+            "$ref": "#/components/schemas/ResearchCapability"
+          },
+          "commands": {
+            "$ref": "#/components/schemas/CommandCapability"
+          }
+        },
+        "type": "object",
+        "required": [
+          "notepad_checklist",
+          "stopped",
+          "resource_blocked",
+          "browser_research",
+          "commands"
+        ],
+        "title": "WorkflowCapabilities"
       }
     },
     "securitySchemes": {
