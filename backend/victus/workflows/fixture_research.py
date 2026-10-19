@@ -3,7 +3,6 @@
 import hashlib
 import importlib.metadata
 import json
-import os
 import threading
 from dataclasses import dataclass, field
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -85,20 +84,14 @@ def qualified_browser():
             or record["qualified"] is not True
         ):
             return None
-        relative = Path(record["browser_relative_path"])
+        from victus.adapters.playwright.installation import chromium_executable
+
+        path = chromium_executable()
+        relative = "/".join(path.parts[-3:])
         if (
-            relative.is_absolute()
-            or ".." in relative.parts
-            or len(relative.parts) != 3
-            or relative.suffix.lower() != ".exe"
+            record["browser_relative_path"] != relative
+            or file_hash(path) != record["browser_sha256"]
         ):
-            return None
-        cache = Path(
-            os.getenv("PLAYWRIGHT_BROWSERS_PATH")
-            or Path(os.environ["LOCALAPPDATA"]) / "ms-playwright"
-        )
-        path = cache / relative
-        if path.is_symlink() or file_hash(path) != record["browser_sha256"]:
             return None
         return path.resolve()
     except (KeyError, OSError, ValueError, TypeError):

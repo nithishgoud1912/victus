@@ -7,11 +7,13 @@ reviewed voice and memory controls. Capability availability is server-owned.
 
 - [Setup and local authentication](dashboard/README.md)
 - [Current supported workflows](docs/supported-workflows.md)
-- [V4 implementation, unrun tests and incomplete work](docs/V4-TESTS-AND-INCOMPLETE.md)
+- [V5 implementation and remaining gates](docs/V5-TESTS-AND-INCOMPLETE.md)
+- [V5 implementation plan](outputs/VICTUS-v5-Next-Stage-Implementation-Plan.md)
+- [Historical V4 validation and incomplete work](docs/V4-TESTS-AND-INCOMPLETE.md)
 - [Revised V4 implementation plan](outputs/VICTUS-v4-Revised-Next-Stage-Implementation-Plan.md)
 - [Windows folder build and release procedure](docs/release/README.md)
 
-This is a 0.1.0 candidate. V4 names the implementation guide, not a released
+This is a 0.1.0 candidate. V5 names the implementation guide, not a released
 product version. Native/browser/model/voice gates remain explicit; module presence
 does not enable arbitrary computer control or public-web research. Cloud and wake
 are optional and default off. Portable Linux validation and remaining failures are recorded in the handoff;

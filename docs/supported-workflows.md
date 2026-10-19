@@ -1,5 +1,26 @@
 # Supported workflows - VICTUS 0.1.0 candidate
 
+## Current V5 portable implementation increment
+
+V5 adds atomic one-time node completion, a finite isolated crash-storage diagnostic,
+Windows/Linux exact-engine discovery and an ordinary-production HTTP/SSE research
+probe. These extend existing V4 tooling and do not grant new capabilities by
+module presence. See [V5 handoff](V5-TESTS-AND-INCOMPLETE.md),
+[V5 progress](milestones/V5-progress.md) and [current evidence](release/v5-execution-evidence.json).
+
+| Capability | Current implementation / availability | Remaining qualification |
+| --- | --- | --- |
+| Typed notes, deterministic commands, queue, replay and Stop | Existing admitted paths retained; new journal completion invariants | Fresh portable checks are recorded per source; inherited intermittent failures remain undiagnosed |
+| Bundled fixture research | Strict report/ledger promotion and canonical Windows/Linux engine discovery implemented; disabled without matching qualification | Exact pinned engine preparation, complete strict campaign, promotion/restart and positive production API/dashboard proof; Windows process observation separately |
+| Native Notepad and exact Save review | Owned child/tab, cancellation, review and session/promotion tooling retained; unavailable without evidence | One actual successful Save, >=20 repetitions, native review/adverse cases, two physical scales, production admission |
+| Local reasoning | Optional bounded local model path implemented; no automatic fallback | Installed reasoning pin, real inference and frozen benchmark gate |
+| Reviewed English speech | Existing explicit-capture/review/shared-command path retained; assets/session required | Real labelled corpus, separate recognition/action metrics and physical observations |
+| Reliability / Windows package | Isolated diagnostic added; full release remains unqualified | Full two-hour campaign, actual frozen per-capability checks, fresh account and honest artifact/version-pair evidence |
+
+The sections below are historical per-revision records. Their test counts and
+machine observations do not become measurements of the V5 tree.
+
+
 ## Latest PR continuation — portable Linux validation follow-up
 
 The V4 continuation adds native Stop/tab review binding, report-backed schema-2

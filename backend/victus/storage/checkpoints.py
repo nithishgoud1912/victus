@@ -226,10 +226,13 @@ class CheckpointStore:
     def complete(self, task_id, sequence, result):
         data = secure_json.encode(result)
         with self.connect() as db:
-            db.execute(
-                "UPDATE node_journal SET result_json=? WHERE task_id=? AND sequence=?",
+            changed = db.execute(
+                "UPDATE node_journal SET result_json=? "
+                "WHERE task_id=? AND sequence=? AND result_json IS NULL",
                 (data, task_id, sequence),
-            )
+            ).rowcount
+            if changed != 1:
+                raise ValueError("An incomplete claimed node is required for completion")
 
     def mark_terminal(self, task_id):
         with self.connect() as db:
