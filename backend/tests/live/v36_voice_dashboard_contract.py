@@ -6,6 +6,7 @@ import subprocess
 import time
 from pathlib import Path
 
+from browser_support import creation_flags, launch_browser, node_executable
 from playwright.sync_api import expect, sync_playwright
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -18,7 +19,7 @@ def main():
     out.mkdir(parents=True, exist_ok=False)
     server = subprocess.Popen(
         [
-            str(ROOT / ".local/toolchains/node-v24.22.0-win-x64/node.exe"),
+            str(node_executable(ROOT)),
             "node_modules/vite/bin/vite.js",
             "--host",
             "127.0.0.1",
@@ -29,7 +30,7 @@ def main():
         cwd=ROOT / "dashboard",
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
-        creationflags=subprocess.CREATE_NO_WINDOW,
+        creationflags=creation_flags(),
     )
     checks = {}
     mutations = []
@@ -51,7 +52,7 @@ def main():
     stopped = False
     try:
         with sync_playwright() as pw:
-            browser = pw.chromium.launch(headless=True)
+            browser = launch_browser(pw, headless=True)
             page = browser.new_page(viewport={"width": 390, "height": 844}, reduced_motion="reduce")
             page.on("pageerror", lambda error: errors.append(str(error)))
 

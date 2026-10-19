@@ -2,28 +2,37 @@
   "milestone": "V4-PR-implementation-continuation",
   "base_revision": "e87b1050217d342551aa1c43da37e2add276336e",
   "branch": "codex/v4-implementation-handoff",
-  "runtime_sha256": "57639a13e3604b95723bf4faa3020d86a7a739e8389717b79c96260091cc40e7",
+  "runtime_sha256": "b93ec3fd236f717079d3113f9c1077ade2f44b8375fd3e5c530081054136eb83",
   "v4_complete": false,
   "release_qualified": false,
-  "tests_run": false,
-  "tests_skipped_by_user": true,
-  "static_inspection": {
-    "python_and_spec_ast_parsed": 17,
-    "application_imports": false,
-    "markdown_links_checked": true
-  },
+  "tests_run": true,
+  "tests_skipped_by_user": false,
   "native_qualification_promoted": false,
   "browser_qualification_promoted": false,
   "model_inference_run": false,
   "physical_audio_run": false,
-  "soak_run": false,
+  "soak_run": true,
   "package_built": false,
   "handoff": "docs/V4-TESTS-AND-INCOMPLETE.md",
   "remaining": [
-    "Windows native Save diagnosis and native/review/DPI campaign",
-    "real browser and ordinary production HTTP/SSE/UI qualification",
-    "installed reasoning pin and frozen model benchmark",
-    "100 real labelled voice trials and witnessed physical observations",
-    "final regression, two-hour soak, frozen candidate, fresh account and actual release pair"
-  ]
+    "Actual Notepad UIA Save/readback, owned process/tab cleanup and cancellation",
+    "Reviewed native campaign, real DPI/display and Windows process-observation boundaries",
+    "Physical microphone/STT/SAPI interaction and witnessed audio evidence",
+    "Frozen Windows candidate build, fresh-account install/start/stop and release-pair validation",
+    "Resolve portable persistence failures before calling regression green",
+    "Install and rerun with exact pinned Chromium; alternate engine is regression evidence only",
+    "Provide local reasoning service/model pin and run benchmark",
+    "Provide real labelled voice corpus and complete physical observations",
+    "Run full 7200-second reliability qualification; 30-second smoke is insufficient",
+    "Run complete qualification and promotion gates before enabling production capabilities"
+  ],
+  "windows_dependent_tests_skipped_by_user": true,
+  "portable_regression_green": false,
+  "validation_summary": "docs/release/v4-linux-validation.json",
+  "full_two_hour_soak_run": false,
+  "initial_increment_static_inspection": {
+    "python_and_spec_ast_parsed": 17,
+    "application_imports": false,
+    "markdown_links_checked": true
+  }
 }

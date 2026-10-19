@@ -3,16 +3,75 @@
 Prepared: 19 October 2026. Branch: `codex/v4-implementation-handoff`.
 Base: `e87b1050217d342551aa1c43da37e2add276336e`.
 
-**Tests were intentionally not run, at the user's request.** No backend/frontend
-suite, browser/native workflow, model inference, recording, benchmark, soak,
-package build or release experiment was executed for this change. Earlier test
-counts describe earlier revisions and are not validation of this branch.
+The user's clarified instruction is to **skip Windows-dependent checks only**.
+Portable Linux checks have now been executed. The original all-tests-skipped
+statement applied to the first PR increment and is superseded by this follow-up.
+No native Windows action, real microphone/SAPI session or Windows package test
+was performed. No qualification record was promoted.
 
-Python syntax was inspected without importing application modules; Git whitespace
-inspection was performed. These checks do not establish correct runtime behavior.
-This branch is an implementation candidate. **Full V4 qualification remains
-incomplete.** No qualification record was created/promoted and no capability was
-newly enabled by this work.
+## Latest Linux validation — 19 October 2026
+
+The test environment uses Python 3.12.14, locked backend dependencies,
+Node **24.22.0** and the dashboard lockfile. Dependency lock bytes were preserved.
+The initial system Node 24.19.0 was replaced only for these checks by an isolated
+copy of the pinned Node executable; no project engine requirement was relaxed.
+
+| Check | Measured result / scope |
+| --- | --- |
+| Expanded full backend regression | **875/876 passed**, 1 failed, 0 skipped, 194.614 seconds in the final serial run. Failure: `test_twelve_action_attempts_are_shared_across_plans`, SQLite disk I/O error at `backend/victus/storage/checkpoints.py:119`. Earlier 876-test run: 875 passed, one hard-restart recovery failure. Regression remains non-green. |
+| New evidence/voice/process/Stop tests | Added `test_v4_portable_qualification.py`, `test_v4_voice_and_readiness.py`, `test_v4_process_observation.py` and two native-boundary fake tests: **59 additional tests**, all passing in the final full run. All run on Linux without touching a real desktop or microphone. |
+| Frontend tests | **23/23 passed** on pinned Node 24.22.0. |
+| Frontend lint, API generation, TypeScript/Vite build | Passed; generated contract bytes and dependency locks unchanged. |
+| Changed Python lint/format | Ruff checks passed; final details recorded in the summary. |
+| Real source HTTP/SSE baseline | **23/23 passed**, including commands/clarification, exact bytes, stable replay, auth and Stop. Real memory guard retained. |
+| Real dashboard/API smoke | Passed real note/readback, deduplication, production session/reload/logout and mobile checks; no page errors. |
+| Dashboard browser contracts | M5, M6, M7, M8, V3.3, V3.5 and V3.6 all passed. V3.3 11 checks, V3.5 9 checks, V3.6 10 checks. These use backend fixtures and do not qualify hardware. |
+| Real browser adversarial fixtures | **10/10 passed** with explicitly selected Chromium 153.0.8010.0 and Playwright 1.64.0. |
+| Supervised browser workflow repetitions | **20/20 passed**, required source counts/artifact hashes and observed scale factors recorded. Real normal resource policy retained. |
+| Short reliability smoke | **30.313 seconds**, 4 verified notes, 4 memory cycles, 1 backup/restore, 59 health requests, no failures. This is **not** the required two-hour soak. |
+| Live structured model samples | Attempted; `MODEL_UNAVAILABLE`, zero inference samples and no pin. |
+| Frozen 30-goal model benchmark | Attempted; `MODEL_UNAVAILABLE`, zero executed goals, unscored. Historical 19/30 is unchanged. |
+
+### Browser prerequisite limitation
+
+The exact Playwright Chromium 156/build1248 download repeatedly returned an
+invalid/truncated archive. This is an attempted **dependency/environment block**,
+not a Windows-only skip. For portable regression, a separately downloaded,
+explicitly selected Chromium **153.0.8010.0** from `@sparticuz/chromium@153.0.0`
+was used. Its actual version/hash and Playwright version are recorded. No engine
+path was disguised, production pin changed or qualification record installed.
+The successful alternate-engine regressions do not qualify the missing pinned
+engine, production fixture admission or Windows process cleanup.
+
+### Failures discovered and changes made
+
+- Fixed a real voice-evidence bug: empty negative-category objects could satisfy
+  the aggregate gate. Every negative category now requires actual positive sample
+  count and a strict, bounded proposal count. Regression tests cover this.
+- Made the installed-profile inspection test portable by checking original
+  Windows path syntax and loading a temporary fixture path; actual UIA is not
+  simulated into a native pass.
+- Updated the native failure-report test to supply a real reviewed profile and
+  initialized test ledger, matching the strengthened runner's prerequisites.
+- Added portable browser-test launch helpers for Node, process creation flags and
+  an explicitly identified alternate Chromium. Original browser assertions are
+  retained. V3.3 now accepts a fresh `--output` directory.
+- Historical full-run failures remain recorded: a missing-ledger error during
+  wrong-byte Save verification and a journal-crash recovery returning unknown.
+  The wrong-byte case and both hard-restart cases passed isolated reruns. Their
+  intermittent persistence behavior has not been diagnosed; isolated passes do
+  not erase a full-run failure. The final serial run instead failed with
+  `sqlite3.OperationalError: disk I/O error` while setting
+  `PRAGMA synchronous=FULL` in `CheckpointStore.connect`
+  (`backend/victus/storage/checkpoints.py:119`), reached from
+  `test_twelve_action_attempts_are_shared_across_plans`. This storage/environment
+  failure is unresolved and is not a Windows skip; no persistence assertion was
+  weakened or retry added to conceal it.
+
+Raw XML/logs remain private under `.local/v4-linux-validation/`. Sanitized counts,
+exact report hashes, source identity and unresolved gates are in
+[the Linux validation summary](release/v4-linux-validation.json). The full V4 and
+release qualification flags remain false.
 
 ## 1. Implemented in this branch
 
@@ -34,12 +93,14 @@ newly enabled by this work.
 | CLI | `backend/victus/cli.py`: readiness, native preparation/repetitions/assembly/promotion; fixture repetition count option and existing promotion retained. |
 | Documentation | Root/dashboard README updated; empty M0 feasibility record filled; V4 progress, release procedure and this handoff explain current limits. |
 
-## 2. Tests still to implement or extend, then run
+## 2. Coverage map and additional cases still required
 
-All entries below are **NOT RUN**. Add missing cases where the existing files do
-not yet cover them. The original schema-1 proof fixture in
-`backend/tests/test_qualification_records.py` was adjusted to schema 2; the suite
-still needs the broader cases below. A fixture update is not a test result.
+The lists below describe the broader desired coverage, not a claim that every
+listed case now passes. Portable existing suites and the newly added tests were
+run; consult the measured result table and exact test inventory. Add still-missing
+cases where needed. Fake OS/audio/provider cases do not replace Windows hardware
+qualification. Failed portable tests must be fixed or retained as open defects,
+not labelled Windows-only skips.
 
 ### A. UIA ownership, Stop and native workflow
 
@@ -167,28 +228,52 @@ and proposed `test_voice_qualification_session.py`.
 - CLI invalid input, exclusive outputs and compatibility with existing voice
   review/clarification/cancellation flows.
 
-## 3. Incomplete work requiring the target machine or a human
+## 3. Remaining work — distinguish skipped, blocked and incomplete
 
-| Remaining work | Why it remains incomplete | Location / completion evidence |
-| --- | --- | --- |
-| Diagnose actual installed Notepad Save failure | Historical Save returned unknown and window postconditions failed. There is no Windows desktop here, so no selector/timeout guess was substituted for diagnosis. | `docs/decisions/007-v4-native-ownership-findings.md`; current phase diagnostics and one full supervised run first |
-| Prove native workflow | No native run was executed for this branch. | One complete native success, then >=20 exact artifacts, all native cases, real HTTP/dashboard review and two physical scales |
-| Native real-review campaign | Pending case templates require real backing reports and explicit operator observations; templates do not automate a human approval or certify a run. | New native session tooling plus existing actual API/dashboard/approval path; retain case reports |
-| Real fixture browser qualification | Runner/evidence changes are untested; no trusted record was promoted. | One smoke and twenty real Chromium runs under unchanged 2 GiB guard |
-| Ordinary production bootstrap/HTTP/SSE/UI proof | Qualification runner uses authenticated TestClient plus real workers; that does not prove a separately started production server or browser UI. | Restart normally after valid promotion; structured/text requests, exact bytes, read-only replay/refresh, keyboard review/Stop |
-| Installed local reasoning model | Target-machine runtime/assets and exact pin are unknown in this coding environment. | Run readiness; deliberately prepare selected local model if needed; six structured samples and full frozen benchmark >=27/30 |
-| Frozen benchmark failures | Historical 19/30 and F06 remain historical; desktop cases need real qualified adapters. | Unchanged 30-goal suite, every outcome retained, zero-executed runs unscored |
-| Real voice recordings and corrections | No consented recorded corpus or operator session was supplied. | 50 quiet +50 noisy recordings plus negatives, declared thresholds, recognition/action/correction reports |
-| Physical audio/shortcut | Requires actual microphone, speaker and human observations. | Unplug/reconnect, Stop during real spoken decoding/review/playback, audible mute/interruption, echo/cooldown and physical shortcut |
-| Final reliability soak | Tests and long-running experiments intentionally skipped. | Unchanged-source >=7200s, >=100 verified tasks, >=2 restores, <=20% warmed-parent RSS growth, p95 health <0.5s; supplement newly enabled workflows |
-| New Windows folder candidate | No build/self-test was run. | Fresh build/output roots, exact manifest/source/locks, core self-test and each advertised packaged capability |
-| Fresh standard account and real release pair | Not available from this environment. | Normal-user account without developer PATH; actual prior/candidate migration/backup/new-root rollback. Both 0.1.0 artifacts do not close formal cross-version release |
-| Optional features | Public-web catalog, custom wake, Hindi/mixed language and live cloud are separate scopes. | Keep unavailable/off until their own implementation/assets/corpus/consent/qualification; do not broaden V4 claims |
+### Windows-dependent checks skipped in this environment
 
-## 4. Commands to run later — NOT EXECUTED
+| Remaining check | Required evidence |
+| --- | --- |
+| Actual Notepad Save diagnosis | Observe installed app/process/tab/dialog transitions, committed destination, exact file/UI postconditions. Historical unknown Save is not claimed fixed. |
+| Native workflow/review/DPI campaign | One native success, then >=20 unique saves; real adversarial cases, authenticated HTTP/dashboard Save review, actual display scales and Windows owned-process cleanup. |
+| Windows physical input/output | Microphone disconnect/reconnect, spoken decoding Stop, audible SAPI mute/interruption, physical shortcut and actual speaker echo/cooldown. |
+| Frozen Windows candidate | Build with Windows toolchain, actual frozen self-test, bundle-bound native/browser qualification and ordinary restart/admission checks. |
+| Fresh standard Windows account/release pair | Clean account without developer PATH, DPAPI boundaries, actual prior/candidate backup/migration/new-root rollback and honest version identities. |
 
-Use the actual Windows repository root and existing environment. Choose new
-output names each time. Stop remains latched until service restart.
+### Not Windows-only: attempted blockers and outstanding work
+
+| Remaining item | Actual status |
+| --- | --- |
+| Portable full-regression reliability | Historical full runs exposed intermittent persistence/recovery failures. See each run, isolated reruns and final serial result in the summary; no weakened assertion or production deadline was introduced. Root cause remains unresolved. |
+| Exact pinned Chromium | Installer attempted and failed with a truncated archive. Alternate Chromium regressions passed, but this dependency gate remains blocked. |
+| Real local reasoning | Both live runners attempted; no local reasoning service/model was available. No score, automatic model download or cloud fallback. |
+| Real labelled voice corpus | Synthetic unit tests passed; no 50 quiet/50 noisy consented recorded set was supplied. Thresholds, recordings, corrections and reviewed-action pairing remain required. |
+| Two-hour reliability gate | The 30-second harness smoke passed, but >=7200 seconds, >=100 tasks, >=2 restores and full stability gates were not measured. This is a separate long-duration qualification, not a Windows-only test. |
+| Production browser/native admission | Real note/command/API/UI paths passed. No browser/native qualification was promoted; real admitted production behavior still requires matching complete evidence. |
+| Optional scope | Public-web catalog, custom wake, Hindi/mixed language and live cloud remain separately gated and outside these portable core checks. |
+
+## 4. Follow-up commands and reproduction
+
+The commands below use the target Windows environment and remain follow-ups
+there; their Linux equivalents were run where reported above. Choose fresh roots
+on repeats. Stop remains latched until service restart.
+
+Portable backend reproduction from the repository root:
+
+```bash
+uv sync --project backend --group dev --locked
+backend/.venv/bin/python -m pytest backend/tests --basetemp=.local/v4-linux-new --junitxml=.local/v4-linux-new.xml
+npm --prefix dashboard ci --ignore-scripts --no-audit --no-fund
+npm --prefix dashboard test
+npm --prefix dashboard run lint
+npm --prefix dashboard run build
+```
+
+Use the pinned Node 24.22.0 on PATH. Portable live dashboard runners accept
+`VICTUS_TEST_NODE` and `VICTUS_TEST_BROWSER_EXECUTABLE` as explicit absolute paths;
+`VICTUS_TEST_BROWSER_METADATA` optionally writes private JSONL identity metadata.
+This never alters application production admission. For exact per-run arguments
+and outcome boundaries see the sanitized summary and private logs.
 
 ### Source baseline and regression
 
@@ -288,8 +373,9 @@ support. Fresh-account and actual prior-release pair remain separate gates.
 
 ## 5. Review and merge status
 
-This change is untested by instruction and requires review before use. No old
-804/23 result, source fixture, silent audio or manually changed digest is claimed
-as a new pass. Keep native/browser admission unavailable until genuine matching
-evidence is promoted. Do not describe V4 or the product as fully qualified while
-any selected mandatory row above remains open.
+The prior all-tests-skipped status is superseded by the Linux results above.
+Keep the PR as a draft while portable persistence failures and required Windows/
+model/audio/release gates remain unresolved. No previous 804/23 count, source
+fixture, silent audio or edited digest is represented as a new qualification.
+A passing isolated rerun is reported alongside the failed full run. No runtime
+safeguard, graph budget or no-replay assertion was relaxed to obtain results.

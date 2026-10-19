@@ -11,6 +11,7 @@ from urllib.parse import urlsplit
 
 import httpx
 import uvicorn
+from browser_support import launch_browser
 from playwright.sync_api import expect, sync_playwright
 
 from victus.api.app import create_app
@@ -39,7 +40,7 @@ def main():
             time.sleep(0.05)
         assert server.started, "Qualification backend did not start"
         with sync_playwright() as playwright:
-            browser = playwright.chromium.launch(headless=True)
+            browser = launch_browser(playwright, headless=True)
             errors = []
             context = browser.new_context(viewport={"width": 1440, "height": 1000})
             page = context.new_page()

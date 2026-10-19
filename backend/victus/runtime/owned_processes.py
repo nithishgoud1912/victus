@@ -45,8 +45,12 @@ class OwnedProcessMonitor:
 
     def quiescent(self):
         with self._lock:
-            return (self._error is None and self._sampled > 0
-                    and time.monotonic() - self._sampled < 1 and not self._remaining)
+            return (
+                self._error is None
+                and self._sampled > 0
+                and time.monotonic() - self._sampled < 1
+                and not self._remaining
+            )
 
     def _observe(self):
         from victus.adapters.uia.native import WindowsBackend

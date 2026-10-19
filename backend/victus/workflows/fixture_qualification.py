@@ -248,7 +248,9 @@ def main(argv=None):
                 and monitor.quiescent()
             )
     except (Exception, KeyboardInterrupt) as error:
-        failure = failure or ("INTERRUPTED" if isinstance(error, KeyboardInterrupt) else type(error).__name__)
+        failure = failure or (
+            "INTERRUPTED" if isinstance(error, KeyboardInterrupt) else type(error).__name__
+        )
     finally:
         if site is not None:
             try:
@@ -297,8 +299,12 @@ def main(argv=None):
         "normal_memory_guards": True,
         "checks": checks,
         "passed": bool(checks)
-        and all(checks.get(key) is True for key in
-                (BROWSER_CHECKS - {"text_route"} if args.repetitions == 1 else BROWSER_CHECKS))
+        and all(
+            checks.get(key) is True
+            for key in (
+                BROWSER_CHECKS - {"text_route"} if args.repetitions == 1 else BROWSER_CHECKS
+            )
+        )
         and failure is None
         and source_before is not None
         and source_before == source_after,

@@ -108,8 +108,8 @@ opt-in UI and public distribution are not part of this folder-build milestone.
 
 ## V4 qualification records for a frozen candidate
 
-The latest implementation is untested by request; no new frozen build or release
-qualification was performed. Source schema-1 records do not enable this candidate.
+Portable Linux validation has now been performed; see the handoff for failures
+and exact results. No new frozen Windows build or release qualification was performed. Source schema-1 records do not enable this candidate.
 Schema-2 promotion validates current reports, artifact hashes and verified ledger
 receipts. Frozen runtime identity binds the exact release manifest and verifies
 its listed files. Unsigned checksums are integrity metadata, not publisher

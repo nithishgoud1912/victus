@@ -16,7 +16,11 @@ from victus.workflows.qualification_records import file_hash, runtime_identity
 
 def verify_case(root, command_id, reference):
     expected = review_transcript(reference).action
-    if expected is None or not isinstance(command_id, str) or not re.fullmatch(r"[a-f0-9]{32}", command_id):
+    if (
+        expected is None
+        or not isinstance(command_id, str)
+        or not re.fullmatch(r"[a-f0-9]{32}", command_id)
+    ):
         return False
     with closing(
         sqlite3.connect((root / "victus.sqlite3").resolve().as_uri() + "?mode=ro", uri=True)
@@ -94,8 +98,11 @@ def evaluate(manifest, bindings, root):
             "accuracy": correct / measured if measured else None,
             "unmeasured": 50 - measured,
         }
-    if (file_hash(manifest) != manifest_before or file_hash(bindings) != bindings_before
-            or runtime_identity() != source_before):
+    if (
+        file_hash(manifest) != manifest_before
+        or file_hash(bindings) != bindings_before
+        or runtime_identity() != source_before
+    ):
         raise ValueError("Action evaluation inputs changed")
     return {
         "runtime_sha256": source_before,

@@ -13,18 +13,43 @@ from urllib.parse import urlsplit
 
 HEX = r"[0-9a-f]{64}"
 _FROZEN_CACHE = None
-NATIVE_CHECKS = frozenset({
-    "two_windows", "preexisting_editor", "nonempty_editor", "stale_process",
-    "missing_control", "denied_review", "expired_review", "reused_review",
-    "changed_payload", "changed_path", "changed_target", "destination_conflict",
-    "stop_during_review", "stop_during_save", "restart_invalidation",
-    "real_http_review", "real_dashboard_review",
-})
-BROWSER_CHECKS = frozenset({
-    "exact_sources", "redirect_aliases", "replay", "destination_conflict",
-    "scope_rejection", "stop_no_later_effect", "owned_cleanup", "missing_binary",
-    "timeout", "interrupted_worker", "structured_route", "text_route",
-})
+NATIVE_CHECKS = frozenset(
+    {
+        "two_windows",
+        "preexisting_editor",
+        "nonempty_editor",
+        "stale_process",
+        "missing_control",
+        "denied_review",
+        "expired_review",
+        "reused_review",
+        "changed_payload",
+        "changed_path",
+        "changed_target",
+        "destination_conflict",
+        "stop_during_review",
+        "stop_during_save",
+        "restart_invalidation",
+        "real_http_review",
+        "real_dashboard_review",
+    }
+)
+BROWSER_CHECKS = frozenset(
+    {
+        "exact_sources",
+        "redirect_aliases",
+        "replay",
+        "destination_conflict",
+        "scope_rejection",
+        "stop_no_later_effect",
+        "owned_cleanup",
+        "missing_binary",
+        "timeout",
+        "interrupted_worker",
+        "structured_route",
+        "text_route",
+    }
+)
 
 
 def file_hash(path):
@@ -60,8 +85,10 @@ def read_record(path, *, maximum=8 * 1024 * 1024):
     raw = path.read_bytes()
     if len(raw) > maximum:
         raise ValueError("Evidence exceeds bound")
+
     def invalid_constant(_):
         raise ValueError("Nonfinite evidence value")
+
     value = json.loads(raw, object_pairs_hook=_pairs, parse_constant=invalid_constant)
     if not isinstance(value, dict):
         raise ValueError("Evidence object required")
@@ -83,11 +110,18 @@ def _verify_frozen_files(root, manifest, manifest_hash):
     seen = set()
     for entry in entries:
         name = entry["path"]
-        if (not isinstance(name, str) or "\\" in name or ":" in name
-                or PurePosixPath(name).is_absolute() or ".." in PurePosixPath(name).parts
-                or name in seen or not name or type(entry.get("bytes")) is not int
-                or not isinstance(entry.get("sha256"), str)
-                or not re.fullmatch(HEX, entry["sha256"])):
+        if (
+            not isinstance(name, str)
+            or "\\" in name
+            or ":" in name
+            or PurePosixPath(name).is_absolute()
+            or ".." in PurePosixPath(name).parts
+            or name in seen
+            or not name
+            or type(entry.get("bytes")) is not int
+            or not isinstance(entry.get("sha256"), str)
+            or not re.fullmatch(HEX, entry["sha256"])
+        ):
             raise ValueError("Malformed frozen inventory")
         seen.add(name)
         path = root.joinpath(*PurePosixPath(name).parts)
@@ -112,7 +146,9 @@ def runtime_identity():
     if getattr(sys, "frozen", False):
         manifest = Path(sys.executable).with_name("release-manifest.json")
         record, digest = read_record(manifest, maximum=16 * 1024 * 1024)
-        if not isinstance(record.get("source_sha256"), str) or not re.fullmatch(HEX, record["source_sha256"]):
+        if not isinstance(record.get("source_sha256"), str) or not re.fullmatch(
+            HEX, record["source_sha256"]
+        ):
             raise ValueError("Frozen source inventory unavailable")
         _verify_frozen_files(manifest.parent, record, digest)
         return hashlib.sha256(b"frozen-v2\0" + digest.encode()).hexdigest()
@@ -150,10 +186,13 @@ def qualified_record(path, kind, checks):
     try:
         record, _ = read_record(path, maximum=65536)
         if (
-            type(record.get("schema_version")) is not int or record["schema_version"] != 2
-            or record.get("kind") != kind or record.get("qualified") is not True
+            type(record.get("schema_version")) is not int
+            or record["schema_version"] != 2
+            or record.get("kind") != kind
+            or record.get("qualified") is not True
             or record.get("runtime_sha256") != runtime_identity()
-            or type(record.get("verified_runs")) is not int or record["verified_runs"] < 20
+            or type(record.get("verified_runs")) is not int
+            or record["verified_runs"] < 20
             or not isinstance(record.get("report_sha256"), str)
             or not re.fullmatch(HEX, record["report_sha256"])
             or not isinstance(record.get("checks"), dict)
@@ -177,7 +216,9 @@ def _native_profile(record):
     name = record["profile"]
     if not isinstance(name, str) or not re.fullmatch(r"[a-z0-9][a-z0-9.-]{0,95}", name):
         raise ValueError("Invalid native profile")
-    root = Path(sys._MEIPASS) if getattr(sys, "frozen", False) else Path(__file__).resolve().parents[3]
+    root = (
+        Path(sys._MEIPASS) if getattr(sys, "frozen", False) else Path(__file__).resolve().parents[3]
+    )
     path = root / "config/applications" / (name + ".json")
     if file_hash(path) != record["profiles_sha256"]:
         raise ValueError("Profile changed")
@@ -193,8 +234,11 @@ def _native_profile(record):
 
 def _physical_dpi(record):
     values = record.get("physical_dpi")
-    if (not isinstance(values, list) or any(type(x) is not int or not 72 <= x <= 768 for x in values)
-            or len(set(values)) < 2):
+    if (
+        not isinstance(values, list)
+        or any(type(x) is not int or not 72 <= x <= 768 for x in values)
+        or len(set(values)) < 2
+    ):
         raise ValueError("Two observed physical DPI values required")
     return values
 
@@ -212,9 +256,12 @@ def qualified_native():
 
 def _validate_report(record, kind, checks):
     if (
-        type(record.get("schema_version")) is not int or record["schema_version"] != 2
-        or record.get("kind") != kind or record.get("qualified") is not True
-        or record.get("passed") is not True or record.get("normal_memory_guards") is not True
+        type(record.get("schema_version")) is not int
+        or record["schema_version"] != 2
+        or record.get("kind") != kind
+        or record.get("qualified") is not True
+        or record.get("passed") is not True
+        or record.get("normal_memory_guards") is not True
         or record.get("runtime_sha256") != runtime_identity()
         or record.get("runtime_end_sha256") != runtime_identity()
         or not isinstance(record.get("checks"), dict)
@@ -225,22 +272,33 @@ def _validate_report(record, kind, checks):
 
 def _validate_runs(record, report_path, suffix):
     runs = record.get("runs")
-    if (not isinstance(runs, list) or not 20 <= len(runs) <= 1000
-            or type(record.get("verified_runs")) is not int or record["verified_runs"] != len(runs)):
+    if (
+        not isinstance(runs, list)
+        or not 20 <= len(runs) <= 1000
+        or type(record.get("verified_runs")) is not int
+        or record["verified_runs"] != len(runs)
+    ):
         raise ValueError("At least twenty verified runs required")
     seen, tasks, actions = set(), set(), set()
     for run in runs:
         if not isinstance(run, dict):
             raise ValueError("Malformed run")
         name = run.get("destination")
-        if not isinstance(name, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]{0,63}" + re.escape(suffix), name):
+        if not isinstance(name, str) or not re.fullmatch(
+            r"[A-Za-z0-9][A-Za-z0-9_-]{0,63}" + re.escape(suffix), name
+        ):
             raise ValueError("New bounded artifact basename required")
         if name in seen or run.get("verified") is not True:
             raise ValueError("Distinct verified destinations required")
         task, action = run.get("task_id"), run.get("action_id")
-        if (not isinstance(task, str) or not re.fullmatch(r"[A-Za-z0-9-]{1,64}", task)
-                or not isinstance(action, str) or not re.fullmatch(r"[a-f0-9]{32}", action)
-                or task in tasks or action in actions):
+        if (
+            not isinstance(task, str)
+            or not re.fullmatch(r"[A-Za-z0-9-]{1,64}", task)
+            or not isinstance(action, str)
+            or not re.fullmatch(r"[a-f0-9]{32}", action)
+            or task in tasks
+            or action in actions
+        ):
             raise ValueError("Distinct task/action receipts required")
         seen.add(name)
         tasks.add(task)
@@ -260,7 +318,9 @@ def _validate_runs(record, report_path, suffix):
         database = run_root / "victus.sqlite3"
         file_hash(database)
         try:
-            with closing(sqlite3.connect(database.absolute().as_uri() + "?mode=ro", uri=True)) as db:
+            with closing(
+                sqlite3.connect(database.absolute().as_uri() + "?mode=ro", uri=True)
+            ) as db:
                 row = db.execute(
                     "SELECT status,sha256,expected_effect_ref FROM action_attempts WHERE action_id=?",
                     (action,),
@@ -312,20 +372,36 @@ def promote_fixture(report_path):
     for run in runs:
         artifact, _ = read_record(report_path.parent / "workspace" / run["destination"])
         sources = artifact.get("sources")
-        if (artifact.get("status") != "succeeded" or artifact.get("required_sources") != 2
-                or artifact.get("observed_count") != 2 or not isinstance(sources, list)
-                or len(sources) != 2):
+        if (
+            artifact.get("status") != "succeeded"
+            or artifact.get("required_sources") != 2
+            or artifact.get("observed_count") != 2
+            or not isinstance(sources, list)
+            or len(sources) != 2
+        ):
             raise ValueError("Two distinct observed fixture sources required")
         urls = [urlsplit(source["url"]) for source in sources]
-        if ({url.path for url in urls} != {"/source-a.html", "/source-b.html"}
-                or len({url.netloc for url in urls}) != 1
-                or any(url.scheme != "http" or url.hostname != "127.0.0.1"
-                       or url.username or url.password or url.query or url.fragment for url in urls)
-                or len({source["observation_id"] for source in sources}) != 2
-                or not all(isinstance(source.get("text"), str) and source["text"].strip()
-                           and len(source["text"]) <= 4000
-                           and hashlib.sha256(source["text"].encode()).hexdigest() == source.get("text_sha256")
-                           for source in sources)):
+        if (
+            {url.path for url in urls} != {"/source-a.html", "/source-b.html"}
+            or len({url.netloc for url in urls}) != 1
+            or any(
+                url.scheme != "http"
+                or url.hostname != "127.0.0.1"
+                or url.username
+                or url.password
+                or url.query
+                or url.fragment
+                for url in urls
+            )
+            or len({source["observation_id"] for source in sources}) != 2
+            or not all(
+                isinstance(source.get("text"), str)
+                and source["text"].strip()
+                and len(source["text"]) <= 4000
+                and hashlib.sha256(source["text"].encode()).hexdigest() == source.get("text_sha256")
+                for source in sources
+            )
+        ):
             raise ValueError("Fixture observations do not match their source evidence")
     from playwright.sync_api import sync_playwright
 
@@ -336,10 +412,20 @@ def promote_fixture(report_path):
     relative = "/".join(executable.parts[-3:])
     if relative != record.get("browser_relative_path"):
         raise ValueError("Browser location changed")
-    return _publish("fixture", record, digest, (
-        "runtime_sha256", "fixture_sha256", "playwright_version", "browser_sha256",
-        "browser_relative_path", "checks", "verified_runs",
-    ))
+    return _publish(
+        "fixture",
+        record,
+        digest,
+        (
+            "runtime_sha256",
+            "fixture_sha256",
+            "playwright_version",
+            "browser_sha256",
+            "browser_relative_path",
+            "checks",
+            "verified_runs",
+        ),
+    )
 
 
 def promote_native(report_path):
@@ -361,9 +447,12 @@ def promote_native(report_path):
             raise ValueError("Case report must stay beneath session")
         case, case_hash = read_record(report_path.parent / relative)
         if (
-            type(case.get("schema_version")) is not int or case["schema_version"] != 2
-            or case_hash != reference.get("sha256") or case.get("check") != key
-            or case.get("passed") is not True or case.get("real_windows") is not True
+            type(case.get("schema_version")) is not int
+            or case["schema_version"] != 2
+            or case_hash != reference.get("sha256")
+            or case.get("check") != key
+            or case.get("passed") is not True
+            or case.get("real_windows") is not True
             or case.get("runtime_sha256") != runtime_identity()
             or case.get("runtime_end_sha256") != runtime_identity()
             or case.get("profile") != record["profile"]
@@ -388,18 +477,32 @@ def promote_native(report_path):
         if relative.is_absolute() or relative.drive or ".." in relative.parts:
             raise ValueError("DPI report must stay beneath session")
         observation, observed_hash = read_record(report_path.parent / relative)
-        if (observed_hash != reference.get("sha256") or observation.get("physical_observed") is not True
-                or observation.get("passed") is not True or observation.get("real_windows") is not True
-                or observation.get("runtime_sha256") != runtime_identity()
-                or observation.get("runtime_end_sha256") != runtime_identity()
-                or observation.get("profiles_sha256") != record["profiles_sha256"]
-                or observation.get("executable_sha256") != record["executable_sha256"]
-                or type(observation.get("dpi")) is not int):
+        if (
+            observed_hash != reference.get("sha256")
+            or observation.get("physical_observed") is not True
+            or observation.get("passed") is not True
+            or observation.get("real_windows") is not True
+            or observation.get("runtime_sha256") != runtime_identity()
+            or observation.get("runtime_end_sha256") != runtime_identity()
+            or observation.get("profiles_sha256") != record["profiles_sha256"]
+            or observation.get("executable_sha256") != record["executable_sha256"]
+            or type(observation.get("dpi")) is not int
+        ):
             raise ValueError("Physical DPI evidence required")
         measured.add(observation["dpi"])
     if measured != dpi:
         raise ValueError("Physical DPI coverage mismatch")
-    return _publish("native", record, digest, (
-        "runtime_sha256", "profile", "profiles_sha256", "executable_sha256",
-        "physical_dpi", "checks", "verified_runs",
-    ))
+    return _publish(
+        "native",
+        record,
+        digest,
+        (
+            "runtime_sha256",
+            "profile",
+            "profiles_sha256",
+            "executable_sha256",
+            "physical_dpi",
+            "checks",
+            "verified_runs",
+        ),
+    )

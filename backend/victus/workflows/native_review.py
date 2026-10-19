@@ -53,8 +53,12 @@ class NativeSaveReview:
                 "profile": owned.profile.name,
                 "process": asdict(owned.identity),
                 "controls": identities,
-                "editor_tab": list(owned.editor_tab_identity) if owned.editor_tab_identity else None,
-                "editor_window": list(owned.editor_window_identity) if owned.editor_window_identity else None,
+                "editor_tab": list(owned.editor_tab_identity)
+                if owned.editor_tab_identity
+                else None,
+                "editor_window": list(owned.editor_window_identity)
+                if owned.editor_window_identity
+                else None,
                 "destination": str(destination.resolve()),
                 "parent": [parent.st_dev, parent.st_ino],
                 "payload": hashlib.sha256(tools.expected).hexdigest(),
@@ -205,8 +209,7 @@ class NativeChecklistExecutor:
         path = Path(self.profiles_file)
         if (
             runtime_identity() != self.runtime_sha256
-            or
-            submission.profile not in self.profiles
+            or submission.profile not in self.profiles
             or path.is_symlink()
             or hashlib.sha256(path.read_bytes()).hexdigest() != self.profiles_sha256
         ):
@@ -231,7 +234,10 @@ def native_checklist_spec(profiles_file, profiles, *, native_qualified, review_q
         raise PermissionError("Native and review qualification both required")
     path = Path(profiles_file).resolve(strict=True)
     executor = NativeChecklistExecutor(
-        str(path), hashlib.sha256(path.read_bytes()).hexdigest(), frozenset(profiles), runtime_identity()
+        str(path),
+        hashlib.sha256(path.read_bytes()).hexdigest(),
+        frozenset(profiles),
+        runtime_identity(),
     )
     return ToolSpec(
         name=NOTEPAD_CHECKLIST_TOOL,

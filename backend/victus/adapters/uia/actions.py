@@ -114,7 +114,9 @@ class UIAActions:
             verified = False
         return UIAResult("verified" if verified else "unverified", "value_pattern")
 
-    def invoke(self, reference: ControlReference, *, allow_keyboard=False, before_invoke=None) -> UIAResult:
+    def invoke(
+        self, reference: ControlReference, *, allow_keyboard=False, before_invoke=None
+    ) -> UIAResult:
         app, _, control = self.resolver._reacquire(reference)
         backend = self.resolver.worker._backend
         if app.profile.focus_before_patterns and control.element_info.control_type == "Button":

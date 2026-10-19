@@ -332,7 +332,8 @@ def child_worker(actor):
     import hashlib
 
     profile = replace(
-        actor.profile, launch_mode="owned_child",
+        actor.profile,
+        launch_mode="owned_child",
         executable_sha256=hashlib.sha256(actor.profile.executable.read_bytes()).hexdigest(),
     )
     child = ProcessIdentity(22, 100, str(profile.executable))
@@ -375,7 +376,9 @@ def test_ambiguous_owned_children_block_without_connecting(actor):
 def test_owned_children_reject_foreign_image_and_older_identity(actor):
     worker, backend, child, lease = child_worker(actor)
     backend.owned_children.return_value = [
-        child, replace(child, executable="C:/foreign.exe"), replace(child, created=98)
+        child,
+        replace(child, executable="C:/foreign.exe"),
+        replace(child, created=98),
     ]
     with worker:
         assert worker._owned_children(
@@ -408,13 +411,24 @@ def test_native_child_handle_read_only_poll_and_idempotent_close():
     kernel.TerminateProcess.assert_not_called()
 
 
-def test_installed_candidate_profile_remains_keyboard_disabled():
+def test_installed_candidate_profile_remains_keyboard_disabled(tmp_path):
     from pathlib import Path
 
     from victus.adapters.uia.applications import load_profiles
 
-    path = Path(__file__).resolve().parents[2] / "config/applications/notepad-win11-11.2607.14.0.json"
-    profile, = load_profiles(path)
+    path = (
+        Path(__file__).resolve().parents[2] / "config/applications/notepad-win11-11.2607.14.0.json"
+    )
+    # Inspect Windows path syntax without claiming the app is installed on Linux.
+    import json
+    from pathlib import PureWindowsPath
+
+    document = json.loads(path.read_text())
+    assert PureWindowsPath(document[0]["executable"]).is_absolute()
+    document[0]["executable"] = str(tmp_path / "candidate.exe")
+    portable = tmp_path / "candidate.json"
+    portable.write_text(json.dumps(document))
+    (profile,) = load_profiles(portable)
     assert profile.launch_mode == "owned_child"
     assert profile.executable_sha256 and profile.editor_newlines == "crlf"
     assert profile.window.class_name == "Notepad"
@@ -454,9 +468,12 @@ def test_missing_diagnostics_cannot_weaken_owned_child_requirement(actor, monkey
 def tab_actor(actor):
     worker, backend, child, lease = child_worker(actor)
     profile = worker._profiles["qualified"]
-    worker._profiles["qualified"] = replace(profile,
+    worker._profiles["qualified"] = replace(
+        profile,
         controls={**profile.controls, "new_tab": ControlSelector("Button", automation_id="new")},
-        new_editor_control="new_tab", tab_container=ControlSelector("List", automation_id="tabs"))
+        new_editor_control="new_tab",
+        tab_container=ControlSelector("List", automation_id="tabs"),
+    )
     button = control(child.pid, "Button", "new", "Add New Tab", (22, 2))
     window = backend.connect.return_value.windows.return_value[0]
     window.descendants.return_value = [button]
@@ -486,6 +503,46 @@ def test_new_editor_cannot_replace_or_remove_an_existing_tab(actor):
     backend.invoke.side_effect = lambda _: inventory.__setitem__(0, {(22, 4): new})
     with worker, pytest.raises(UIABlocked, match="NEW_EDITOR_IDENTITY_UNPROVED"):
         worker.launch("qualified")
+    backend.set_value.assert_not_called()
+    backend.terminate_owned.assert_not_called()
+    lease.close.assert_called_once()
+
+
+def test_stop_guard_prevents_owned_launch_before_native_effect(actor):
+    worker, backend, _, _ = child_worker(actor)
+
+    def stopped():
+        raise PermissionError("Stopped")
+
+    with worker:
+        worker.set_operation_guard(stopped)
+        with pytest.raises(PermissionError):
+            worker.launch("qualified")
+    backend.launch.assert_not_called()
+    backend.set_value.assert_not_called()
+
+
+def test_stop_after_add_tab_preserves_documents_and_releases_lease(actor):
+    import threading
+
+    worker, backend, lease, _, _, inventory = tab_actor(actor)
+    stopped = threading.Event()
+    add_tab = backend.invoke.side_effect
+
+    def invoke(control):
+        add_tab(control)
+        stopped.set()
+
+    def guard():
+        if stopped.is_set():
+            raise PermissionError("Stopped after new tab")
+
+    backend.invoke.side_effect = invoke
+    with worker:
+        worker.set_operation_guard(guard)
+        with pytest.raises(PermissionError):
+            worker.launch("qualified")
+    assert len(inventory[0]) == 2
     backend.set_value.assert_not_called()
     backend.terminate_owned.assert_not_called()
     lease.close.assert_called_once()

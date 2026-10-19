@@ -14,8 +14,8 @@ reviewed voice and memory controls. Capability availability is server-owned.
 This is a 0.1.0 candidate. V4 names the implementation guide, not a released
 product version. Native/browser/model/voice gates remain explicit; module presence
 does not enable arbitrary computer control or public-web research. Cloud and wake
-are optional and default off. Tests were intentionally not run for the latest
-V4 continuation; see the handoff before enabling new capabilities.
+are optional and default off. Portable Linux validation and remaining failures are recorded in the handoff;
+Windows/hardware qualification remains open before enabling new capabilities.
 
 ## Earlier implementation records
 

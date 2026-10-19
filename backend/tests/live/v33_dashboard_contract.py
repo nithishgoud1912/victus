@@ -1,10 +1,12 @@
 """Browser contract fixtures only; no native UIA qualification is claimed."""
 
+import argparse
 import json
 import subprocess
 import time
 from pathlib import Path
 
+from browser_support import creation_flags, launch_browser, node_executable
 from playwright.sync_api import expect, sync_playwright
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -12,8 +14,11 @@ OUT = ROOT / ".local/v33-browser-03"
 
 
 def main():
-    OUT.mkdir(parents=True, exist_ok=False)
-    node = ROOT / ".local/toolchains/node-v24.22.0-win-x64/node.exe"
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--output", type=Path, default=OUT)
+    out = parser.parse_args().output.resolve()
+    out.mkdir(parents=True, exist_ok=False)
+    node = node_executable(ROOT)
     server = subprocess.Popen(
         [
             str(node),
@@ -27,12 +32,12 @@ def main():
         cwd=ROOT / "dashboard",
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
-        creationflags=subprocess.CREATE_NO_WINDOW,
+        creationflags=creation_flags(),
     )
     checks = {}
     try:
         with sync_playwright() as pw:
-            browser = pw.chromium.launch(headless=True)
+            browser = launch_browser(pw, headless=True)
             page = browser.new_page(
                 viewport={"width": 1440, "height": 1000}, reduced_motion="reduce"
             )
@@ -222,11 +227,11 @@ def main():
             expect(page.get_by_label("Exact action preview")).to_contain_text("<img src=x")
             assert page.get_by_label("Exact action preview").locator("img").count() == 0
             checks["literal_preview"] = True
-            page.screenshot(path=str(OUT / "desktop-review.png"), full_page=True)
+            page.screenshot(path=str(out / "desktop-review.png"), full_page=True)
             page.set_viewport_size({"width": 375, "height": 812})
             assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
             assert page.evaluate("matchMedia('(prefers-reduced-motion: reduce)').matches")
-            page.screenshot(path=str(OUT / "mobile-review.png"), full_page=True)
+            page.screenshot(path=str(out / "mobile-review.png"), full_page=True)
             checks["mobile_no_overflow_and_reduced_motion"] = True
             approve = page.get_by_role("button", name="Approve once")
             approve.focus()
@@ -258,7 +263,7 @@ def main():
             checks["no_browser_errors"] = not errors
             checks["reconnect_uses_cursor"] = any("cursor=4" in value for value in cursors)
             browser.close()
-        (OUT / "report.json").write_text(
+        (out / "report.json").write_text(
             json.dumps(
                 {"fixture_only": True, "checks": checks, "passed": all(checks.values())}, indent=2
             )

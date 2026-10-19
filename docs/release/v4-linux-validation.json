@@ -1,0 +1,472 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-19",
+  "platform": "Linux x86_64",
+  "branch": "codex/v4-implementation-handoff",
+  "policy": "Execute portable tests; skip Windows-dependent checks. Missing non-Windows prerequisites remain blocked, not Windows skips.",
+  "release_qualified": false,
+  "v4_complete": false,
+  "qualification_records_promoted": false,
+  "environment": {
+    "python": "3.12.14",
+    "node": "24.22.0",
+    "playwright": "1.64.0",
+    "actual_alternate_chromium": "153.0.8010.0",
+    "alternate_package": "@sparticuz/chromium@153.0.0",
+    "expected_chromium": "156.0.8078.4 / build1248",
+    "expected_browser_install": "blocked: repeated invalid/truncated download archive",
+    "dependency_locks_changed": false
+  },
+  "source_identity": {
+    "before_sha256": "51c78f861b808a348c861a5ff6143b9aa713f0259780a24440d3d899bbfa42a0",
+    "after_sha256": "51c78f861b808a348c861a5ff6143b9aa713f0259780a24440d3d899bbfa42a0",
+    "unchanged": true,
+    "files": 301,
+    "runtime_sha256": "b93ec3fd236f717079d3113f9c1077ade2f44b8375fd3e5c530081054136eb83",
+    "browser_runtime_end_sha256": "b93ec3fd236f717079d3113f9c1077ade2f44b8375fd3e5c530081054136eb83"
+  },
+  "backend": {
+    "latest_full_run": {
+      "path": ".local/v4-linux-validation/backend-isolated-final.xml",
+      "sha256": "e332bd978d1787faee8629ffea22c76dac378cf3bc9cae2e6c7c2a57a977565d",
+      "tests": 876,
+      "failures": 1,
+      "errors": 0,
+      "skipped": 0,
+      "passed": 875,
+      "seconds": 194.614,
+      "failed_tests": [
+        "tests.test_agent_budgets_progress::test_twelve_action_attempts_are_shared_across_plans"
+      ]
+    },
+    "full_attempts": [
+      {
+        "path": ".local/v4-linux-validation/backend-01.xml",
+        "sha256": "3512194a4fcb28952260a3c45c104791e010c8b729db9d00de65a330a3f05c13",
+        "tests": 817,
+        "failures": 3,
+        "errors": 0,
+        "skipped": 0,
+        "passed": 814,
+        "seconds": 202.241,
+        "failed_tests": [
+          "tests.test_notepad_workflow::test_unsafe_or_unproved_notepad_workflow_never_succeeds[wrong-bytes]",
+          "tests.test_uia_profiles::test_installed_candidate_profile_remains_keyboard_disabled",
+          "tests.test_workflow_diagnostics::test_native_qualification_stops_after_first_uncertain_effect"
+        ]
+      },
+      {
+        "path": ".local/v4-linux-validation/backend-final.xml",
+        "sha256": "5af9344b0cdbd448a274c096b6a976dd573e207c0d264d84191634fb256faa2e",
+        "tests": 876,
+        "failures": 1,
+        "errors": 0,
+        "skipped": 0,
+        "passed": 875,
+        "seconds": 250.596,
+        "failed_tests": [
+          "tests.test_agent_graph::test_hard_process_restart_never_repeats_file_write[journal-72-succeeded]"
+        ]
+      },
+      {
+        "path": ".local/v4-linux-validation/backend-isolated-final.xml",
+        "sha256": "e332bd978d1787faee8629ffea22c76dac378cf3bc9cae2e6c7c2a57a977565d",
+        "tests": 876,
+        "failures": 1,
+        "errors": 0,
+        "skipped": 0,
+        "passed": 875,
+        "seconds": 194.614,
+        "failed_tests": [
+          "tests.test_agent_budgets_progress::test_twelve_action_attempts_are_shared_across_plans"
+        ]
+      }
+    ],
+    "new_tests": 59,
+    "new_test_files": [
+      "backend/tests/test_v4_portable_qualification.py",
+      "backend/tests/test_v4_voice_and_readiness.py",
+      "backend/tests/test_v4_process_observation.py"
+    ],
+    "additional_stop_tests": "backend/tests/test_uia_profiles.py (2)",
+    "isolated_runs": [
+      {
+        "path": ".local/v4-linux-validation/notepad-reproduce.xml",
+        "sha256": "28f415d555386adfe737e52bd54be14e6082d5635e1b47b19e41b8cf3f1274ce",
+        "tests": 3,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "passed": 3,
+        "seconds": 5.256,
+        "failed_tests": []
+      },
+      {
+        "path": ".local/v4-linux-validation/graph-crash-isolated.xml",
+        "sha256": "6a2726f4b77e76948568c338b54aa38b66c6251bd09e9c9c0fae306b61fd54a8",
+        "tests": 2,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "passed": 2,
+        "seconds": 7.507,
+        "failed_tests": []
+      },
+      {
+        "path": ".local/v4-linux-validation/failed-cases-03.xml",
+        "sha256": "e68ac374e9c22e912ff7c7cebfbe448ba159c1362b43fc28faaea9a8df76ca33",
+        "tests": 26,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "passed": 26,
+        "seconds": 0.628,
+        "failed_tests": []
+      }
+    ],
+    "unresolved": [
+      {
+        "test": "tests.test_agent_budgets_progress::test_twelve_action_attempts_are_shared_across_plans",
+        "observed": "Final serial run: sqlite3.OperationalError: disk I/O error in CheckpointStore.connect at PRAGMA synchronous=FULL. Root cause not established.",
+        "location": "backend/victus/storage/checkpoints.py:119"
+      },
+      {
+        "test": "tests.test_agent_graph::test_hard_process_restart_never_repeats_file_write[journal-72-succeeded]",
+        "observed": "Earlier expanded run returned unknown instead of succeeded; both hard-restart cases passed isolated and in final serial suite. Root cause not established.",
+        "location": "backend/tests/test_agent_graph.py"
+      },
+      {
+        "test": "tests.test_notepad_workflow (wrong-byte Save verification)",
+        "observed": "Initial full suite raised Action does not exist during mark_unknown; isolated cases and subsequent full suites passed. Root cause not established.",
+        "location": "backend/tests/test_notepad_workflow.py"
+      }
+    ]
+  },
+  "frontend": {
+    "tests": 23,
+    "passed": 23,
+    "lint": "passed",
+    "api_generation": "passed; generated bytes unchanged",
+    "typescript_vite_build": "passed",
+    "log": {
+      "path": ".local/v4-linux-validation/frontend-pinned-01.log",
+      "sha256": "9957468b5d36bbdbb5315c2c96217a78f258a58e6e2cdc94a9eedc108167110d"
+    }
+  },
+  "python_static": {
+    "ruff_check": "passed on changed Python files",
+    "ruff_format_check": "passed on changed Python files",
+    "git_diff_check": "passed"
+  },
+  "http_baseline": {
+    "path": ".local/v4-linux-validation/http-baseline/report.json",
+    "sha256": "78c3d4c1354fabd817abdf0a8ebb760301e09a5867d7e5243b51224ea2a0a934",
+    "checks": {
+      "health_authenticated": true,
+      "health_requires_auth": true,
+      "events_require_auth": true,
+      "native_gated_before_admission": true,
+      "note_admitted": true,
+      "note_verified_exact_bytes": true,
+      "duplicate_same_task_no_effect": true,
+      "snapshot_requires_auth": true,
+      "snapshot_read_only": true,
+      "ordered_event_replay": true,
+      "event_snapshot_read_only": true,
+      "cursor_reconnect_no_resubmission": true,
+      "command_requires_auth": true,
+      "command_admitted": true,
+      "command_graph_verified_exact_bytes": true,
+      "command_replay_no_effect": true,
+      "missing_values_no_task": true,
+      "clarification_snapshot_read_only": true,
+      "clarification_verified_exact_bytes": true,
+      "clarification_replay_original_identity": true,
+      "stop_latched": true,
+      "stop_blocks_command_effect": true,
+      "stop_blocks_later_effect": true
+    },
+    "passed": 23,
+    "total": 23,
+    "real_memory_guard": true
+  },
+  "dashboard_api_smoke": {
+    "path": ".local/v4-linux-validation/dashboard-real/report.json",
+    "sha256": "1d3586fbd60d57e8bed9427d95ff49ca548285fc6b9e4697c2d4e4bec279d246",
+    "passed": true,
+    "page_errors": [],
+    "scope": "Actual source backend and Vite dashboard; production session bootstrap/reload/logout; no physical UIA"
+  },
+  "dashboard_contracts": [
+    {
+      "name": "M5",
+      "path": ".local/9bc-browser/report.json",
+      "sha256": "19c1ab0453233dacfcdfa43153abbf6837884c99d3b9698b134bd739dca603d0",
+      "passed": true,
+      "observations": {
+        "fixture_browser_checks": "passed",
+        "duplicate_submission": true,
+        "event_replay": true,
+        "reload_no_mutation": true,
+        "expired_approval": true,
+        "keyboard_deny_and_stop": true,
+        "mobile_no_overflow": true,
+        "page_errors": []
+      }
+    },
+    {
+      "name": "M6",
+      "path": ".local/m6-browser/report.json",
+      "sha256": "ff6f0ed13154f5370b2295f97f94006a592f74870f590ab52953fbeaf9534500",
+      "passed": true,
+      "observations": {
+        "contract_browser": "passed",
+        "review_before_submit": true,
+        "reload_does_not_submit": true,
+        "duplicate_click_guard": true,
+        "display_ack_before_speech": true,
+        "mute": true,
+        "keyboard_capture_and_stop": true,
+        "mobile_no_overflow": true,
+        "real_microphone_tested": false,
+        "real_speech_tested": false,
+        "page_errors": []
+      }
+    },
+    {
+      "name": "M7",
+      "path": ".local/m7-browser/report.json",
+      "sha256": "4ac20d8f362da94461bcb1c4ff6a52d3bcb209383aa118e857dabbd7057679b3",
+      "passed": true,
+      "observations": {
+        "reviewed_memory_crud": true,
+        "no_reload_mutation": true,
+        "duplicate_click_guard": true,
+        "literal_value_rendering": true,
+        "diagnostic_review_before_download": true,
+        "keyboard_forget": true,
+        "mobile_no_overflow": true,
+        "page_errors": []
+      }
+    },
+    {
+      "name": "M8",
+      "path": ".local/m8-browser/report.json",
+      "sha256": "a7cb93870eecb9e292405078997997eba687419b23faf388133826afcecc141e",
+      "passed": true,
+      "observations": {
+        "browser_contract": "passed",
+        "keyboard_wake_controls": true,
+        "exact_literal_preview": true,
+        "deny_expiry_and_duplicate_guard": true,
+        "reload_no_mutation": true,
+        "mobile_no_overflow": true,
+        "keyboard_stop_during_review": true,
+        "page_errors": [],
+        "real_audio_or_cloud_tested": false
+      }
+    },
+    {
+      "name": "V3.3",
+      "path": ".local/v4-linux-validation/ui-v33-final/report.json",
+      "sha256": "e339b0e8d1f2df48963b75cb77b032f0693f71a07622654b5aa8b55a5578326b",
+      "passed": true,
+      "checks": {
+        "uncertain_retry_same_identity_payload_and_no_double_click": true,
+        "refresh_recovers_review_from_snapshot_without_post": true,
+        "literal_preview": true,
+        "mobile_no_overflow_and_reduced_motion": true,
+        "keyboard_approve_once_and_verified_result": true,
+        "expired_review_disabled": true,
+        "unavailable_reason_and_unknown_not_success": true,
+        "expired_session_blocks_checklist": true,
+        "keyboard_stop_always_available": true,
+        "no_browser_errors": true,
+        "reconnect_uses_cursor": true
+      }
+    },
+    {
+      "name": "V3.5",
+      "path": ".local/v4-linux-validation/ui-v35/report.json",
+      "sha256": "4d84b814135e4c556faa7fc84ff86fe2c7d889fb1327176ec9880735532e4b53",
+      "passed": true,
+      "checks": {
+        "uncertain_submit_and_double_click_preserve_identity": true,
+        "new_uncertain_command_hides_previous_clarification": true,
+        "refresh_and_lookup_are_read_only": true,
+        "definite_rejection_allows_correction": true,
+        "uncertain_clarification_same_payload": true,
+        "literal_text_not_html": true,
+        "mobile_reduced_motion": true,
+        "keyboard_stop": true,
+        "no_browser_errors": true
+      }
+    },
+    {
+      "name": "V3.6",
+      "path": ".local/v4-linux-validation/ui-v36/report.json",
+      "sha256": "0bb52abdb49b6061c18678911bf83c329e1c233dc4bff0c5d28deac3faec89a2",
+      "passed": true,
+      "checks": {
+        "literal_transcript": true,
+        "refresh_before_review_is_read_only": true,
+        "reviewed_command_and_uncertain_response_recovered": true,
+        "refresh_during_clarification_never_submits": true,
+        "explicit_keyboard_clarification": true,
+        "confirmation_not_save_approval": true,
+        "summary_does_not_read_private_text": true,
+        "mobile_reduced_motion": true,
+        "keyboard_stop": true,
+        "no_page_errors": true
+      }
+    }
+  ],
+  "browser_adversarial": {
+    "path": ".local/v4-linux-validation/browser-cases-01.json",
+    "sha256": "e640db85be7557cb94a02d0c865da4cdc166946e072da3ebe4c6bc0d1e4c549a",
+    "passed": 10,
+    "total": 10,
+    "cases": [
+      {
+        "case": "duplicate-buttons",
+        "status": "passed",
+        "browser_version": "153.0.8010.0",
+        "requested_scale": 1,
+        "actual_device_pixel_ratio": 1
+      },
+      {
+        "case": "stale-fields",
+        "status": "passed",
+        "browser_version": "153.0.8010.0",
+        "requested_scale": 1,
+        "actual_device_pixel_ratio": 1
+      },
+      {
+        "case": "redirects-and-privacy",
+        "status": "passed",
+        "browser_version": "153.0.8010.0",
+        "requested_scale": 1,
+        "actual_device_pixel_ratio": 1
+      },
+      {
+        "case": "blocked-popup",
+        "status": "passed",
+        "browser_version": "153.0.8010.0",
+        "requested_scale": 1,
+        "actual_device_pixel_ratio": 1
+      },
+      {
+        "case": "download-attempt",
+        "status": "passed",
+        "browser_version": "153.0.8010.0",
+        "requested_scale": 1,
+        "actual_device_pixel_ratio": 1
+      },
+      {
+        "case": "step-timeout",
+        "status": "passed",
+        "browser_version": "153.0.8010.0",
+        "requested_scale": 1,
+        "actual_device_pixel_ratio": 1
+      },
+      {
+        "case": "multiple-pages-scale-1",
+        "status": "passed",
+        "browser_version": "153.0.8010.0",
+        "requested_scale": 1,
+        "actual_device_pixel_ratio": 1
+      },
+      {
+        "case": "multiple-pages-scale-1.25",
+        "status": "passed",
+        "browser_version": "153.0.8010.0",
+        "requested_scale": 1.25,
+        "actual_device_pixel_ratio": 1.25
+      },
+      {
+        "case": "multiple-pages-scale-1.5",
+        "status": "passed",
+        "browser_version": "153.0.8010.0",
+        "requested_scale": 1.5,
+        "actual_device_pixel_ratio": 1.5
+      },
+      {
+        "case": "multiple-pages-scale-2",
+        "status": "passed",
+        "browser_version": "153.0.8010.0",
+        "requested_scale": 2,
+        "actual_device_pixel_ratio": 2
+      }
+    ]
+  },
+  "browser_repetition": {
+    "path": ".local/v4-linux-validation/browser-20-final/browser-qualification.json",
+    "sha256": "ca23a0464e217ce8e4b67591b9a78a49f6f43f0099f5203fe04b36668e06536e",
+    "requested": 20,
+    "executed": 20,
+    "passed": 20,
+    "status": "succeeded",
+    "normal_memory_guards": true,
+    "promoted": false,
+    "history": "An earlier 20-run attempt stopped after one success with QUALIFICATION_FAILED. Two debug repetitions and the final twenty passed; earlier failure is not erased.",
+    "earlier_report": {
+      "path": ".local/v4-linux-validation/browser-20/browser-qualification.json",
+      "sha256": "cba92f870213d715b115d9dab01409044c130aa5dab65be0475ecde56581d4b6"
+    }
+  },
+  "browser_identity_metadata": {
+    "path": ".local/v4-linux-validation/ui-browser-identity.jsonl",
+    "sha256": "45bdc520d0d36e7406c24ad5a949cb16edd630cfbfd49a4ee61db5c541ea1aee"
+  },
+  "reliability_smoke": {
+    "path": ".local/v4-linux-validation/soak-smoke/report.json",
+    "sha256": "0a1eb29b27227ef57698cb6dbe1d0a36da34dc541247ca1df35814bcd6711578",
+    "requested_seconds": 30.0,
+    "full_two_hour_soak": false,
+    "qualified": false,
+    "tasks_verified": 4,
+    "pressure_rejections": 0,
+    "memory_cycles": 4,
+    "backup_restores": 1,
+    "stt_calls": 0,
+    "failures": [],
+    "implementation_start_sha256": "06798be23c5ddcd2521c78b414c851c68cc57bb06bcda02075584544734addbe",
+    "elapsed_seconds": 30.312843912000062,
+    "health_requests": 59,
+    "health_p95_seconds": 0.04165511300016078,
+    "health_max_seconds": 0.2364347889997589,
+    "rss_growth_from_warmed_baseline": 0.002119700748129727,
+    "implementation_end_sha256": "06798be23c5ddcd2521c78b414c851c68cc57bb06bcda02075584544734addbe"
+  },
+  "model": {
+    "samples": {
+      "path": ".local/v4-linux-validation/model-samples.json",
+      "sha256": "8244a800b6ea2a7d562557570ff6a04cbe7eadc4205dffa5cdc6caf040a24af2",
+      "status": "MODEL_UNAVAILABLE",
+      "executed": 0
+    },
+    "benchmark": {
+      "path": ".local/v4-linux-validation/model-benchmark/report.json",
+      "sha256": "25d1b17038df98eca542c927e902dfb723ca20c0fd0bf08ff1a7324a67dac7c7",
+      "status": "MODEL_UNAVAILABLE",
+      "requested": 30,
+      "executed": 0,
+      "accuracy": null
+    },
+    "pin": null
+  },
+  "windows_only_skips": [
+    "Actual Notepad UIA Save/readback, owned process/tab cleanup and cancellation",
+    "Reviewed native campaign, real DPI/display and Windows process-observation boundaries",
+    "Physical microphone/STT/SAPI interaction and witnessed audio evidence",
+    "Frozen Windows candidate build, fresh-account install/start/stop and release-pair validation"
+  ],
+  "other_incomplete": [
+    "Resolve portable persistence failures before calling regression green",
+    "Install and rerun with exact pinned Chromium; alternate engine is regression evidence only",
+    "Provide local reasoning service/model pin and run benchmark",
+    "Provide real labelled voice corpus and complete physical observations",
+    "Run full 7200-second reliability qualification; 30-second smoke is insufficient",
+    "Run complete qualification and promotion gates before enabling production capabilities"
+  ]
+}

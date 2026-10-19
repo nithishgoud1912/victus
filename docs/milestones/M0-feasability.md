@@ -31,6 +31,6 @@ readiness must be measured on the target machine. Model fit/latency, actual
 Notepad Save transitions, physical audio behavior and fresh-account deployment
 cannot be established from this Linux coding environment.
 
-No tests, inference, Windows control, audio session or package build were run for
-this implementation increment, as requested. Syntax inspection is documented
-separately and does not establish behavior.
+The initial PR omitted tests. The clarified instruction led to portable Linux
+validation, with actual results/failures recorded in the handoff. Actual Windows
+control/audio/package checks and missing model/corpus prerequisites remain open.

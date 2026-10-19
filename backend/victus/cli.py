@@ -7,11 +7,26 @@ from victus.settings import Settings
 
 def main() -> None:
     parser = argparse.ArgumentParser(prog="victus")
-    parser.add_argument("command", choices=["doctor", "serve", "export-openapi", "cloud-key",
-                                            "backup", "restore", "migrate", "version",
-                                            "qualify-fixture", "promote-fixture", "qualify-native",
-                                            "prepare-native", "assemble-native", "promote-native",
-                                            "readiness"])
+    parser.add_argument(
+        "command",
+        choices=[
+            "doctor",
+            "serve",
+            "export-openapi",
+            "cloud-key",
+            "backup",
+            "restore",
+            "migrate",
+            "version",
+            "qualify-fixture",
+            "promote-fixture",
+            "qualify-native",
+            "prepare-native",
+            "assemble-native",
+            "promote-native",
+            "readiness",
+        ],
+    )
     parser.add_argument("--output", type=Path)
     parser.add_argument("--source", type=Path)
     parser.add_argument("--destination", type=Path)
@@ -24,7 +39,9 @@ def main() -> None:
             parser.error("qualify-fixture requires a new --output directory")
         from victus.workflows.fixture_qualification import main as qualify
 
-        raise SystemExit(qualify(["--output", str(args.output), "--repetitions", str(args.repetitions)]))
+        raise SystemExit(
+            qualify(["--output", str(args.output), "--repetitions", str(args.repetitions)])
+        )
     if args.command in {"promote-fixture", "promote-native"}:
         if args.source is None:
             parser.error("promotion requires --source report.json")
@@ -34,7 +51,9 @@ def main() -> None:
             promote = promote_fixture if args.command == "promote-fixture" else promote_native
             destination = promote(args.source)
         except (OSError, ValueError, KeyError, TypeError):
-            parser.error("Promotion refused: require complete matching reports, artifacts and no existing record")
+            parser.error(
+                "Promotion refused: require complete matching reports, artifacts and no existing record"
+            )
         print(f"Qualification installed at {destination}. Restart to apply it.")
         return
     if args.command in {"prepare-native", "assemble-native", "qualify-native"}:
@@ -56,10 +75,17 @@ def main() -> None:
                     parser.error("qualify-native requires --source profiles.json and --profile ID")
                 from victus.workflows.qualification import qualify
 
-                result = qualify("notepad", args.output, profiles_file=args.source,
-                                 profile=args.profile, repetitions=args.repetitions)
+                result = qualify(
+                    "notepad",
+                    args.output,
+                    profiles_file=args.source,
+                    profile=args.profile,
+                    repetitions=args.repetitions,
+                )
         except (OSError, ValueError, KeyError, TypeError):
-            parser.error("Native qualification refused: check profile, fresh paths and current evidence")
+            parser.error(
+                "Native qualification refused: check profile, fresh paths and current evidence"
+            )
         print(result)
         record = json.loads(result.read_text(encoding="utf-8"))
         if args.command == "assemble-native":
@@ -76,9 +102,15 @@ def main() -> None:
             result = inventory(args.output, model=args.model)
         except (OSError, ValueError):
             parser.error("Readiness report unavailable: check output and runtime inventory")
-        print(json.dumps({"resource_ready": result["resource_ready"],
-                          "model_service_available": result["model_service_available"],
-                          "inference_qualified": False}))
+        print(
+            json.dumps(
+                {
+                    "resource_ready": result["resource_ready"],
+                    "model_service_available": result["model_service_available"],
+                    "inference_qualified": False,
+                }
+            )
+        )
         return
     if args.command == "version":
         from victus.runtime.release import version
@@ -91,7 +123,9 @@ def main() -> None:
         try:
             print_result(maintain(args.command, Settings.from_env(), args.source, args.destination))
         except Exception:
-            parser.error("Maintenance failed: stop all application processes, check compatible schema and new destination")
+            parser.error(
+                "Maintenance failed: stop all application processes, check compatible schema and new destination"
+            )
         return
     if args.command == "cloud-key":
         from getpass import getpass

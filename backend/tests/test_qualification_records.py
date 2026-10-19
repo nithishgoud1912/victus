@@ -8,15 +8,29 @@ from victus.workflows import qualification_records as records
 
 
 def proof():
-    return {"schema_version": 2, "kind": "fixture", "qualified": True,
-            "runtime_sha256": records.runtime_identity(), "verified_runs": 20,
-            "report_sha256": "a" * 64,
-            "checks": dict.fromkeys(records.BROWSER_CHECKS, True)}
+    return {
+        "schema_version": 2,
+        "kind": "fixture",
+        "qualified": True,
+        "runtime_sha256": records.runtime_identity(),
+        "verified_runs": 20,
+        "report_sha256": "a" * 64,
+        "checks": dict.fromkeys(records.BROWSER_CHECKS, True),
+    }
 
 
-@pytest.mark.parametrize("change", [{"qualified": 1}, {"verified_runs": True},
-    {"verified_runs": 19}, {"runtime_sha256": "b" * 64}, {"checks": {}},
-    {"report_sha256": "invalid"}, {"kind": "public"}])
+@pytest.mark.parametrize(
+    "change",
+    [
+        {"qualified": 1},
+        {"verified_runs": True},
+        {"verified_runs": 19},
+        {"runtime_sha256": "b" * 64},
+        {"checks": {}},
+        {"report_sha256": "invalid"},
+        {"kind": "public"},
+    ],
+)
 def test_partial_or_stale_proofs_never_admit(tmp_path, change):
     path = tmp_path / "proof.json"
     path.write_text(json.dumps({**proof(), **change}))
@@ -52,8 +66,9 @@ def test_runtime_binding_changes_with_runtime_bytes_not_qualification_data(tmp_p
 
 def test_promotion_rejects_claimed_success_without_twenty_verified_artifacts(tmp_path):
     path = tmp_path / "report.json"
-    path.write_text(json.dumps({**proof(), "passed": True, "runs": [],
-                               "normal_memory_guards": True}))
+    path.write_text(
+        json.dumps({**proof(), "passed": True, "runs": [], "normal_memory_guards": True})
+    )
     with pytest.raises(ValueError):
         records.promote_fixture(path)
 

@@ -218,3 +218,22 @@ Actual installed Notepad Save diagnosis still requires Windows observations;
 this change does not claim a speculative selector change fixed that failure.
 The 804/23 historical result does not validate this continuation. V4 remains an
 unqualified implementation candidate until its selected outstanding gates pass.
+
+
+## Clarified test policy and Linux validation follow-up
+
+The user clarified that only Windows-environment checks should be skipped.
+Portable Linux validation now supersedes the initial all-tests-skipped statement.
+Backend regression, new evidence/voice/process/Stop tests, pinned-Node frontend
+checks, real HTTP/SSE/dashboard flows, explicit alternate-Chromium fixture cases,
+20 supervised browser repetitions and a short reliability smoke were executed.
+Live model runners were attempted and blocked by missing local inference.
+
+The detailed test counts, fixes, failed full runs, isolated reruns and remaining
+Windows/non-Windows gates are recorded in
+[V4 tests and incomplete work](../V4-TESTS-AND-INCOMPLETE.md) and its linked
+sanitized Linux summary. Do not replace failed full-run outcomes with isolated
+passes. No graph/no-replay assertion or production resource safeguard was relaxed.
+The exact pinned Chromium installer failed; the identified alternate engine is
+regression evidence only. No qualification record was promoted and no Windows
+Save/device/build or full two-hour qualification is claimed.

@@ -74,11 +74,9 @@ class FixtureSite:
             raise RuntimeError("Fixture owner did not stop")
 
 
-
 def qualified_browser():
     try:
-        record = qualified_record(qualification_path("fixture"),
-                                  "fixture", BROWSER_CHECKS)
+        record = qualified_record(qualification_path("fixture"), "fixture", BROWSER_CHECKS)
         if record is None:
             return None
         if (
@@ -88,18 +86,19 @@ def qualified_browser():
         ):
             return None
         relative = Path(record["browser_relative_path"])
-        if (relative.is_absolute() or ".." in relative.parts
-                or len(relative.parts) != 3 or relative.suffix.lower() != ".exe"):
+        if (
+            relative.is_absolute()
+            or ".." in relative.parts
+            or len(relative.parts) != 3
+            or relative.suffix.lower() != ".exe"
+        ):
             return None
         cache = Path(
             os.getenv("PLAYWRIGHT_BROWSERS_PATH")
             or Path(os.environ["LOCALAPPDATA"]) / "ms-playwright"
         )
         path = cache / relative
-        if (
-            path.is_symlink()
-            or file_hash(path) != record["browser_sha256"]
-        ):
+        if path.is_symlink() or file_hash(path) != record["browser_sha256"]:
             return None
         return path.resolve()
     except (KeyError, OSError, ValueError, TypeError):

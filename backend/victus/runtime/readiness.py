@@ -12,10 +12,16 @@ from victus.workflows.qualification_records import runtime_identity
 
 
 def inventory(output, *, model=None):
-    report = {"schema_version": 1, "runtime_sha256": runtime_identity(),
-              "inference_qualified": False, "model_downloaded": False,
-              "cloud_used": False, "models": [], "selected_pin": None,
-              "model_service_available": False}
+    report = {
+        "schema_version": 1,
+        "runtime_sha256": runtime_identity(),
+        "inference_qualified": False,
+        "model_downloaded": False,
+        "cloud_used": False,
+        "models": [],
+        "selected_pin": None,
+        "model_service_available": False,
+    }
     try:
         report["memory"] = resources().check_current()
         report["resource_ready"] = True
