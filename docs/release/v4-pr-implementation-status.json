@@ -34,5 +34,24 @@
     "python_and_spec_ast_parsed": 17,
     "application_imports": false,
     "markdown_links_checked": true
-  }
+  },
+  "merge_validation": {
+    "base_merged": "ae3876c9b10b2f94136fb529096849198cef5834",
+    "tests": 68,
+    "passed": 68,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "seconds": 3.819,
+    "junit_sha256": "88798752bad65b4a548849c03f59c37818259905fdb1db240e752c9c27248ead",
+    "scope": [
+      "test_fixture_artifact_provenance.py",
+      "test_v4_portable_qualification.py",
+      "test_qualification_records.py",
+      "test_research_admission.py"
+    ],
+    "full_suite_rerun": false,
+    "historical_failures_resolved": false
+  },
+  "runtime_sha256_scope": "Historical pre-merge validation identity; merged runtime changed and has targeted validation only"
 }

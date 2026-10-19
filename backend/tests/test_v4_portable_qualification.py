@@ -70,6 +70,11 @@ def runs_report(root, suffix=".json"):
                 artifact = {
                     "kind": "browser_research",
                     "status": "succeeded",
+                    "summary_is_content_generation": True,
+                    "environment": {
+                        "playwright_version": importlib.metadata.version("playwright"),
+                        "explicit_browser_binary": True,
+                    },
                     "required_sources": 2,
                     "observed_count": 2,
                     "sources": [
@@ -112,6 +117,7 @@ def runs_report(root, suffix=".json"):
         "passed": True,
         "normal_memory_guards": True,
         "verified_runs": 20,
+        "requested_runs": 20,
         "runs": runs,
     }
 

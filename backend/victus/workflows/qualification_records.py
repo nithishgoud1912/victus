@@ -254,6 +254,77 @@ def qualified_native():
         return None
 
 
+def _fixture_artifacts_match(report_path, runs, playwright_version):
+    """Check the actual new reports, rather than trusting success flags alone."""
+    workspace = report_path.parent / "workspace"
+    if workspace.is_symlink() or not workspace.is_dir():
+        return False
+    for run in runs:
+        name = run.get("destination")
+        if not isinstance(name, str) or not re.fullmatch(
+            r"[A-Za-z0-9][A-Za-z0-9_-]{0,63}\.json", name
+        ):
+            return False
+        path = workspace / name
+        try:
+            if path.is_symlink() or not path.is_file() or path.stat().st_size > 128_000:
+                return False
+            artifact, digest = read_record(path, maximum=128_000)
+            if run.get("sha256") != digest:
+                return False
+            sources = artifact.get("sources")
+            if (
+                artifact.get("kind") != "browser_research"
+                or artifact.get("status") != "succeeded"
+                or artifact.get("required_sources") != 2
+                or artifact.get("observed_count") != 2
+                or artifact.get("summary_is_content_generation") is not True
+                or not isinstance(sources, list)
+                or len(sources) != 2
+                or artifact.get("environment", {}).get("playwright_version") != playwright_version
+                or artifact["environment"].get("explicit_browser_binary") is not True
+            ):
+                return False
+            paths = set()
+            origins = set()
+            observations = set()
+            for source in sources:
+                if not isinstance(source, dict):
+                    return False
+                url = urlsplit(source.get("url", ""))
+                content = source.get("text")
+                observation = source.get("observation_id")
+                if (
+                    url.scheme != "http"
+                    or url.hostname != "127.0.0.1"
+                    or url.port is None
+                    or url.username is not None
+                    or url.password is not None
+                    or url.query
+                    or url.fragment
+                    or not isinstance(content, str)
+                    or not content.strip()
+                    or len(content) > 4000
+                    or not isinstance(observation, str)
+                    or not observation
+                    or source.get("text_sha256")
+                    != hashlib.sha256(content.encode("utf-8")).hexdigest()
+                ):
+                    return False
+                paths.add(url.path)
+                origins.add((url.hostname, url.port))
+                observations.add(observation)
+            if (
+                paths != {"/source-a.html", "/source-b.html"}
+                or len(origins) != 1
+                or len(observations) != 2
+            ):
+                return False
+        except (OSError, UnicodeError, ValueError, TypeError, AttributeError):
+            return False
+    return True
+
+
 def _validate_report(record, kind, checks):
     if (
         type(record.get("schema_version")) is not int
@@ -365,44 +436,18 @@ def promote_fixture(report_path):
     if (
         record.get("fixture_sha256") != FIXTURE_HASH
         or record.get("playwright_version") != importlib.metadata.version("playwright")
-        or {r.get("route") for r in runs} != {"structured", "text"}
+        or len(runs) != 20
+        or type(record.get("requested_runs")) is not int
+        or record["requested_runs"] != 20
+        or any(
+            run.get("route") != ("structured" if index % 2 == 0 else "text")
+            for index, run in enumerate(runs)
+        )
         or not all(r.get("owned_cleanup") is True and r.get("replay") is True for r in runs)
     ):
         raise ValueError("Complete fixture identity, routes and cleanup required")
-    for run in runs:
-        artifact, _ = read_record(report_path.parent / "workspace" / run["destination"])
-        sources = artifact.get("sources")
-        if (
-            artifact.get("status") != "succeeded"
-            or artifact.get("required_sources") != 2
-            or artifact.get("observed_count") != 2
-            or not isinstance(sources, list)
-            or len(sources) != 2
-        ):
-            raise ValueError("Two distinct observed fixture sources required")
-        urls = [urlsplit(source["url"]) for source in sources]
-        if (
-            {url.path for url in urls} != {"/source-a.html", "/source-b.html"}
-            or len({url.netloc for url in urls}) != 1
-            or any(
-                url.scheme != "http"
-                or url.hostname != "127.0.0.1"
-                or url.username
-                or url.password
-                or url.query
-                or url.fragment
-                for url in urls
-            )
-            or len({source["observation_id"] for source in sources}) != 2
-            or not all(
-                isinstance(source.get("text"), str)
-                and source["text"].strip()
-                and len(source["text"]) <= 4000
-                and hashlib.sha256(source["text"].encode()).hexdigest() == source.get("text_sha256")
-                for source in sources
-            )
-        ):
-            raise ValueError("Fixture observations do not match their source evidence")
+    if not _fixture_artifacts_match(report_path, runs, record["playwright_version"]):
+        raise ValueError("Fixture observations do not match their source evidence")
     from playwright.sync_api import sync_playwright
 
     with sync_playwright() as pw:

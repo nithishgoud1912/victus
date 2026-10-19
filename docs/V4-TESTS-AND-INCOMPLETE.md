@@ -379,3 +379,21 @@ model/audio/release gates remain unresolved. No previous 804/23 count, source
 fixture, silent audio or edited digest is represented as a new qualification.
 A passing isolated rerun is reported alongside the failed full run. No runtime
 safeguard, graph budget or no-replay assertion was relaxed to obtain results.
+
+## PR #8 conflict resolution — 19 October 2026
+
+Merged main revision `ae3876c9b10b2f94136fb529096849198cef5834` into the PR
+branch. The conflict in `workflows/qualification_records.py` is resolved by
+combining main's fixture artifact provenance checks with V4's strict schema-2
+parsing, artifact/ledger receipts, runtime/engine binding and exclusive publication.
+Main's 20-run request count and alternating route checks are retained. Synthetic
+fixtures now include the real report fields required by both implementations.
+The main-branch regression tests are retained with additional malformed-provenance
+cases.
+
+Targeted portable validation: **68/68 passed**, zero errors/failures/skips, covering
+fixture provenance, V4 qualification, qualification records and research admission.
+Changed Python Ruff lint/format and `git diff --check` passed. No Windows or new
+full-suite campaign ran for this conflict-only update; earlier full-suite failures
+remain unresolved. Earlier runtime/source-bound results describe their original
+inventory, not this merged runtime. No capability was promoted.
