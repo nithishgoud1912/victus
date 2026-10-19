@@ -109,9 +109,26 @@ def test_native_qualification_stops_after_first_uncertain_effect(tmp_path, monke
     calls = []
 
     def uncertain(workspace, kind, request):
+        from victus.storage.database import Database
+
+        Database(workspace.parent)  # Real supervised_run initializes this ledger.
         calls.append(request.task_id)
         return DispatchOutcome("unknown", error_code="WORKER_ERROR")
 
+    executable = tmp_path / "candidate.exe"
+    executable.write_bytes(b"synthetic reviewed profile")
+    (tmp_path / "reviewed.json").write_text(
+        json.dumps(
+            [
+                {
+                    "name": "candidate",
+                    "executable": str(executable),
+                    "window": {"control_type": "Window", "automation_id": "main"},
+                    "controls": {"editor": {"control_type": "Edit", "automation_id": "editor"}},
+                }
+            ]
+        )
+    )
     monkeypatch.setattr(qualification, "os", SimpleNamespace(name="nt"))
     monkeypatch.setattr(qualification, "supervised_run", uncertain)
     path = qualification.qualify(

@@ -1,0 +1,57 @@
+{
+  "milestone": "V4-PR-implementation-continuation",
+  "base_revision": "e87b1050217d342551aa1c43da37e2add276336e",
+  "branch": "codex/v4-implementation-handoff",
+  "runtime_sha256": "b93ec3fd236f717079d3113f9c1077ade2f44b8375fd3e5c530081054136eb83",
+  "v4_complete": false,
+  "release_qualified": false,
+  "tests_run": true,
+  "tests_skipped_by_user": false,
+  "native_qualification_promoted": false,
+  "browser_qualification_promoted": false,
+  "model_inference_run": false,
+  "physical_audio_run": false,
+  "soak_run": true,
+  "package_built": false,
+  "handoff": "docs/V4-TESTS-AND-INCOMPLETE.md",
+  "remaining": [
+    "Actual Notepad UIA Save/readback, owned process/tab cleanup and cancellation",
+    "Reviewed native campaign, real DPI/display and Windows process-observation boundaries",
+    "Physical microphone/STT/SAPI interaction and witnessed audio evidence",
+    "Frozen Windows candidate build, fresh-account install/start/stop and release-pair validation",
+    "Resolve portable persistence failures before calling regression green",
+    "Install and rerun with exact pinned Chromium; alternate engine is regression evidence only",
+    "Provide local reasoning service/model pin and run benchmark",
+    "Provide real labelled voice corpus and complete physical observations",
+    "Run full 7200-second reliability qualification; 30-second smoke is insufficient",
+    "Run complete qualification and promotion gates before enabling production capabilities"
+  ],
+  "windows_dependent_tests_skipped_by_user": true,
+  "portable_regression_green": false,
+  "validation_summary": "docs/release/v4-linux-validation.json",
+  "full_two_hour_soak_run": false,
+  "initial_increment_static_inspection": {
+    "python_and_spec_ast_parsed": 17,
+    "application_imports": false,
+    "markdown_links_checked": true
+  },
+  "merge_validation": {
+    "base_merged": "ae3876c9b10b2f94136fb529096849198cef5834",
+    "tests": 68,
+    "passed": 68,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "seconds": 3.819,
+    "junit_sha256": "88798752bad65b4a548849c03f59c37818259905fdb1db240e752c9c27248ead",
+    "scope": [
+      "test_fixture_artifact_provenance.py",
+      "test_v4_portable_qualification.py",
+      "test_qualification_records.py",
+      "test_research_admission.py"
+    ],
+    "full_suite_rerun": false,
+    "historical_failures_resolved": false
+  },
+  "runtime_sha256_scope": "Historical pre-merge validation identity; merged runtime changed and has targeted validation only"
+}

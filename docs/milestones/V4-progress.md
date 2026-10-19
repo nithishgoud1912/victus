@@ -195,3 +195,45 @@ Native follow-up: capture source around each attempt, diagnose exact Save and
 new-editor transitions before selecting a fix, and preserve nonempty sessions.
 Physical voice: predeclare thresholds, prepare the real capture/review session
 and retain recording/session bindings. Human observations remain necessary.
+
+## PR implementation continuation — tests intentionally deferred
+
+The branch `codex/v4-implementation-handoff` continues the checked-in V4 code.
+It adds worker-local native Stop guards and tab/window-bound Save review,
+report-backed schema-2 fixture/native promotion, native session preparation and
+assembly, owned-descendant browser observation, robust browser failure reports,
+external frozen-bundle qualification, local readiness inventory and predeclared
+English-note voice qualification aggregation. Root/dashboard/M0 documentation is
+updated. The original V4 plan and historical reports are preserved.
+
+The user explicitly requested skipping tests. **No application tests, live
+qualification, inference, voice/device session, soak or package build was run.**
+Only Python syntax and Git whitespace were inspected. No source/frozen/native/
+browser qualification record was installed. Schema-1 records are deliberately
+not admitted by schema-2 validation; matching fresh evidence is required.
+
+The exact unrun checks, commands, affected files and incomplete target-machine/
+human requirements are in [V4 tests and incomplete work](../V4-TESTS-AND-INCOMPLETE.md).
+Actual installed Notepad Save diagnosis still requires Windows observations;
+this change does not claim a speculative selector change fixed that failure.
+The 804/23 historical result does not validate this continuation. V4 remains an
+unqualified implementation candidate until its selected outstanding gates pass.
+
+
+## Clarified test policy and Linux validation follow-up
+
+The user clarified that only Windows-environment checks should be skipped.
+Portable Linux validation now supersedes the initial all-tests-skipped statement.
+Backend regression, new evidence/voice/process/Stop tests, pinned-Node frontend
+checks, real HTTP/SSE/dashboard flows, explicit alternate-Chromium fixture cases,
+20 supervised browser repetitions and a short reliability smoke were executed.
+Live model runners were attempted and blocked by missing local inference.
+
+The detailed test counts, fixes, failed full runs, isolated reruns and remaining
+Windows/non-Windows gates are recorded in
+[V4 tests and incomplete work](../V4-TESTS-AND-INCOMPLETE.md) and its linked
+sanitized Linux summary. Do not replace failed full-run outcomes with isolated
+passes. No graph/no-replay assertion or production resource safeguard was relaxed.
+The exact pinned Chromium installer failed; the identified alternate engine is
+regression evidence only. No qualification record was promoted and no Windows
+Save/device/build or full two-hour qualification is claimed.

@@ -4,7 +4,6 @@ No microphone recording, task submission, model download or raw transcript loggi
 """
 
 import argparse
-import hashlib
 import json
 import re
 import threading
@@ -15,6 +14,7 @@ from pathlib import Path
 from victus.voice.audio import resample_pcm16
 from victus.voice.stt import TranscriptionWorker
 from victus.voice.transcript_review import review_transcript
+from victus.workflows.qualification_records import file_hash, runtime_identity
 
 
 def words(text):
@@ -65,6 +65,8 @@ def score(rows):
 
 
 def evaluate(manifest, worker):
+    source_before = runtime_identity()
+    manifest_before = file_hash(manifest)
     labels = json.loads(manifest.read_text(encoding="utf-8"))
     if not isinstance(labels, list) or len(labels) > 1000:
         raise ValueError("Expected a bounded JSON array of labelled samples")
@@ -74,6 +76,7 @@ def evaluate(manifest, worker):
     if any(not counts[name] for name in ("silence", "background", "assistant_speech")):
         raise ValueError("Include silence, background and assistant_speech negative samples")
     identifiers = set()
+    audio_hashes = set()
     rows = []
     for item in labels:
         sample_id = item["id"]
@@ -85,6 +88,10 @@ def evaluate(manifest, worker):
         if item.get("language") != "en":
             raise ValueError("This test set only qualifies English; supply separate language sets")
         audio_path = (manifest.parent / item["audio"]).resolve(strict=True)
+        audio_digest = file_hash(audio_path)
+        if audio_digest in audio_hashes:
+            raise ValueError("Each recording must be distinct")
+        audio_hashes.add(audio_digest)
         with wave.open(str(audio_path), "rb") as audio:
             if (
                 audio.getsampwidth() != 2
@@ -106,6 +113,7 @@ def evaluate(manifest, worker):
         rows.append(
             {
                 "id": sample_id,
+                "audio_sha256": audio_digest,
                 "condition": item["condition"],
                 "word_errors": errors,
                 "reference_words": reference_words,
@@ -116,9 +124,15 @@ def evaluate(manifest, worker):
                 ),
             }
         )
+        if file_hash(audio_path) != audio_digest:
+            raise ValueError("Recording changed during evaluation")
         del pcm, transcript
+    if file_hash(manifest) != manifest_before or runtime_identity() != source_before:
+        raise ValueError("Evaluation inputs changed")
     return {
-        "manifest_sha256": hashlib.sha256(manifest.read_bytes()).hexdigest(),
+        "runtime_sha256": source_before,
+        "runtime_end_sha256": runtime_identity(),
+        "manifest_sha256": manifest_before,
         "language": "en",
         "groups": score(rows),
         "samples": rows,
@@ -138,7 +152,8 @@ def main():
     try:
         report = evaluate(args.manifest.resolve(strict=True), worker)
         args.output.parent.mkdir(parents=True, exist_ok=True)
-        args.output.write_text(json.dumps(report, indent=2), encoding="utf-8")
+        with args.output.open("x", encoding="utf-8") as stream:
+            stream.write(json.dumps(report, indent=2) + "\n")
     finally:
         worker.close()
 

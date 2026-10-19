@@ -12,7 +12,7 @@ from uuid import uuid4
 from pydantic import Field
 
 from victus.adapters.uia.actions import PatternUnavailable, UIAActions, editor_text
-from victus.adapters.uia.applications import ApplicationReference, UIABlocked
+from victus.adapters.uia.applications import ApplicationReference, UIABlocked, UIAWorker
 from victus.adapters.uia.selectors import ControlReference, SelectorResolver
 from victus.tools.registry import RiskLevel
 from victus.workflows.common import (
@@ -107,6 +107,8 @@ class NotepadTools:
         self._cancelled = None
         self.diagnostics = diagnostics
         self.review_guard = None
+        if isinstance(worker, UIAWorker):
+            worker.set_operation_guard(self._check_stop)
 
     def _phase(self, name):
         return self.diagnostics.phase(name) if self.diagnostics is not None else nullcontext()
@@ -218,8 +220,11 @@ class NotepadTools:
         app = self.worker.launch(args.profile)
         self.app_ref = app.ref
         owned = self.worker._resolve_app(app)
-        return {"app_ref": app.ref, "owned_pid": owned.identity.pid,
-                "process_created": owned.identity.created}
+        return {
+            "app_ref": app.ref,
+            "owned_pid": owned.identity.pid,
+            "process_created": owned.identity.created,
+        }
 
     def verify_launch(self, data, args):
         self.worker._resolve_app(ApplicationReference(data["app_ref"]))
@@ -280,6 +285,7 @@ class NotepadTools:
 
     async def verify_invoke(self, data, args):
         for _ in range(80):
+            self._check_stop()
             try:
                 self.resolver.resolve(ApplicationReference(args.app_ref), args.expect_key)
                 return True
@@ -298,7 +304,9 @@ class NotepadTools:
             raise ValueError("Editor changed before save")
         self._check_stop()
         with self._phase("save.filename_write"):
-            self.actions.set_text(ControlReference(args.filename_ref), str(path), allow_keyboard=False)
+            self.actions.set_text(
+                ControlReference(args.filename_ref), str(path), allow_keyboard=False
+            )
         with self._phase("save.filename_readback"):
             if self._read(args.filename_ref) != str(path):
                 raise ValueError("Save filename was not verified")
@@ -310,12 +318,15 @@ class NotepadTools:
             if self.review_guard is not None:
                 self.review_guard()
         with self._phase("save.invoke"):
+
             def before_invoke():
                 self._check_stop()
                 if self.review_guard is not None:
                     self.review_guard()
-            self.actions.invoke(ControlReference(args.save_ref), allow_keyboard=False,
-                                before_invoke=before_invoke)
+
+            self.actions.invoke(
+                ControlReference(args.save_ref), allow_keyboard=False, before_invoke=before_invoke
+            )
         return {"filename": path.name, "expected_sha256": digest(self.expected)}
 
     async def verify_save(self, data, args):
@@ -324,6 +335,7 @@ class NotepadTools:
         last_code = "SAVE_POSTCONDITION_PENDING"
         try:
             for _ in range(80):
+                self._check_stop()
                 try:
                     # A matching file alone cannot prove Save completed: an overwrite
                     # prompt or another modal dialog may still be awaiting input.
@@ -350,7 +362,8 @@ class NotepadTools:
         finally:
             if self.diagnostics is not None:
                 self.diagnostics.record(
-                    "save.postcondition", "returned" if verified else "unverified",
+                    "save.postcondition",
+                    "returned" if verified else "unverified",
                     error_code=None if verified else last_code,
                 )
 
@@ -413,10 +426,14 @@ async def create_notepad_checklist(
         )
         save_context = context
         if context.review_save is not None:
-            save_context = await context.review_save(Save(
-                app_ref=app, permit=destination["permit"],
-                filename_ref=filename["control_ref"], save_ref=save["control_ref"],
-            ))
+            save_context = await context.review_save(
+                Save(
+                    app_ref=app,
+                    permit=destination["permit"],
+                    filename_ref=filename["control_ref"],
+                    save_ref=save["control_ref"],
+                )
+            )
         await step(
             dispatcher,
             save_context,

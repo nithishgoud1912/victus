@@ -5,6 +5,7 @@ import subprocess
 import time
 from pathlib import Path
 
+from browser_support import creation_flags, launch_browser, node_executable
 from playwright.sync_api import expect, sync_playwright
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -12,7 +13,7 @@ OUT = ROOT / ".local/m6-browser"
 OUT.mkdir(parents=True, exist_ok=True)
 server = subprocess.Popen(
     [
-        str(ROOT / ".local/toolchains/node-v24.22.0-win-x64/node.exe"),
+        str(node_executable(ROOT)),
         "node_modules/vite/bin/vite.js",
         "--host",
         "127.0.0.1",
@@ -22,11 +23,11 @@ server = subprocess.Popen(
     cwd=ROOT / "dashboard",
     stdout=subprocess.DEVNULL,
     stderr=subprocess.DEVNULL,
-    creationflags=subprocess.CREATE_NO_WINDOW,
+    creationflags=creation_flags(),
 )
 try:
     with sync_playwright() as pw:
-        browser = pw.chromium.launch(headless=True)
+        browser = launch_browser(pw, headless=True)
         page = browser.new_page(viewport={"width": 1440, "height": 1000})
         page.set_default_timeout(10000)
         page.add_init_script(
@@ -60,7 +61,12 @@ try:
             if method == "POST":
                 mutations.append(path)
             if path == "/api/integrations":
-                body = {"cloud": "disabled", "cloud_pin": None, "upstream": None, "mcp_notes": False}
+                body = {
+                    "cloud": "disabled",
+                    "cloud_pin": None,
+                    "upstream": None,
+                    "mcp_notes": False,
+                }
             elif path == "/api/memory":
                 body = []
             elif path.startswith("/api/voice"):
@@ -125,7 +131,16 @@ try:
                 body = voice.copy()
             elif path == "/api/session":
                 body = {"authenticated": True, "expires_at": None}
-            elif path == '/api/workflows/capabilities': body = {'notepad_checklist': {'enabled': False, 'profiles': [], 'reason': 'Native qualification and Save review qualification required.'}, 'stopped': False, 'resource_blocked': False}
+            elif path == "/api/workflows/capabilities":
+                body = {
+                    "notepad_checklist": {
+                        "enabled": False,
+                        "profiles": [],
+                        "reason": "Native qualification and Save review qualification required.",
+                    },
+                    "stopped": False,
+                    "resource_blocked": False,
+                }
             elif path == "/api/health":
                 body = {
                     "status": "ok",

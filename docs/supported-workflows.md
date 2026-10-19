@@ -1,5 +1,19 @@
 # Supported workflows - VICTUS 0.1.0 candidate
 
+## Latest PR continuation — portable Linux validation follow-up
+
+The V4 continuation adds native Stop/tab review binding, report-backed schema-2
+qualification/promotion, external frozen-bundle evidence, native session tooling,
+browser report/process observation, readiness inventory and predeclared voice
+report aggregation. The clarified instruction skips Windows-dependent checks only. Portable backend/
+frontend, real source API/UI and explicit alternate-Chromium regressions were run;
+see the handoff for actual counts and unresolved full-run failures. No native or
+production-browser capability was promoted or enabled. The earlier results below apply to their
+named inventories. See [the located test/incomplete handoff](V4-TESTS-AND-INCOMPLETE.md)
+for every pending gate and commands. Current native Save behavior on Windows,
+real browser/model/audio operation and the new package remain unqualified.
+
+
 ## V4 current implementation increment — 19 October 2026
 
 The v4 plan's first batch is implemented in the existing checkout: repeatable

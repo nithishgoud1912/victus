@@ -38,7 +38,7 @@ from victus.workflows.create_notepad_checklist import (
     create_notepad_checklist,
 )
 from victus.workflows.diagnostics import PhaseDiagnostics
-from victus.workflows.qualification_records import runtime_identity
+from victus.workflows.qualification_records import file_hash, runtime_identity
 
 
 class NotepadRun(ChecklistRequest):
@@ -319,6 +319,8 @@ def qualify(
     lock = InstanceLock(data_dir)
     lock.acquire()
     report = {
+        "schema_version": 2,
+        "normal_memory_guards": True,
         "runtime_sha256": runtime_identity(),
         "kind": kind,
         "requested": repetitions,
@@ -328,6 +330,16 @@ def qualify(
     }
     try:
         new_destination(data_dir, f"{kind}-qualification.json")
+        if kind == "notepad" and os.name == "nt":
+            if profiles_file is None or not profile:
+                raise ValueError("Explicit native profile required")
+            profiles_sha256 = file_hash(profiles_file)
+            (selected,) = [item for item in load_profiles(profiles_file) if item.name == profile]
+            report.update(
+                profile=profile,
+                profiles_sha256=profiles_sha256,
+                executable_sha256=file_hash(selected.executable),
+            )
         if kind == "notepad" and os.name != "nt":
             report.update(
                 status="blocked", executed=0, passed=0, error_code="WINDOWS_UIA_UNAVAILABLE"
@@ -338,6 +350,10 @@ def qualify(
                 site.__enter__()
             try:
                 for index in range(repetitions):
+                    from victus.runtime.resources import resources
+
+                    resources().check_current()
+                    resources().check_disk(workspace)
                     task_id = uuid4().hex
                     if kind == "browser":
                         request = BrowserRun(
@@ -357,16 +373,33 @@ def qualify(
                             profiles_file=str(profiles_file.resolve()),
                             profile=profile,
                             items=["Inspect editor", "Verify saved bytes"],
-                            filename=f"checklist-{index + 1:02}.txt",
+                            filename=f"checklist-{task_id[:12]}-{index + 1:02}.txt",
                             task_id=task_id,
                             encoding=encoding,
                         )
                     outcome = supervised_run(workspace, kind, request)
-                    record = {"task_id": task_id, **asdict(outcome)}
+                    record = {
+                        "task_id": task_id,
+                        **asdict(outcome),
+                        "destination": request.filename,
+                        "verified": outcome.verified,
+                    }
+                    receipts = [
+                        entry
+                        for entry in ActionLedger(data_dir / "victus.sqlite3").list_for_task(
+                            task_id
+                        )
+                        if entry.tool_name == f"workflow.{kind}"
+                    ]
+                    record["action_id"] = receipts[0].action_id if len(receipts) == 1 else None
+                    artifact = workspace / request.filename
+                    record["sha256"] = file_hash(artifact) if outcome.verified else None
                     if kind == "notepad":
                         diagnostic = data_dir / f"native-{task_id}.jsonl"
                         if diagnostic.is_file():
-                            phases = [json.loads(line) for line in diagnostic.read_text().splitlines()]
+                            phases = [
+                                json.loads(line) for line in diagnostic.read_text().splitlines()
+                            ]
                             errors = [phase for phase in phases if phase["state"] == "error"]
                             record["diagnostics"] = {
                                 "private_file": diagnostic.name,
@@ -392,18 +425,39 @@ def qualify(
                 executed=len(report["runs"]), passed=sum(run["verified"] for run in report["runs"])
             )
             report["status"] = "succeeded" if report["passed"] == repetitions else "failed"
-        report["real_windows_dpi_gate"] = (
-            "pending"  # Labels/simulations cannot qualify physical Windows scaling.
+    except (Exception, KeyboardInterrupt) as error:
+        report.update(
+            status="failed",
+            executed=len(report["runs"]),
+            passed=sum(run.get("verified") is True for run in report["runs"]),
+            error_code="INTERRUPTED"
+            if isinstance(error, KeyboardInterrupt)
+            else "QUALIFICATION_FAILED",
         )
-        report["runtime_end_sha256"] = runtime_identity()
-        if report["runtime_end_sha256"] != report["runtime_sha256"]:
-            report["status"] = "failed"
-            report["error_code"] = "IMPLEMENTATION_CHANGED_DURING_QUALIFICATION"
-        destination = write_new(
-            data_dir,
-            f"{kind}-qualification.json",
-            (json.dumps(report, indent=2) + "\n").encode("utf-8"),
-        )
-        return destination
     finally:
-        lock.release()
+        report["real_windows_dpi_gate"] = "pending_observed_physical_session"
+        try:
+            report["runtime_end_sha256"] = runtime_identity()
+            if report["runtime_end_sha256"] != report["runtime_sha256"]:
+                report.update(
+                    status="failed", error_code="IMPLEMENTATION_CHANGED_DURING_QUALIFICATION"
+                )
+            if kind == "notepad" and report.get("profiles_sha256") is not None:
+                if (
+                    file_hash(profiles_file) != report["profiles_sha256"]
+                    or file_hash(selected.executable) != report["executable_sha256"]
+                ):
+                    report.update(
+                        status="failed", error_code="NATIVE_PROFILE_CHANGED_DURING_QUALIFICATION"
+                    )
+        except (OSError, ValueError, TypeError):
+            report.update(status="failed", error_code="QUALIFICATION_IDENTITY_UNAVAILABLE")
+        try:
+            destination = write_new(
+                data_dir,
+                f"{kind}-qualification.json",
+                (json.dumps(report, indent=2) + "\n").encode("utf-8"),
+            )
+        finally:
+            lock.release()
+    return destination

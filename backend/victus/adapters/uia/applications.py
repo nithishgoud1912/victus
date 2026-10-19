@@ -62,7 +62,9 @@ class ApplicationProfile:
             raise ValueError("Owned-child routes require a pinned executable hash")
         if bool(self.new_editor_control) != bool(self.tab_container):
             raise ValueError("New editor requires both an explicit control and tab container")
-        if self.new_editor_control and (self.new_editor_control not in self.controls or self.launch_mode != "owned_child"):
+        if self.new_editor_control and (
+            self.new_editor_control not in self.controls or self.launch_mode != "owned_child"
+        ):
             raise ValueError("New editor requires an owned child and an allowlisted control")
         object.__setattr__(self, "controls", MappingProxyType(dict(self.controls)))
         object.__setattr__(self, "windows", MappingProxyType(dict(self.windows)))
@@ -95,7 +97,9 @@ class _Application:
 class UIAWorker:
     """Construct/use in one supervised worker. No live objects leave this actor."""
 
-    def __init__(self, profiles: tuple[ApplicationProfile, ...], *, _backend=None, diagnostics=None):
+    def __init__(
+        self, profiles: tuple[ApplicationProfile, ...], *, _backend=None, diagnostics=None
+    ):
         self._profiles = {profile.name: profile for profile in profiles}
         if len(self._profiles) != len(profiles):
             raise ValueError("Duplicate application profiles")
@@ -105,6 +109,7 @@ class UIAWorker:
         self._applications = {}
         self._controls = {}
         self._diagnostics = diagnostics
+        self._operation_guard = None
 
     def _observe_launch(self, phase, executable, launcher=None):
         """Private observation only: it cannot supply an application reference."""
@@ -113,7 +118,8 @@ class UIAWorker:
         try:
             if launcher is not None:
                 self._diagnostics.record(
-                    "ownership.launcher", "returned",
+                    "ownership.launcher",
+                    "returned",
                     metadata={"owned_pid": launcher.pid, "process_created": launcher.created},
                 )
             for observation in self._backend.launch_observations(executable):
@@ -128,6 +134,16 @@ class UIAWorker:
     def _check_owner(self):
         if not self._started or self._owner != (os.getpid(), threading.get_ident()):
             raise UIABlocked("UIA_WORKER_NOT_STARTED_OR_FOREIGN")
+
+    def set_operation_guard(self, guard):
+        """Worker-local Stop/deadline callback; never a transport field."""
+        self._check_owner()
+        self._operation_guard = guard
+
+    def _check_operation(self):
+        self._check_owner()
+        if self._operation_guard is not None:
+            self._operation_guard()
 
     def start(self):
         owner = (os.getpid(), threading.get_ident())
@@ -144,7 +160,7 @@ class UIAWorker:
         self._started = True
 
     def launch(self, profile_name: str) -> ApplicationReference:
-        self._check_owner()
+        self._check_operation()
         if len(self._applications) >= 32:
             raise UIABlocked("APPLICATION_LIMIT")
         profile = self._profiles.get(profile_name)
@@ -159,6 +175,7 @@ class UIAWorker:
                 raise UIABlocked("EXECUTABLE_CHANGED")
         self._observe_launch("ownership.before", resolved)
         try:
+            self._check_operation()
             process = self._backend.launch(resolved, profile.arguments)
         except Exception:
             raise UIABlocked("APPLICATION_LAUNCH_FAILED") from None
@@ -173,6 +190,7 @@ class UIAWorker:
                 launcher_identity = identity
                 deadline = time.monotonic() + 5
                 while True:
+                    self._check_operation()
                     if process.poll() is not None:
                         raise UIABlocked("LAUNCHER_EXITED")
                     children = self._owned_children(launcher_identity, resolved)
@@ -188,10 +206,13 @@ class UIAWorker:
             connection = self._backend.connect(identity.pid)
             if profile.launch_mode == "owned_child":
                 from victus.adapters.uia.selectors import _matches
+
                 deadline = time.monotonic() + 5
                 while True:
-                    windows = [w for w in connection.windows()
-                               if _matches(w, profile.window, identity.pid)]
+                    self._check_operation()
+                    windows = [
+                        w for w in connection.windows() if _matches(w, profile.window, identity.pid)
+                    ]
                     if len(windows) > 1:
                         raise UIABlocked("WINDOW_MISSING_OR_AMBIGUOUS")
                     if len(windows) == 1 and windows[0].is_visible():
@@ -226,20 +247,28 @@ class UIAWorker:
     def _editor_tabs(self, app):
         from victus.adapters.uia.selectors import _matches
 
-        windows = [w for w in app.connection.windows()
-                   if _matches(w, app.profile.window, app.identity.pid)]
+        windows = [
+            w for w in app.connection.windows() if _matches(w, app.profile.window, app.identity.pid)
+        ]
         if len(windows) != 1:
             raise UIABlocked("EDITOR_WINDOW_AMBIGUOUS")
         root = windows[0]
-        containers = [c for c in root.descendants(control_type=app.profile.tab_container.control_type)
-                      if _matches(c, app.profile.tab_container, app.identity.pid)]
+        containers = [
+            c
+            for c in root.descendants(control_type=app.profile.tab_container.control_type)
+            if _matches(c, app.profile.tab_container, app.identity.pid)
+        ]
         if len(containers) != 1:
             raise UIABlocked("EDITOR_TAB_CONTAINER_AMBIGUOUS")
         tabs = containers[0].descendants(control_type="TabItem")
         if any(t.element_info.process_id != app.identity.pid for t in tabs):
             raise UIABlocked("EDITOR_TAB_FOREIGN_PROCESS")
         identities = {tuple(t.element_info.runtime_id): t for t in tabs}
-        if len(identities) != len(tabs) or len(tabs) > 64:
+        if (
+            len(identities) != len(tabs)
+            or len(tabs) > 64
+            or any(not identity for identity in identities)
+        ):
             raise UIABlocked("EDITOR_TAB_INVENTORY_AMBIGUOUS")
         return tuple(root.element_info.runtime_id), identities
 
@@ -251,9 +280,18 @@ class UIAWorker:
         root_id, before = self._editor_tabs(app)
         resolver = SelectorResolver(self)
         control = resolver.resolve(reference, app.profile.new_editor_control)
-        UIAActions(resolver).invoke(control, allow_keyboard=False)
+        self._check_operation()
+        UIAActions(resolver).invoke(
+            control, allow_keyboard=False, before_invoke=self._check_operation
+        )
         deadline = time.monotonic() + 5
         while True:
+            self._check_operation()
+            if (
+                app.process.poll() is not None
+                or self._backend.identity(app.identity.pid) != app.identity
+            ):
+                raise UIABlocked("APPLICATION_RESTARTED_REACQUIRE")
             current_root, after = self._editor_tabs(app)
             new = after.keys() - before.keys()
             if current_root != root_id or not before.keys() <= after.keys() or len(new) > 1:
@@ -264,6 +302,9 @@ class UIAWorker:
                 if selected != [tab_id]:
                     raise UIABlocked("NEW_EDITOR_SELECTION_UNPROVED")
                 app.editor_tab_identity, app.editor_window_identity = tab_id, root_id
+                # A new tab is still not proof of an empty editor. The next
+                # dispatcher-routed inspection must establish that before input.
+                self._check_operation()
                 return
             if time.monotonic() >= deadline:
                 raise UIABlocked("NEW_EDITOR_UNAVAILABLE")
@@ -316,6 +357,7 @@ class UIAWorker:
             if app.launcher_identity is not None:
                 app.process.close()
         self._applications.clear()
+        self._operation_guard = None
         self._started = False
         self._backend.uninitialize()
         # Deliberately leave launched applications open; COM shutdown is not permission
@@ -376,7 +418,9 @@ def load_profiles(path: Path) -> tuple[ApplicationProfile, ...]:
             editor_newlines=config.editor_newlines,
             focus_before_patterns=config.focus_before_patterns,
             new_editor_control=config.new_editor_control,
-            tab_container=ControlSelector(**config.tab_container.model_dump()) if config.tab_container else None,
+            tab_container=ControlSelector(**config.tab_container.model_dump())
+            if config.tab_container
+            else None,
         )
         for config in configs
     )
