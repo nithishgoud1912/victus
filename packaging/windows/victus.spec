@@ -13,10 +13,8 @@ datas = [(str(staging / 'dashboard'), 'dashboard'),
          (str(root / 'backend/victus/storage/sql'), 'victus/storage/sql'),
          # MCP's reviewed source pin remains independently inspectable when frozen.
          (str(root / 'backend/victus/adapters/mcp/reference_server.py'), 'victus/adapters/mcp')]
-for qualification in ('fixture-qualification.json', 'native-qualification.json'):
-    record = root / 'backend/victus/workflows' / qualification
-    if record.is_file():
-        datas.append((str(record), 'victus/workflows'))
+# Qualification is mutable, account-owned deployment evidence. Source records
+# never enter immutable bundle resources or qualify a different frozen artifact.
 for distribution in ('victus-assistant', 'langgraph', 'langgraph-checkpoint',
                      'langgraph-checkpoint-sqlite', 'openwakeword', 'numpy',
                      'onnxruntime', 'scipy', 'scikit-learn'):

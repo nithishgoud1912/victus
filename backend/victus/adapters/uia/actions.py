@@ -69,6 +69,7 @@ class UIAActions:
             except Exception:
                 raise UIABlocked("EMPTY_EDITOR_NOT_PROVED") from None
         try:
+            self.resolver.worker._check_operation()
             backend.set_value(control, text)
         except PatternUnavailable:
             _, _, control = self._keyboard_ready(reference, allow_keyboard=allow_keyboard)
@@ -96,6 +97,7 @@ class UIAActions:
                     raise
                 unit = int.from_bytes(encoded[offset : offset + 2], "little")
                 try:
+                    self.resolver.worker._check_operation()
                     backend.send_unicode(unit)
                 except Exception:
                     raise UIAUncertain("KEYBOARD_WRITE_UNCERTAIN") from None
@@ -118,6 +120,7 @@ class UIAActions:
         if app.profile.focus_before_patterns and control.element_info.control_type == "Button":
             self._focus(control)
             _, _, control = self.resolver._reacquire(reference)
+        self.resolver.worker._check_operation()
         if before_invoke is not None:
             before_invoke()  # After focus/target work, immediately before native Invoke.
         try:
@@ -129,6 +132,9 @@ class UIAActions:
             self._focus(control)
             self._check_foreground(reference)
             try:
+                self.resolver.worker._check_operation()
+                if before_invoke is not None:
+                    before_invoke()
                 backend.send_enter()
             except Exception:
                 raise UIAUncertain("KEYBOARD_INVOKE_UNCERTAIN") from None

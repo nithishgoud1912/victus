@@ -1,5 +1,17 @@
 # Supported workflows - VICTUS 0.1.0 candidate
 
+## Latest PR continuation — untested by instruction
+
+The V4 continuation adds native Stop/tab review binding, report-backed schema-2
+qualification/promotion, external frozen-bundle evidence, native session tooling,
+browser report/process observation, readiness inventory and predeclared voice
+report aggregation. **Tests and live qualification were intentionally skipped.**
+No capability was promoted or enabled. The earlier results below apply to their
+named inventories. See [the located test/incomplete handoff](V4-TESTS-AND-INCOMPLETE.md)
+for every pending gate and commands. Current native Save behavior on Windows,
+real browser/model/audio operation and the new package remain unqualified.
+
+
 ## V4 current implementation increment — 19 October 2026
 
 The v4 plan's first batch is implemented in the existing checkout: repeatable

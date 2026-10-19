@@ -53,6 +53,8 @@ class NativeSaveReview:
                 "profile": owned.profile.name,
                 "process": asdict(owned.identity),
                 "controls": identities,
+                "editor_tab": list(owned.editor_tab_identity) if owned.editor_tab_identity else None,
+                "editor_window": list(owned.editor_window_identity) if owned.editor_window_identity else None,
                 "destination": str(destination.resolve()),
                 "parent": [parent.st_dev, parent.st_ino],
                 "payload": hashlib.sha256(tools.expected).hexdigest(),
@@ -65,7 +67,7 @@ class NativeSaveReview:
             tool_name=tool.name,
             tool_version=tool.version,
             canonical_args_hash=argument_hash(args.model_dump()),
-            policy_version="native-save-v1",
+            policy_version="native-save-v2",
             target_identity="native:" + identity,
             observation_identity=identity,
         )

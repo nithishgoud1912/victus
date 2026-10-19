@@ -8,7 +8,7 @@ from victus.workflows import qualification_records as records
 
 
 def proof():
-    return {"schema_version": 1, "kind": "fixture", "qualified": True,
+    return {"schema_version": 2, "kind": "fixture", "qualified": True,
             "runtime_sha256": records.runtime_identity(), "verified_runs": 20,
             "report_sha256": "a" * 64,
             "checks": dict.fromkeys(records.BROWSER_CHECKS, True)}

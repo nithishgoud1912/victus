@@ -1,4 +1,23 @@
-# VICTUS - A Desktop and browser automation
+# VICTUS — Local desktop and browser assistant
+
+VICTUS uses bounded local commands, a durable queue, supervised workers,
+exact-action approvals and independent verification. The React dashboard includes
+notes, supported commands/clarification, checklist review, task history, Stop,
+reviewed voice and memory controls. Capability availability is server-owned.
+
+- [Setup and local authentication](dashboard/README.md)
+- [Current supported workflows](docs/supported-workflows.md)
+- [V4 implementation, unrun tests and incomplete work](docs/V4-TESTS-AND-INCOMPLETE.md)
+- [Revised V4 implementation plan](outputs/VICTUS-v4-Revised-Next-Stage-Implementation-Plan.md)
+- [Windows folder build and release procedure](docs/release/README.md)
+
+This is a 0.1.0 candidate. V4 names the implementation guide, not a released
+product version. Native/browser/model/voice gates remain explicit; module presence
+does not enable arbitrary computer control or public-web research. Cloud and wake
+are optional and default off. Tests were intentionally not run for the latest
+V4 continuation; see the handoff before enabling new capabilities.
+
+## Earlier implementation records
 
 Browser session ownership (roadmap section 6A) is implemented. See
 [the implementation and verification notes](docs/milestones/M2-6A-browser-sessions.md)
@@ -22,7 +41,7 @@ See [domain-service composition, restart recovery and graph tests](docs/mileston
 
 The React dashboard transport and session foundation (section 9A) is implemented.
 See [dashboard setup, local sessions, generated API types and checks](dashboard/README.md).
-Task and approval dashboard screens remain for later M5 sections.
+Current dashboard/command/voice behavior is described in the V3/V4 milestones.
 ## M8 optional features
 
 Wake-word qualification, the selected local MCP note adapter and explicit cloud

@@ -3,20 +3,21 @@
 import hashlib
 import importlib.metadata
 import json
-import os
 import secrets
 import time
 from dataclasses import replace
 from pathlib import Path
 
 from fastapi.testclient import TestClient
+from playwright.async_api import TimeoutError as PlaywrightTimeoutError
 from playwright.sync_api import sync_playwright
 
 from victus.api.app import create_app
+from victus.runtime.owned_processes import OwnedProcessMonitor
 from victus.runtime.resources import system_memory
 from victus.settings import Settings
 from victus.workflows.fixture_research import FIXTURE_HASH, FixtureSite, ResearchExecutor
-from victus.workflows.qualification_records import BROWSER_CHECKS, runtime_identity
+from victus.workflows.qualification_records import BROWSER_CHECKS, file_hash, runtime_identity
 
 
 def main(argv=None):
@@ -28,18 +29,31 @@ def main(argv=None):
     args = parser.parse_args(argv)
     root = Path(args.output).resolve()
     root.mkdir(parents=True, exist_ok=False)
-    source_before = runtime_identity()
-    with sync_playwright() as pw:
-        executable = Path(pw.chromium.executable_path)
+    source_before = None
+    executable = None
+    browser_digest = None
+    playwright_version = None
+    site = None
+    monitor = None
+    cleanup_errors = []
     token = secrets.token_urlsafe(48)
     headers = {"Authorization": "Bearer " + token}
-    site = FixtureSite()
     checks = {}
     runs = []
     memory = []
     failure = None
     phase = "startup"
     try:
+        source_before = runtime_identity()
+        playwright_version = importlib.metadata.version("playwright")
+        with sync_playwright() as pw:
+            executable = Path(pw.chromium.executable_path)
+        browser_digest = file_hash(executable)
+        import playwright
+
+        driver = Path(playwright.__file__).parent / "driver/node.exe"
+        monitor = OwnedProcessMonitor([executable, driver]).start()
+        site = FixtureSite()
         with TestClient(
             create_app(Settings(data_dir=root, api_token=token)), base_url="http://127.0.0.1"
         ) as client:
@@ -70,28 +84,6 @@ def main(argv=None):
                     time.sleep(0.05)
                 raise TimeoutError("Fixture qualification deadline")
 
-            def process_inventory():
-                if os.name != "nt":
-                    raise RuntimeError("Process cleanup probe requires Windows")
-                from victus.adapters.uia.native import WindowsBackend
-
-                backend = WindowsBackend()
-                backend.initialize()
-                try:
-                    import playwright
-
-                    driver = Path(playwright.__file__).parent / "driver/node.exe"
-                    binaries = [executable, driver]
-                    return {
-                        (x["owned_pid"], x["process_created"])
-                        for binary in binaries
-                        for x in backend.launch_observations(binary)
-                        if "process_created" in x
-                    }
-                finally:
-                    backend.uninitialize()
-
-            initial_processes = process_inventory()
             cleanup_verified = True
             exact_verified = True
             replay_verified = True
@@ -159,15 +151,17 @@ def main(argv=None):
                         == result["task_id"]
                     )
                 deadline = time.monotonic() + 3
-                while process_inventory() - initial_processes and time.monotonic() < deadline:
+                while not monitor.quiescent() and time.monotonic() < deadline:
                     time.sleep(0.05)
-                cleanup = not (process_inventory() - initial_processes)
+                cleanup = monitor.quiescent() and monitor.observed_count > 0
                 cleanup_verified = cleanup_verified and cleanup
                 exact_verified = exact_verified and exact
                 replay_verified = replay_verified and replay
                 runs.append(
                     {
                         "destination": filename,
+                        "task_id": result["task_id"],
+                        "action_id": result["action_id"],
                         "verified": bool(verified and exact),
                         "sha256": hashlib.sha256(artifact.read_bytes()).hexdigest(),
                         "replay": replay,
@@ -184,7 +178,7 @@ def main(argv=None):
                 exact_sources=exact_verified,
                 replay=replay_verified,
                 owned_cleanup=cleanup_verified,
-                structured_route=bool(runs),
+                structured_route=any(r["route"] == "structured" for r in runs),
                 text_route=any(r["route"] == "text" for r in runs),
             )
             response = submit("aliases.json", ["source-a", "redirect-a"], 2, "aliases")
@@ -219,12 +213,17 @@ def main(argv=None):
                 try:
                     await session.start()
                     return False
-                except Exception:
+                except PlaywrightTimeoutError:
                     return True
                 finally:
                     await session.close()
 
-            checks["timeout"] = asyncio.run(timeout_probe())
+            phase = "timeout"
+            timed_out = asyncio.run(timeout_probe())
+            deadline = time.monotonic() + 3
+            while not monitor.quiescent() and time.monotonic() < deadline:
+                time.sleep(0.05)
+            checks["timeout"] = timed_out and monitor.quiescent()
             phase = "interrupted_worker"
             interrupted = submit("interrupted.json", ["source-a", "source-b"], 2, "interrupted")
             if interrupted.status_code != 202:
@@ -246,17 +245,49 @@ def main(argv=None):
                 stopped.status_code == 202
                 and not (root / "workspace/stopped.json").exists()
                 and tasks.queue.supervisor.active_pid is None
-                and not (process_inventory() - initial_processes)
+                and monitor.quiescent()
             )
-    except Exception as error:
-        failure = failure or type(error).__name__
+    except (Exception, KeyboardInterrupt) as error:
+        failure = failure or ("INTERRUPTED" if isinstance(error, KeyboardInterrupt) else type(error).__name__)
     finally:
-        site.close()
+        if site is not None:
+            try:
+                site.close()
+            except Exception:
+                cleanup_errors.append("FIXTURE_SITE_CLEANUP_FAILED")
+        if monitor is not None:
+            try:
+                monitor.close()
+                if monitor.error:
+                    cleanup_errors.append(monitor.error)
+            except Exception:
+                cleanup_errors.append("PROCESS_MONITOR_CLEANUP_FAILED")
+    try:
+        source_after = runtime_identity()
+    except Exception:
+        source_after = None
+        failure = failure or "RUNTIME_IDENTITY_UNAVAILABLE"
+    try:
+        browser_after = file_hash(executable) if executable is not None else None
+        if browser_after != browser_digest:
+            failure = failure or "BROWSER_CHANGED"
+    except (OSError, ValueError, TypeError):
+        failure = failure or "BROWSER_UNAVAILABLE"
+    if cleanup_errors:
+        failure = failure or cleanup_errors[0]
+    try:
+        memory_after = system_memory()
+    except Exception:
+        memory_after = None
+        failure = failure or "MEMORY_TELEMETRY_UNAVAILABLE"
     report = {
-        "schema_version": 1,
+        "schema_version": 2,
         "kind": "fixture",
         "runtime_sha256": source_before,
-        "runtime_end_sha256": runtime_identity(),
+        "runtime_end_sha256": source_after,
+        "transport": "in_process_authenticated_http_with_real_browser_workers",
+        "production_bootstrap_qualified": False,
+        "cleanup_errors": cleanup_errors,
         "requested_runs": args.repetitions,
         "verified_runs": sum(run["verified"] for run in runs),
         "runs": runs,
@@ -266,16 +297,18 @@ def main(argv=None):
         "normal_memory_guards": True,
         "checks": checks,
         "passed": bool(checks)
-        and all(checks.values())
+        and all(checks.get(key) is True for key in
+                (BROWSER_CHECKS - {"text_route"} if args.repetitions == 1 else BROWSER_CHECKS))
         and failure is None
-        and source_before == runtime_identity(),
+        and source_before is not None
+        and source_before == source_after,
         "failure": failure,
         "boundary": phase if failure else None,
-        "host_memory": system_memory(),
-        "playwright_version": importlib.metadata.version("playwright"),
+        "host_memory": memory_after,
+        "playwright_version": playwright_version,
         "fixture_sha256": FIXTURE_HASH,
-        "browser_sha256": hashlib.sha256(executable.read_bytes()).hexdigest(),
-        "browser_relative_path": "/".join(executable.parts[-3:]),
+        "browser_sha256": browser_digest,
+        "browser_relative_path": "/".join(executable.parts[-3:]) if executable else None,
     }
     report["qualified"] = (
         report["passed"]
@@ -283,7 +316,8 @@ def main(argv=None):
         and all(checks.get(key) is True for key in BROWSER_CHECKS)
     )
     root.mkdir(parents=True, exist_ok=True)
-    (root / "report.json").write_text(json.dumps(report, indent=2) + "\n")
+    with (root / "report.json").open("x", encoding="utf-8") as stream:
+        stream.write(json.dumps(report, indent=2) + "\n")
     print(json.dumps({k: v for k, v in report.items() if k not in {"runs", "memory_samples"}}))
     return 0 if report["passed"] else 2
 

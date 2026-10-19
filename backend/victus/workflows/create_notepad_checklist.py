@@ -12,7 +12,7 @@ from uuid import uuid4
 from pydantic import Field
 
 from victus.adapters.uia.actions import PatternUnavailable, UIAActions, editor_text
-from victus.adapters.uia.applications import ApplicationReference, UIABlocked
+from victus.adapters.uia.applications import ApplicationReference, UIABlocked, UIAWorker
 from victus.adapters.uia.selectors import ControlReference, SelectorResolver
 from victus.tools.registry import RiskLevel
 from victus.workflows.common import (
@@ -107,6 +107,8 @@ class NotepadTools:
         self._cancelled = None
         self.diagnostics = diagnostics
         self.review_guard = None
+        if isinstance(worker, UIAWorker):
+            worker.set_operation_guard(self._check_stop)
 
     def _phase(self, name):
         return self.diagnostics.phase(name) if self.diagnostics is not None else nullcontext()
@@ -280,6 +282,7 @@ class NotepadTools:
 
     async def verify_invoke(self, data, args):
         for _ in range(80):
+            self._check_stop()
             try:
                 self.resolver.resolve(ApplicationReference(args.app_ref), args.expect_key)
                 return True
@@ -324,6 +327,7 @@ class NotepadTools:
         last_code = "SAVE_POSTCONDITION_PENDING"
         try:
             for _ in range(80):
+                self._check_stop()
                 try:
                     # A matching file alone cannot prove Save completed: an overwrite
                     # prompt or another modal dialog may still be awaiting input.

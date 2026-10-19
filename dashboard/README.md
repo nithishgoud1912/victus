@@ -1,6 +1,16 @@
-# VICTUS dashboard — 9A
+# VICTUS dashboard
 
-This React/TypeScript dashboard provides connection, session and health controls. Task management and approval screens belong to later M5 sections.
+This React/TypeScript dashboard provides sessions, notes, supported commands and
+clarification, checklist submission/review, task history/results, Stop, reviewed
+voice, memory and optional integration controls. The server reports which
+capabilities are enabled; a visible form does not enable an unqualified adapter.
+See [the current capability matrix](../docs/supported-workflows.md) and
+[V4 unrun tests and incomplete work](../docs/V4-TESTS-AND-INCOMPLETE.md).
+
+Confirmed voice transcripts use the same command service as typed requests.
+Native Save always requires its separate exact-action review. Refresh/reconnect
+reads saved state and never submits work. The historical 9A evidence below applies
+to its original revision, not every later feature.
 
 ## Development
 

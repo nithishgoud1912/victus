@@ -1,6 +1,7 @@
 # Windows release procedure - 0.1.0 candidate
 
-Current source milestone: [V3.6 qualification](../milestones/V3.6-reviewed-voice-release.md).
+Current source milestone: [V4 continuation](../milestones/V4-progress.md).
+[Test and incomplete-work handoff](../V4-TESTS-AND-INCOMPLETE.md).
 The original `dist/windows/Victus` and its M9 evidence are historical. Rebuilds
 must select fresh output/work directories; the build now refuses an existing
 output. Keep the complete previous folder for the real old-binary rollback.
@@ -104,3 +105,26 @@ paths, account names, tokens, prompts, transcripts, credentials or browser sessi
 data appear. Keep build/debug logs local. Checksums identify files; an unsigned
 manifest does not authenticate the publisher. Signing, installer UX, autostart
 opt-in UI and public distribution are not part of this folder-build milestone.
+
+## V4 qualification records for a frozen candidate
+
+The latest implementation is untested by request; no new frozen build or release
+qualification was performed. Source schema-1 records do not enable this candidate.
+Schema-2 promotion validates current reports, artifact hashes and verified ledger
+receipts. Frozen runtime identity binds the exact release manifest and verifies
+its listed files. Unsigned checksums are integrity metadata, not publisher
+attestation or a security boundary against another process of the same account.
+
+The package no longer copies source qualification JSON into immutable resources.
+Run the actual candidate's `Victus.exe qualify-fixture` / `promote-fixture`, or
+its native preparation/repetition/assembly/promotion workflow. Frozen records
+are published exclusively under
+`%LOCALAPPDATA%/VICTUS/qualifications/<runtime identity>/`. An explicit absolute
+`VICTUS_QUALIFICATION_DIR` chooses a different operator-owned root with the same
+runtime subdivision. Source mode retains its previous adjacent-module location
+unless this override is configured. Never edit a source digest to enable a bundle.
+
+Qualification is per candidate and account. Restart after promotion and separately
+prove normal production HTTP/SSE/dashboard behavior. Changing the bundle/profile/
+browser invalidates relevant evidence. Keep raw case reports and audio private;
+export only sanitized summaries. Missing records leave capabilities unavailable.

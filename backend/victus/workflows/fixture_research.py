@@ -6,7 +6,6 @@ import json
 import os
 import threading
 from dataclasses import dataclass, field
-from functools import lru_cache
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
@@ -23,6 +22,8 @@ from victus.workflows.common import context_for
 from victus.workflows.contracts import BROWSER_RESEARCH_TOOL, BrowserResearchSubmission
 from victus.workflows.qualification_records import (
     BROWSER_CHECKS,
+    file_hash,
+    qualification_path,
     qualified_record,
     runtime_identity,
 )
@@ -73,14 +74,10 @@ class FixtureSite:
             raise RuntimeError("Fixture owner did not stop")
 
 
-@lru_cache(maxsize=8)
-def binary_hash(path, size, mtime):
-    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
-
 
 def qualified_browser():
     try:
-        record = qualified_record(Path(__file__).with_name("fixture-qualification.json"),
+        record = qualified_record(qualification_path("fixture"),
                                   "fixture", BROWSER_CHECKS)
         if record is None:
             return None
@@ -91,17 +88,17 @@ def qualified_browser():
         ):
             return None
         relative = Path(record["browser_relative_path"])
-        if relative.is_absolute() or ".." in relative.parts:
+        if (relative.is_absolute() or ".." in relative.parts
+                or len(relative.parts) != 3 or relative.suffix.lower() != ".exe"):
             return None
         cache = Path(
             os.getenv("PLAYWRIGHT_BROWSERS_PATH")
             or Path(os.environ["LOCALAPPDATA"]) / "ms-playwright"
         )
         path = cache / relative
-        stat = path.stat()
         if (
             path.is_symlink()
-            or binary_hash(str(path), stat.st_size, stat.st_mtime_ns) != record["browser_sha256"]
+            or file_hash(path) != record["browser_sha256"]
         ):
             return None
         return path.resolve()
