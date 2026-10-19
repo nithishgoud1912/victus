@@ -1,5 +1,7 @@
 # VICTUS v3 — Build and verification checklist
 
+> **Consolidated V3 handoff (19 October 2026):** The source implementation is substantially present, but native/browser/model/voice/release qualification remains incomplete. Testing is deliberately deferred for this handoff. See [the exact incomplete work and deferred test register](VICTUS-v3-Incomplete-Work-and-Tests.md). Historical checkboxes and planned commands below are not newly verified completion claims.
+
 Prepared: 18 October 2026. Companion: [Next-stage implementation plan](VICTUS-v3-Next-Stage-Implementation-Plan.md).
 All boxes are future work; this checklist does not assert implementation completion.
 
