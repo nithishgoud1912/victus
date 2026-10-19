@@ -1,5 +1,7 @@
 # VICTUS v3 — Next-stage implementation plan
 
+> **Consolidated V3 handoff (19 October 2026):** The source implementation is substantially present, but native/browser/model/voice/release qualification remains incomplete. Testing is deliberately deferred for this handoff. See [the exact incomplete work and deferred test register](VICTUS-v3-Incomplete-Work-and-Tests.md). Historical checkboxes and planned commands below are not newly verified completion claims.
+
 Prepared: 18 October 2026, Asia/Calcutta.
 Project: `C:\Users\HP\Desktop\Automations\victus`.
 This is an implementation guide. No production implementation or live qualification was performed while preparing it.
