@@ -149,6 +149,82 @@ def qualified_native():
         return None
 
 
+
+def _fixture_artifacts_match(report_path, runs, playwright_version):
+    """Check the actual new reports, rather than trusting success flags alone."""
+    from urllib.parse import urlsplit
+
+    workspace = report_path.parent / "workspace"
+    if workspace.is_symlink() or not workspace.is_dir():
+        return False
+    for run in runs:
+        name = run.get("destination")
+        if not isinstance(name, str) or not re.fullmatch(
+            r"[A-Za-z0-9][A-Za-z0-9_-]{0,63}\\.json", name
+        ):
+            return False
+        path = workspace / name
+        try:
+            if path.is_symlink() or not path.is_file() or path.stat().st_size > 128_000:
+                return False
+            raw = path.read_bytes()
+            if run.get("sha256") != hashlib.sha256(raw).hexdigest():
+                return False
+            artifact = json.loads(raw.decode("utf-8"))
+            sources = artifact.get("sources")
+            if (
+                artifact.get("kind") != "browser_research"
+                or artifact.get("status") != "succeeded"
+                or artifact.get("required_sources") != 2
+                or artifact.get("observed_count") != 2
+                or artifact.get("summary_is_content_generation") is not True
+                or not isinstance(sources, list)
+                or len(sources) != 2
+                or artifact.get("environment", {}).get("playwright_version")
+                != playwright_version
+                or artifact["environment"].get("explicit_browser_binary") is not True
+            ):
+                return False
+            paths = set()
+            origins = set()
+            observations = set()
+            for source in sources:
+                if not isinstance(source, dict):
+                    return False
+                url = urlsplit(source.get("url", ""))
+                content = source.get("text")
+                observation = source.get("observation_id")
+                if (
+                    url.scheme != "http"
+                    or url.hostname != "127.0.0.1"
+                    or url.port is None
+                    or url.username is not None
+                    or url.password is not None
+                    or url.query
+                    or url.fragment
+                    or not isinstance(content, str)
+                    or not content.strip()
+                    or len(content) > 4000
+                    or not isinstance(observation, str)
+                    or not observation
+                    or source.get("text_sha256")
+                    != hashlib.sha256(content.encode("utf-8")).hexdigest()
+                ):
+                    return False
+                paths.add(url.path)
+                origins.add((url.hostname, url.port))
+                observations.add(observation)
+            if (
+                paths != {"/source-a.html", "/source-b.html"}
+                or len(origins) != 1
+                or len(observations) != 2
+            ):
+                return False
+        except (OSError, UnicodeError, ValueError, TypeError, AttributeError):
+            return False
+    return True
+
+
 def promote_fixture(report_path):
     """Explicit local maintenance only. A public endpoint cannot promote evidence."""
     import importlib.metadata
@@ -168,14 +244,20 @@ def promote_fixture(report_path):
         or record.get("fixture_sha256") != FIXTURE_HASH
         or record.get("playwright_version") != importlib.metadata.version("playwright")
         or not isinstance(runs, list)
-        or len(runs) < 20
-        or len({r["destination"] for r in runs}) != len(runs)
+        or len(runs) != 20
+        or record.get("requested_runs") != 20
+        or any(not isinstance(r, dict) for r in runs)
+        or len({r.get("destination") for r in runs}) != len(runs)
         or not all(
             r.get("verified") is True and r.get("owned_cleanup") is True and r.get("replay") is True
-            for r in runs
+            and r.get("route") == ("structured" if i % 2 == 0 else "text")
+            for i, r in enumerate(runs)
         )
         or record.get("verified_runs") != len(runs)
         or not all(record.get("checks", {}).get(k) is True for k in BROWSER_CHECKS)
+        or not _fixture_artifacts_match(
+            report_path, runs, importlib.metadata.version("playwright")
+        )
     ):
         raise ValueError("Complete unchanged-runtime fixture evidence required")
     allowed = {
