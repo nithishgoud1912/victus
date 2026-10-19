@@ -160,7 +160,7 @@ def _fixture_artifacts_match(report_path, runs, playwright_version):
     for run in runs:
         name = run.get("destination")
         if not isinstance(name, str) or not re.fullmatch(
-            r"[A-Za-z0-9][A-Za-z0-9_-]{0,63}\\.json", name
+            r"[A-Za-z0-9][A-Za-z0-9_-]{0,63}\.json", name
         ):
             return False
         path = workspace / name
