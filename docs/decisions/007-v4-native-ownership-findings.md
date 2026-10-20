@@ -71,3 +71,30 @@ an old tab. No shared-process connection is introduced; the owned-child proof
 still precedes the new-tab operation. Tests must cover a changed selection,
 replacement/removal, duplicate creation and preserved old tabs. This design is
 recorded before its production edits and remains unqualified until live tests.
+
+## Local-change review, 20 October 2026
+
+The uncommitted shared-process `editor_lease` prototype and candidate profile
+switch were removed after comparison with the current owned-child design. Its
+launch/enumeration/cleanup route had no direct regression tests, and its local
+checkpoint described an unresolved Save effect. The previous focused tests did
+not exercise that new launch route. Retaining it would broaden authority beyond
+the existing owned-child boundary without adequate evidence. Related visibility
+and selector filtering changes were also removed; ambiguous windows still block.
+Private checkpoint claims were not added to the current milestone record.
+
+Two independent fixes are retained within the existing owned-child route: accept
+strict boolean or integer 0/1 selection results from the Windows COM boundary,
+and allow selection to settle within the existing five-second deadline after a
+single Add invocation. Every poll still checks Stop, process identity, the same
+window, preserved old tabs and exactly one new tab. No existing tab is selected
+by the worker, and text input still requires an independently proved empty editor.
+Tests cover integer selection and changed selection, malformed selection values,
+delayed selection without repeated invocation, timeout and Stop/handle cleanup.
+These deterministic checks do not qualify native Windows Save or enable native
+registration.
+
+Review validation: all 168 tests across the UIA profiles, Notepad workflow,
+native HTTP review, workflow API, V4 portable qualification and V4 process
+observation suites passed. Ruff and Git whitespace checks passed. No native UI
+or Save action was performed during this review.

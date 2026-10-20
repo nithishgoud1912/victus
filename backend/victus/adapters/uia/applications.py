@@ -272,6 +272,12 @@ class UIAWorker:
             raise UIABlocked("EDITOR_TAB_INVENTORY_AMBIGUOUS")
         return tuple(root.element_info.runtime_id), identities
 
+    @staticmethod
+    def _tab_selected(tab):
+        # The Windows COM binding may expose UIA BOOL as an integer.
+        value = tab.is_selected()
+        return type(value) in {bool, int} and value == 1
+
     def _create_empty_editor(self, reference):
         from victus.adapters.uia.actions import UIAActions
         from victus.adapters.uia.selectors import SelectorResolver
@@ -298,9 +304,12 @@ class UIAWorker:
                 raise UIABlocked("NEW_EDITOR_IDENTITY_UNPROVED")
             if len(new) == 1:
                 tab_id = next(iter(new))
-                selected = [key for key, tab in after.items() if tab.is_selected() is True]
+                selected = [key for key, tab in after.items() if self._tab_selected(tab)]
                 if selected != [tab_id]:
-                    raise UIABlocked("NEW_EDITOR_SELECTION_UNPROVED")
+                    if time.monotonic() >= deadline:
+                        raise UIABlocked("NEW_EDITOR_SELECTION_UNPROVED")
+                    time.sleep(0.05)
+                    continue
                 app.editor_tab_identity, app.editor_window_identity = tab_id, root_id
                 # A new tab is still not proof of an empty editor. The next
                 # dispatcher-routed inspection must establish that before input.
@@ -331,7 +340,7 @@ class UIAWorker:
                 raise UIABlocked("APPLICATION_RESTARTED_REACQUIRE")
             if app.editor_tab_identity is not None:
                 root_id, tabs = self._editor_tabs(app)
-                selected = [key for key, tab in tabs.items() if tab.is_selected() is True]
+                selected = [key for key, tab in tabs.items() if self._tab_selected(tab)]
                 if root_id != app.editor_window_identity or selected != [app.editor_tab_identity]:
                     raise UIABlocked("EDITOR_LEASE_CHANGED")
         except UIABlocked as error:

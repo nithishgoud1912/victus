@@ -508,6 +508,78 @@ def test_new_editor_cannot_replace_or_remove_an_existing_tab(actor):
     lease.close.assert_called_once()
 
 
+def test_integer_tab_selection_is_revalidated_before_reuse(actor):
+    worker, backend, _, old, new, _ = tab_actor(actor)
+    old.is_selected.return_value = 0
+    new.is_selected.return_value = 1
+    with worker:
+        reference = worker.launch("qualified")
+        assert worker._resolve_app(reference).editor_tab_identity == (22, 4)
+        old.is_selected.return_value, new.is_selected.return_value = 1, 0
+        with pytest.raises(UIABlocked, match="EDITOR_LEASE_CHANGED"):
+            worker._resolve_app(reference)
+    backend.set_value.assert_not_called()
+    backend.terminate_owned.assert_not_called()
+
+
+@pytest.mark.parametrize("invalid", ["1", 1.0, 2, None])
+def test_non_boolean_tab_selection_cannot_grant_authority(actor, monkeypatch, invalid):
+    worker, backend, lease, _, new, _ = tab_actor(actor)
+    new.is_selected.return_value = invalid
+    monkeypatch.setattr("victus.adapters.uia.applications.time.monotonic", lambda: 0)
+
+    def timeout(_):
+        monkeypatch.setattr("victus.adapters.uia.applications.time.monotonic", lambda: 10)
+
+    monkeypatch.setattr("victus.adapters.uia.applications.time.sleep", timeout)
+    with worker, pytest.raises(UIABlocked, match="NEW_EDITOR_SELECTION_UNPROVED"):
+        worker.launch("qualified")
+    lease.close.assert_called_once()
+    backend.set_value.assert_not_called()
+    backend.terminate_owned.assert_not_called()
+
+
+def test_new_tab_selection_can_settle_without_a_second_invoke(actor, monkeypatch):
+    worker, backend, _, old, new, _ = tab_actor(actor)
+    old.is_selected.return_value = True
+    new.is_selected.return_value = False
+
+    def settle(_):
+        old.is_selected.return_value, new.is_selected.return_value = False, True
+
+    monkeypatch.setattr("victus.adapters.uia.applications.time.sleep", settle)
+    with worker:
+        reference = worker.launch("qualified")
+        assert worker._resolve_app(reference).editor_tab_identity == (22, 4)
+    backend.invoke.assert_called_once()
+    backend.set_value.assert_not_called()
+
+
+def test_stop_while_waiting_for_tab_selection_releases_handle(actor, monkeypatch):
+    worker, backend, lease, old, new, _ = tab_actor(actor)
+    old.is_selected.return_value = True
+    new.is_selected.return_value = False
+    stopped = False
+
+    def stop(_):
+        nonlocal stopped
+        stopped = True
+
+    def guard():
+        if stopped:
+            raise PermissionError("Stopped during tab selection")
+
+    monkeypatch.setattr("victus.adapters.uia.applications.time.sleep", stop)
+    with worker:
+        worker.set_operation_guard(guard)
+        with pytest.raises(PermissionError, match="Stopped during tab selection"):
+            worker.launch("qualified")
+    backend.invoke.assert_called_once()
+    backend.set_value.assert_not_called()
+    backend.terminate_owned.assert_not_called()
+    lease.close.assert_called_once()
+
+
 def test_stop_guard_prevents_owned_launch_before_native_effect(actor):
     worker, backend, _, _ = child_worker(actor)
 
