@@ -53,7 +53,9 @@ def network_client(settings):
         while not server.started and thread.is_alive() and time.monotonic() < deadline:
             time.sleep(0.01)
         assert server.started
-        with httpx.Client(base_url=f"http://127.0.0.1:{port}", timeout=3) as connection:
+        with httpx.Client(
+            base_url=f"http://127.0.0.1:{port}", timeout=3, trust_env=False
+        ) as connection:
             yield connection, app
     finally:
         server.should_exit = True

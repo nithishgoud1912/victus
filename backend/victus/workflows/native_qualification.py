@@ -109,80 +109,96 @@ def assemble_session(session_file, output):
     checks = {}
     references = {}
     missing = []
-    for path in sorted((root / "runs").glob("*/notepad-qualification.json")):
-        report, report_hash = read_record(path)
-        if (
-            report.get("schema_version") != 2
-            or report.get("kind") != "notepad"
-            or report.get("status") != "succeeded"
-            or report.get("native_windows") is not True
-            or report.get("normal_memory_guards") is not True
-            or report.get("runtime_sha256") != session["runtime_sha256"]
-            or report.get("runtime_end_sha256") != session["runtime_sha256"]
-            or any(
-                report.get(key) != session[key]
-                for key in ("profile", "profiles_sha256", "executable_sha256")
-            )
-        ):
-            missing.append("invalid_run_report:" + path.parent.name)
-            continue
-        for item in report["runs"]:
-            runs.append(
+    for index, path in enumerate(sorted((root / "runs").glob("*/notepad-qualification.json"))):
+        try:
+            report, report_hash = read_record(path)
+            items = report.get("runs")
+            if (
+                type(report.get("schema_version")) is not int
+                or report["schema_version"] != 2
+                or report.get("kind") != "notepad"
+                or report.get("status") != "succeeded"
+                or report.get("native_windows") is not True
+                or report.get("normal_memory_guards") is not True
+                or report.get("runtime_sha256") != session["runtime_sha256"]
+                or report.get("runtime_end_sha256") != session["runtime_sha256"]
+                or any(
+                    report.get(key) != session[key]
+                    for key in ("profile", "profiles_sha256", "executable_sha256")
+                )
+                or not isinstance(items, list)
+                or not 1 <= len(items) <= 1000
+                or any(not isinstance(item, dict) for item in items)
+            ):
+                raise ValueError("Invalid native run report")
+            runs.extend(
                 {
                     **item,
                     "run_root": path.parent.relative_to(root).as_posix(),
                     "run_report_sha256": report_hash,
                 }
+                for item in items
             )
+        except (OSError, ValueError, KeyError, TypeError):
+            # Keep usable evidence and report a bounded identifier, never exception text.
+            missing.append(f"invalid_run_report:{index + 1}")
     for name in sorted(NATIVE_CHECKS):
         path = root / "cases" / (name + ".json")
-        case, digest = read_record(path)
-        evidence = case.get("evidence")
-        valid = (
-            type(case.get("schema_version")) is int
-            and case["schema_version"] == 2
-            and case.get("check") == name
-            and case.get("passed") is True
-            and case.get("real_windows") is True
-            and case.get("normal_memory_guards") is True
-            and case.get("runtime_sha256") == runtime_identity()
-            and case.get("runtime_end_sha256") == runtime_identity()
-            and all(
-                case.get(key) == session[key]
-                for key in ("profile", "profiles_sha256", "executable_sha256")
+        valid = False
+        try:
+            case, digest = read_record(path)
+            references[name] = {"file": path.relative_to(root).as_posix(), "sha256": digest}
+            evidence = case.get("evidence")
+            valid = (
+                type(case.get("schema_version")) is int
+                and case["schema_version"] == 2
+                and case.get("check") == name
+                and case.get("passed") is True
+                and case.get("real_windows") is True
+                and case.get("normal_memory_guards") is True
+                and case.get("runtime_sha256") == runtime_identity()
+                and case.get("runtime_end_sha256") == runtime_identity()
+                and all(
+                    case.get(key) == session[key]
+                    for key in ("profile", "profiles_sha256", "executable_sha256")
+                )
+                and isinstance(evidence, list)
+                and bool(evidence)
             )
-            and isinstance(evidence, list)
-            and bool(evidence)
-        )
-        if valid:
-            for reference in evidence:
-                relative = Path(reference["file"])
-                if relative.is_absolute() or relative.drive or ".." in relative.parts:
-                    raise ValueError("Case evidence must stay beneath session")
-                if file_hash(root / relative) != reference.get("sha256"):
-                    raise ValueError("Case evidence changed")
+            if valid:
+                for reference in evidence:
+                    relative = Path(reference["file"])
+                    if relative.is_absolute() or relative.drive or ".." in relative.parts:
+                        raise ValueError("Case evidence must stay beneath session")
+                    if file_hash(root / relative) != reference.get("sha256"):
+                        raise ValueError("Case evidence changed")
+        except (OSError, ValueError, KeyError, TypeError):
+            valid = False
         checks[name] = bool(valid)
-        references[name] = {"file": path.relative_to(root).as_posix(), "sha256": digest}
         if not valid:
             missing.append(name)
     dpi, dpi_refs = [], []
     for path in (root / "dpi-1.json", root / "dpi-2.json"):
-        observed, digest = read_record(path)
-        if (
-            observed.get("physical_observed") is True
-            and observed.get("real_windows") is True
-            and observed.get("passed") is True
-            and type(observed.get("dpi")) is int
-            and 72 <= observed["dpi"] <= 768
-            and observed.get("runtime_sha256") == runtime_identity()
-            and observed.get("runtime_end_sha256") == runtime_identity()
-            and all(
-                observed.get(key) == session[key]
-                for key in ("profile", "profiles_sha256", "executable_sha256")
-            )
-        ):
+        try:
+            observed, digest = read_record(path)
+            if not (
+                observed.get("physical_observed") is True
+                and observed.get("real_windows") is True
+                and observed.get("passed") is True
+                and type(observed.get("dpi")) is int
+                and 72 <= observed["dpi"] <= 768
+                and observed.get("runtime_sha256") == runtime_identity()
+                and observed.get("runtime_end_sha256") == runtime_identity()
+                and all(
+                    observed.get(key) == session[key]
+                    for key in ("profile", "profiles_sha256", "executable_sha256")
+                )
+            ):
+                raise ValueError("Physical DPI observation unavailable")
             dpi.append(observed["dpi"])
             dpi_refs.append({"file": path.name, "sha256": digest})
+        except (OSError, ValueError, KeyError, TypeError):
+            missing.append(path.stem)
     report = {
         "schema_version": 2,
         "kind": "native",

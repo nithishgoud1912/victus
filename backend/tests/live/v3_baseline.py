@@ -92,7 +92,9 @@ def main():
             creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0,
         )
         try:
-            with httpx.Client(base_url=f"http://127.0.0.1:{port}", timeout=15) as client:
+            with httpx.Client(
+                base_url=f"http://127.0.0.1:{port}", timeout=15, trust_env=False
+            ) as client:
                 deadline = time.monotonic() + 25
                 while True:
                     try:

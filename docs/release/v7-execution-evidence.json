@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "milestone": "V7-portable-implementation-increment",
+  "base_revision": "10226a45c3b791fa9a7439ce519db24aa9f89100",
+  "branch": "codex/v7-implementation",
+  "v6_status": "V6_NOT_RECONCILED",
+  "v7_complete": false,
+  "release_qualified": false,
+  "qualification_records_promoted": false,
+  "capabilities_newly_enabled": [],
+  "source": {
+    "files": 311,
+    "before_sha256": "ab6f94acffb5d7f9de93af9aa119e07113c07b8620c03448e8015fd43ecced22",
+    "after_sha256": "ab6f94acffb5d7f9de93af9aa119e07113c07b8620c03448e8015fd43ecced22",
+    "unchanged": true,
+    "runtime_sha256": "0d8ea06b8fa6505cbaf3507da9462809fd91cc490612ac057fa6945d297aa07b"
+  },
+  "validation": {
+    "backend": {
+      "passed": 931,
+      "total": 931,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "frontend": {
+      "passed": 23,
+      "total": 23,
+      "lint_passed": true,
+      "generated_api_and_build_passed": true
+    },
+    "real_http_sse": {
+      "passed": 23,
+      "total": 23
+    },
+    "real_dashboard_api_smoke_passed": true,
+    "browser_ui_contracts": {
+      "v7": 10,
+      "native_review_fixture": 11,
+      "command_fixture": 9,
+      "all_passed": true,
+      "hardware_qualification": false
+    },
+    "alternate_engine_adverse_fixtures": {
+      "passed": 10,
+      "total": 10,
+      "qualifies_locked_engine": false
+    },
+    "current_source_unchanged_during_final_validation": true,
+    "dependency_locks_unchanged": true,
+    "normal_resource_guards_retained": true
+  },
+  "implemented": [
+    "Checkpoint SQL and commit are one owned-thread transaction, preserving protected JSON, FULL durability, batch rollback and writer reaping on cancellation",
+    "Partial native assembly retains missing/malformed/changed case, run and DPI outcomes without granting promotion",
+    "Read-only workflow capabilities explicitly sample current RAM/workspace disk and return closed safe resource reason codes",
+    "Structured bundled-research form preserves exact uncertain request identity and payload",
+    "Dashboard shows actual capability/model availability and read-only unknown-effect guidance",
+    "Loopback smoke/SSE test clients explicitly ignore ambient proxies"
+  ],
+  "diagnosis": {
+    "checkpoint_journal_contention": "Reproduced with a barrier test and fixed by committing complete checkpoint transactions in one owned thread; cancellation reaps writers and failed batches roll back.",
+    "historical_v4_failures": "Still undiagnosed; this separate lock-cycle fix and later passes do not establish their cause."
+  },
+  "not_qualified": [
+    "V6 work outside the inspected repository has not been reconciled",
+    "Exact locked browser engine installation and strict campaign",
+    "Positive ordinary production browser admission and dashboard execution",
+    "Supported Windows process ownership/cleanup and recovery confirmation",
+    "Installed Notepad Save, repetition/adverse/review cases and two physical display scales",
+    "Local reasoning benchmark and real voice/audio evidence assigned to V8",
+    "Long-duration reliability, frozen package, fresh account and migration/rollback assigned to V9"
+  ],
+  "evidence_boundary": "Public summary contains aggregate results and public source identities only. Detailed execution reports, environment measurements, diagnostic paths, filesystem statistics and per-case artifacts remain private."
+}

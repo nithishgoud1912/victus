@@ -888,6 +888,10 @@ export type WorkflowCapabilities = {
      * Resource Blocked
      */
     resource_blocked: boolean;
+    /**
+     * Resource Reason
+     */
+    resource_reason?: 'LOCAL_RESOURCE_PRESSURE' | 'LOCAL_RESOURCE_TELEMETRY_UNAVAILABLE' | 'LOCAL_DISK_PRESSURE' | 'LOCAL_DISK_UNAVAILABLE' | null;
     browser_research: ResearchCapability;
     commands: CommandCapability;
 };

@@ -1,5 +1,7 @@
 """Narrow, authenticated workflow admission through the existing task service."""
 
+from typing import Literal
+
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
 from pydantic import BaseModel
 
@@ -23,6 +25,15 @@ class WorkflowCapabilities(BaseModel):
     notepad_checklist: ChecklistCapability
     stopped: bool
     resource_blocked: bool
+    resource_reason: (
+        Literal[
+            "LOCAL_RESOURCE_PRESSURE",
+            "LOCAL_RESOURCE_TELEMETRY_UNAVAILABLE",
+            "LOCAL_DISK_PRESSURE",
+            "LOCAL_DISK_UNAVAILABLE",
+        ]
+        | None
+    ) = None
     browser_research: "ResearchCapability"
     commands: "CommandCapability"
 
@@ -56,10 +67,24 @@ def create_workflows_router(authorized):
         profiles = sorted(tasks.qualified_notepad_profiles & tasks.reviewed_notepad_profiles)
         enabled = bool(profiles) and NOTEPAD_CHECKLIST_TOOL in tasks.registry.names()
         blocked = False
+        resource_reason = None
         try:
-            resources().check()
-        except ResourcePressure:
+            resources().check_current()
+            resources().check_disk(tasks.workspace)
+        except ResourcePressure as error:
             blocked = True
+            code = str(error)
+            resource_reason = (
+                code
+                if code
+                in {
+                    "LOCAL_RESOURCE_PRESSURE",
+                    "LOCAL_RESOURCE_TELEMETRY_UNAVAILABLE",
+                    "LOCAL_DISK_PRESSURE",
+                    "LOCAL_DISK_UNAVAILABLE",
+                }
+                else "LOCAL_RESOURCE_TELEMETRY_UNAVAILABLE"
+            )
         return WorkflowCapabilities(
             notepad_checklist=ChecklistCapability(
                 enabled=enabled,
@@ -70,6 +95,7 @@ def create_workflows_router(authorized):
             ),
             stopped=tasks.stopped.is_set(),
             resource_blocked=blocked,
+            resource_reason=resource_reason,
             browser_research={
                 "enabled": tasks.research is not None,
                 "scope": "fixture_only",

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import sqlite3
@@ -11,6 +12,7 @@ from pathlib import Path
 from uuid import uuid4
 
 import aiosqlite
+from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 from langgraph.types import Interrupt
 
@@ -264,12 +266,61 @@ class CheckpointStore:
         try:
             async with aiosqlite.connect(str(self.path)) as db:
                 await db.execute("PRAGMA synchronous=FULL")
-                yield PrivateSqliteSaver(db, serde=JSONSerializer())
+                yield PrivateSqliteSaver(db, path=self.path, serde=JSONSerializer())
         finally:
             lock.release()
 
 
+class _TransactionalSqliteSaver(SqliteSaver):
+    @contextmanager
+    def cursor(self, transaction=True):
+        with self.lock:
+            self.setup()
+            with closing(self.conn.cursor()) as cursor:
+                if transaction:
+                    with self.conn:
+                        yield cursor
+                else:
+                    yield cursor
+
+
 class PrivateSqliteSaver(AsyncSqliteSaver):
+    def __init__(self, conn, *, path, serde):
+        super().__init__(conn, serde=serde)
+        self.path = path
+
+    def _write_transaction(self, operation, args):
+        # SQL execution and commit share a thread. A synchronous journal writer
+        # can wait for this commit without blocking the event loop it depends on.
+        with closing(sqlite3.connect(self.path, timeout=5)) as db:
+            db.execute("PRAGMA synchronous=FULL")
+            saver = _TransactionalSqliteSaver(db, serde=self.serde)
+            return getattr(saver, operation)(*args)
+
+    async def _write(self, operation, *args):
+        await self.setup()
+        async with self.lock:
+            pending = asyncio.create_task(
+                asyncio.to_thread(self._write_transaction, operation, args)
+            )
+            try:
+                return await asyncio.shield(pending)
+            except asyncio.CancelledError:
+                # Cancellation cannot strand a live DB writer after owner release.
+                while not pending.done():
+                    try:
+                        await asyncio.shield(pending)
+                    except asyncio.CancelledError:
+                        continue
+                pending.result()
+                raise
+
     async def aput(self, config, checkpoint, metadata, new_versions):
         clean = {key: metadata[key] for key in ("source", "step", "parents") if key in metadata}
-        return await super().aput(config, checkpoint, clean, new_versions)
+        return await self._write("put", config, checkpoint, clean, new_versions)
+
+    async def aput_writes(self, config, writes, task_id, task_path=""):
+        return await self._write("put_writes", config, writes, task_id, task_path)
+
+    async def adelete_thread(self, thread_id):
+        return await self._write("delete_thread", thread_id)
