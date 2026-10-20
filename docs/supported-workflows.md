@@ -1,5 +1,15 @@
 # Supported workflows - VICTUS 0.1.0 candidate
 
+## Current V8 portable implementation increment
+
+V8 hardens exact model readiness, command clarification, voice correction
+provenance and STT asset-bound qualification. The separate 20-case intake
+contract executes no model/tool actions. Real local reasoning, recorded speech
+and witnessed Windows audio remain unqualified; existing capability gates apply.
+See [V8 handoff and Windows test register](V8-TESTS-AND-INCOMPLETE.md),
+[V8 progress](milestones/V8-progress.md) and
+[V8 evidence](release/v8-execution-evidence.json).
+
 ## Current V7 portable implementation increment
 
 V7 fixes demonstrated checkpoint/journal write contention while preserving FULL

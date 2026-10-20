@@ -12,6 +12,7 @@ from collections import Counter
 from pathlib import Path
 
 from victus.voice.audio import resample_pcm16
+from victus.voice.model_assets import model_identity
 from victus.voice.stt import TranscriptionWorker
 from victus.voice.transcript_review import review_transcript
 from victus.workflows.qualification_records import file_hash, runtime_identity
@@ -75,6 +76,9 @@ def evaluate(manifest, worker):
         raise ValueError("Supply exactly 50 quiet and 50 noisy labelled commands")
     if any(not counts[name] for name in ("silence", "background", "assistant_speech")):
         raise ValueError("Include silence, background and assistant_speech negative samples")
+    if worker is None or getattr(worker, "loaded", False):
+        raise ValueError("Use a fresh transcription worker bound to local STT assets")
+    asset_before = model_identity(worker.model_path)
     identifiers = set()
     audio_hashes = set()
     rows = []
@@ -127,12 +131,17 @@ def evaluate(manifest, worker):
         if file_hash(audio_path) != audio_digest:
             raise ValueError("Recording changed during evaluation")
         del pcm, transcript
-    if file_hash(manifest) != manifest_before or runtime_identity() != source_before:
+    if (
+        file_hash(manifest) != manifest_before
+        or runtime_identity() != source_before
+        or model_identity(worker.model_path) != asset_before
+    ):
         raise ValueError("Evaluation inputs changed")
     return {
         "runtime_sha256": source_before,
         "runtime_end_sha256": runtime_identity(),
         "manifest_sha256": manifest_before,
+        "stt_model_sha256": asset_before,
         "language": "en",
         "groups": score(rows),
         "samples": rows,

@@ -67,7 +67,11 @@ def session(tmp_path, monkeypatch):
     monkeypatch.setattr(voice, "runtime_identity", lambda: PIN)
     manifest = write(tmp_path / "manifest.json", labels())
     thresholds = write(tmp_path / "thresholds.json", limits())
-    return voice.prepare(manifest, thresholds, tmp_path / "private-session")
+    model = tmp_path / "model"
+    model.mkdir()
+    (model / "model.bin").write_bytes(b"synthetic asset identity only")
+    write(model / "config.json", {})
+    return voice.prepare(manifest, thresholds, tmp_path / "private-session", model=model)
 
 
 def reports(protocol):
@@ -80,6 +84,7 @@ def reports(protocol):
     }
     recognition = {
         **identity,
+        "stt_model_sha256": value["stt_model_sha256"],
         "groups": {
             condition: {
                 "samples": 50,
@@ -99,7 +104,14 @@ def reports(protocol):
     actions = {
         **identity,
         "groups": {
-            condition: {"measured": 50, "unmeasured": 0, "accuracy": 1.0}
+            condition: {
+                "measured": 50,
+                "unmeasured": 0,
+                "accuracy": 1.0,
+                "corrections_measured": 50,
+                "corrected_reviews": 5,
+                "correction_rate": 0.1,
+            }
             for condition in ("quiet", "noisy")
         },
     }
@@ -107,6 +119,7 @@ def reports(protocol):
         "runtime_sha256": PIN,
         "runtime_end_sha256": PIN,
         "human_witnessed": True,
+        "stt_model_sha256": value["stt_model_sha256"],
         "checks": dict.fromkeys(voice.PHYSICAL_CHECKS, True),
     }
     for name, report in (

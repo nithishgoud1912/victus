@@ -10,6 +10,7 @@ from contextlib import closing
 from pathlib import Path
 
 from victus.storage.action_ledger import _canonical_hash
+from victus.storage.secure_json import decode
 from victus.voice.transcript_review import review_transcript
 from victus.workflows.qualification_records import file_hash, runtime_identity
 
@@ -71,6 +72,13 @@ def evaluate(manifest, bindings, root):
         raise ValueError("Exactly 50 quiet and 50 noisy command labels required")
     if any(row.get("language") != "en" for row in labels):
         raise ValueError("English labels only")
+    if any(
+        key not in {row["id"] for row in commands}
+        or not isinstance(value, str)
+        or not re.fullmatch(r"[a-f0-9]{32}", value)
+        for key, value in pairs.items()
+    ):
+        raise ValueError("Bindings must map command samples to opaque command IDs")
     if len({row["id"] for row in labels}) != len(labels) or len(set(pairs.values())) != len(pairs):
         raise ValueError("Each case and bound voice command must be distinct")
     rows = []
@@ -84,6 +92,7 @@ def evaluate(manifest, bindings, root):
                 "verified_correct_action": verify_case(root, bound, row["reference"])
                 if bound is not None
                 else None,
+                "review_corrected": reviewed_correction(root, bound) if bound is not None else None,
             }
         )
     groups = {}
@@ -91,12 +100,17 @@ def evaluate(manifest, bindings, root):
         subset = [row for row in rows if row["condition"] == condition]
         measured = sum(row["measured"] for row in subset)
         correct = sum(row["verified_correct_action"] is True for row in subset)
+        correction_measured = sum(type(row["review_corrected"]) is bool for row in subset)
+        corrected = sum(row["review_corrected"] is True for row in subset)
         groups[condition] = {
             "required": 50,
             "measured": measured,
             "verified_correct_actions": correct,
             "accuracy": correct / measured if measured else None,
             "unmeasured": 50 - measured,
+            "corrections_measured": correction_measured,
+            "corrected_reviews": corrected,
+            "correction_rate": corrected / correction_measured if correction_measured else None,
         }
     if (
         file_hash(manifest) != manifest_before
@@ -118,6 +132,25 @@ def evaluate(manifest, bindings, root):
         "complete": all(row["measured"] for row in rows),
         "physical_device_qualification": False,
     }
+
+
+def reviewed_correction(root, command_id):
+    """Read protected server provenance without publishing transcript or payload."""
+    try:
+        with closing(
+            sqlite3.connect((root / "victus.sqlite3").resolve().as_uri() + "?mode=ro", uri=True)
+        ) as db:
+            row = db.execute(
+                "SELECT request_id,payload FROM command_intakes WHERE command_id=?", (command_id,)
+            ).fetchone()
+        if row and row[0].startswith("voice-") and row[1]:
+            saved = decode(row[1])
+            value = saved.get("review_corrected")
+            if saved.get("origin") == "voice" and type(value) is bool:
+                return value
+    except (sqlite3.Error, ValueError, TypeError, KeyError):
+        pass
+    return None
 
 
 def main():
