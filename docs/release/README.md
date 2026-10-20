@@ -1,8 +1,8 @@
 # Windows release procedure - 0.1.0 candidate
 
-Current source milestone: [V5 continuation](../milestones/V5-progress.md).
-[V5 verification and incomplete work](../V5-TESTS-AND-INCOMPLETE.md).
-[Test and incomplete-work handoff](../V4-TESTS-AND-INCOMPLETE.md).
+Current source milestone: [V9 release preparation](../milestones/V9-progress.md).
+[V9 tests, Windows register and NO-GO decision](../V9-TESTS-AND-INCOMPLETE.md).
+[V8 qualification requirements](../V8-TESTS-AND-INCOMPLETE.md).
 The original `dist/windows/Victus` and its M9 evidence are historical. Rebuilds
 must select fresh output/work directories; the build now refuses an existing
 output. Keep the complete previous folder for the real old-binary rollback.
@@ -13,7 +13,7 @@ Use Windows x64, Python 3.12 and the repository's pinned Node version. Prepare
 dependencies with `uv sync --project backend --group packaging --all-extras`,
 using `UV_PROJECT_ENVIRONMENT` to select `.local/package-venv` for an isolated
 build environment. Then run `scripts/build-windows.ps1` with new `-OutputDirectory`
-and `-WorkDirectory` paths. Pass `-SourceManifest` from the source capture script
+and `-WorkDirectory` paths. `-SourceManifest` is required from the source capture script
 to bind the new release manifest to exact source/config/contracts/locks. It builds the dashboard,
 copies it into the isolated work folder's staging area, draws the small original icon,
 freezes the folder bundle and writes a checksummed release manifest.
@@ -23,6 +23,11 @@ application is unsigned and requests normal-user execution. Do not move only
 the EXE. No installer, scheduled task or startup registry entry is created.
 The build downloads libraries only during explicit dependency preparation;
 neither build nor first launch downloads model weights or browser engines.
+
+Before launch, run `Victus.exe verify-bundle`. Frozen startup repeats exact
+manifest/file-set verification before initializing data. Modified/unlisted files
+are refused. This checks unsigned integrity, not publisher authenticity. Existing
+manifests are never overwritten; choose a new bundle for each build.
 
 ## First launch
 
@@ -129,3 +134,12 @@ Qualification is per candidate and account. Restart after promotion and separate
 prove normal production HTTP/SSE/dashboard behavior. Changing the bundle/profile/
 browser invalidates relevant evidence. Keep raw case reports and audio private;
 export only sanitized summaries. Missing records leave capabilities unavailable.
+
+## V9 shutdown and rollback accounting
+
+Package harnesses report forced parent terminations separately; a functional
+pass does not establish graceful console shutdown or OS descendant cleanup.
+These require the Windows procedures in the V9 register. Rollback migrates a
+separate restored candidate copy and verifies both artifact inventories. Equal
+schema versions are compatible rehearsals, not proof of a schema upgrade; equal
+product versions remain insufficient for formal cross-version release proof.

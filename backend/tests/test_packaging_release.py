@@ -114,6 +114,7 @@ def test_release_manifest_excludes_private_payloads(tmp_path):
     result = module.create(tmp_path)
     assert result["autostart"] is False and not result["listening_after_install"]
     assert result["files"][0]["path"] == "Victus.exe"
+    (tmp_path / "release-manifest.json").unlink()
     (tmp_path / "secret.sqlite3").write_bytes(b"private")
     with pytest.raises(ValueError):
         module.create(tmp_path)

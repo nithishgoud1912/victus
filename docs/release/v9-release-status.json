@@ -1,0 +1,120 @@
+{
+  "schema_version": 1,
+  "milestone": "V9-release-preparation",
+  "base_revision": "4af156fa82d12d98d31aca08f21140d566773665",
+  "branch": "codex/v9-implementation",
+  "product_version": "0.1.0",
+  "decision": "NO-GO",
+  "v9_complete": false,
+  "release_qualified": false,
+  "qualification_records_promoted": false,
+  "capabilities_newly_enabled": [],
+  "scope": {
+    "proposed_windows_candidate": [
+      "deterministic notes",
+      "reviewed command intake"
+    ],
+    "candidate_built": false,
+    "omitted_capability_obligations_retained": [
+      "native",
+      "browser",
+      "reasoning",
+      "voice"
+    ]
+  },
+  "source": {
+    "files": 322,
+    "before_sha256": "19fa8517252ee9f9a06f1ef68010ffddc8cb0d98010594b102f15fb4477c4ded",
+    "after_sha256": "19fa8517252ee9f9a06f1ef68010ffddc8cb0d98010594b102f15fb4477c4ded",
+    "unchanged_during_final_validation": true,
+    "runtime_sha256": "963477daccced355aad351d6b9762f02caf57645cb496feeb1fe42b59cf61fbe",
+    "locks_and_public_api_unchanged": true
+  },
+  "validation": {
+    "backend": {
+      "tests": 1004,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "frontend": {
+      "passed": 23,
+      "total": 23,
+      "lint_passed": true,
+      "api_generation_and_build_passed": true
+    },
+    "ruff_passed": true,
+    "environment": "Linux; Python 3.12.14; Node 24.22.0",
+    "powershell_available": false,
+    "windows_scripts_executed": false,
+    "synthetic_bundle_tests_are_windows_execution": false
+  },
+  "core_smoke": {
+    "elapsed_seconds": 60.41837790799991,
+    "tasks_admitted": 4,
+    "tasks_verified": 4,
+    "backup_restores": 1,
+    "pressure_rejections": 0,
+    "failures": [],
+    "health_requests": 120,
+    "health_p95_seconds": 0.004218462000153522,
+    "rss_growth_from_warmed_baseline": 0.00043684473290062087,
+    "cleanup_complete": true,
+    "remaining_multiprocessing_children": 0,
+    "source_unchanged": true,
+    "smoke_passed": true,
+    "qualified": false
+  },
+  "gates": {
+    "portable_regression": {
+      "status": "passed/current",
+      "next_action": "Rerun affected checks after implementation changes"
+    },
+    "core_two_hour_soak": {
+      "status": "duration-pending",
+      "next_action": "Run 7200 real seconds on final source; retain original task, restore, failure, memory and latency thresholds"
+    },
+    "windows_bundle_build_self_test": {
+      "status": "Windows-pending",
+      "next_action": "Build with mandatory exact source capture and test actual immutable candidate"
+    },
+    "graceful_shutdown_and_os_descendants": {
+      "status": "Windows-pending",
+      "next_action": "Witness console shutdown and exact owned descendant cleanup; Kill is not graceful evidence"
+    },
+    "fresh_standard_account_dpapi": {
+      "status": "Windows-pending",
+      "next_action": "Run without developer PATH/elevation and verify account protection"
+    },
+    "actual_artifact_rollback": {
+      "status": "blocked-prerequisite",
+      "next_action": "Retain compatible prior bundle, execute both artifacts on Windows with isolated restored roots"
+    },
+    "formal_cross_version_release": {
+      "status": "blocked-prerequisite",
+      "next_action": "Obtain genuinely distinct retained released versions; equal-version rehearsal does not qualify"
+    },
+    "frozen_advertised_paths": {
+      "status": "Windows-pending",
+      "next_action": "Qualify ordinary frozen HTTP/SSE/dashboard paths using candidate-owned records"
+    },
+    "inherited_v7_v8": {
+      "status": "blocked-prerequisite",
+      "next_action": "Complete exact engine/native, real inference/corpus and human-witnessed audio gates"
+    },
+    "v6_reconciliation": {
+      "status": "blocked-prerequisite",
+      "next_action": "Locate and reconcile unavailable V6 work; no completion asserted"
+    }
+  },
+  "process_measurement_scope": "Core smoke observes multiprocessing children; no Windows OS-descendant qualification",
+  "report_sha256": {
+    "backend-final-02.xml": "b985c76347b52e8bb4dcdbb1a2449ed4995aa9ac6ca19a94dd2a3240134bd4cd",
+    "frontend-final-test.log": "dcf09d2b44603986fde2cd2c70f4c386175922406f6b2f9664cfa7fcc759bb96",
+    "frontend-final-lint.log": "7117844f6bc46cf5aec4ffc9881d4934f5dbad12c9e0ec83a5a2ac2fa0dd21e7",
+    "frontend-final-build.log": "7040ae8741fd481ce62f073bf54d88fdb601993b496d4084393925bda2cb5125",
+    "final-ruff.log": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+    "core-smoke-final/report.json": "aa6aa3cfc42e7d8f6aa7c9acbd742fa9e0d9b50e6d2be8ead205c35e216646cc"
+  },
+  "private_diagnostics_published": false
+}

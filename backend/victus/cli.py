@@ -26,6 +26,7 @@ def main() -> None:
             "promote-native",
             "readiness",
             "storage-check",
+            "verify-bundle",
         ],
     )
     parser.add_argument("--output", type=Path)
@@ -35,6 +36,22 @@ def main() -> None:
     parser.add_argument("--model")
     parser.add_argument("--repetitions", type=int, choices=range(1, 21), default=20)
     args = parser.parse_args()
+    if args.command == "verify-bundle":
+        import sys
+
+        from victus.runtime.bundle import verify_bundle
+
+        source = args.source
+        if source is None and getattr(sys, "frozen", False):
+            source = Path(sys.executable).parent
+        if source is None:
+            parser.error("verify-bundle requires --source folder in source mode")
+        try:
+            result = verify_bundle(source)
+        except (OSError, ValueError, KeyError, TypeError):
+            parser.error("Bundle integrity refused: require exact source-bound unlinked files")
+        print(json.dumps(result))
+        return
     if args.command == "storage-check":
         if args.output is None:
             parser.error("storage-check requires a new --output directory")
@@ -124,6 +141,16 @@ def main() -> None:
             )
         )
         return
+    if args.command == "serve":
+        import sys
+
+        if getattr(sys, "frozen", False):
+            from victus.runtime.bundle import verify_bundle
+
+            try:
+                verify_bundle(Path(sys.executable).parent)
+            except (OSError, ValueError, KeyError, TypeError):
+                parser.error("Frozen startup refused: bundle integrity unavailable")
     if args.command == "version":
         from victus.runtime.release import version
 
