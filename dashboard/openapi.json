@@ -3373,6 +3373,23 @@
             "type": "boolean",
             "title": "Resource Blocked"
           },
+          "resource_reason": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "LOCAL_RESOURCE_PRESSURE",
+                  "LOCAL_RESOURCE_TELEMETRY_UNAVAILABLE",
+                  "LOCAL_DISK_PRESSURE",
+                  "LOCAL_DISK_UNAVAILABLE"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resource Reason"
+          },
           "browser_research": {
             "$ref": "#/components/schemas/ResearchCapability"
           },

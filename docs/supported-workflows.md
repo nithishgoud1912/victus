@@ -1,5 +1,32 @@
 # Supported workflows - VICTUS 0.1.0 candidate
 
+## Current V7 portable implementation increment
+
+V7 fixes demonstrated checkpoint/journal write contention while preserving FULL
+durability, batch rollback and writer ownership on cancellation. Native assembly
+retains incomplete aggregates for missing/malformed/changed backing evidence;
+partial reports still cannot promote. Read-only capabilities sample current
+RAM/workspace disk and keep resource blocking separate from qualification.
+The dashboard includes a structured fixture-source form, actual dependency
+readiness and read-only unknown-effect guidance.
+
+See [V7 handoff](V7-TESTS-AND-INCOMPLETE.md),
+[V7 progress](milestones/V7-progress.md) and
+[V7 evidence](release/v7-execution-evidence.json).
+
+| Capability | Current source behavior | Still required |
+| --- | --- | --- |
+| Notes, deterministic commands, approval/recovery, replay and Stop | Existing admitted paths retained; checkpoint transactions commit without an event-loop lock cycle | Supported Windows recovery confirmation; historical V4 I/O/missing-ledger causes remain undiagnosed |
+| Bundled fixture research | New structured dashboard form; strict existing engine/record/ledger gates retained | Exact locked engine, complete strict campaign, Windows cleanup proof, promotion/restart and positive ordinary production flow |
+| Native Notepad Save | Existing adapter/review authority unchanged; incomplete campaign evidence is retained | Actual Windows first Save, >=20 successes, adverse/review cases, two physical scales and production admission |
+| Resource and model readiness | Current RAM/disk block reason and exact local model availability shown independently from qualification | Model inference quality and device performance require their own measured evidence |
+| Local reasoning, reviewed voice, long-run/frozen release | Existing separately gated implementations retained | V8 model/corpus/device work and V9 full-duration/package/account/rollback gates |
+
+No qualification was promoted and no new backend capability was enabled by V7.
+`V6_NOT_RECONCILED` records that V6 work was not available in the inspected branch;
+this does not assert it never existed elsewhere. Earlier sections below describe
+their named source revisions.
+
 ## Current V5 portable implementation increment
 
 V5 adds atomic one-time node completion, a finite isolated crash-storage diagnostic,

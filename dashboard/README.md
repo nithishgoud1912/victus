@@ -5,7 +5,13 @@ clarification, checklist submission/review, task history/results, Stop, reviewed
 voice, memory and optional integration controls. The server reports which
 capabilities are enabled; a visible form does not enable an unqualified adapter.
 See [the current capability matrix](../docs/supported-workflows.md) and
-[V4 unrun tests and incomplete work](../docs/V4-TESTS-AND-INCOMPLETE.md).
+[V7 validation and incomplete work](../docs/V7-TESTS-AND-INCOMPLETE.md).
+
+The bundled research form uses only server-admitted fixture source IDs and a new
+JSON report filename. It preserves the exact request on an uncertain response.
+Dependency readiness separates qualification from current RAM/disk pressure and
+shows the pinned model's availability without claiming measured inference quality.
+Unknown task results explain read-only inspection; refreshing does not repeat an effect.
 
 Confirmed voice transcripts use the same command service as typed requests.
 Native Save always requires its separate exact-action review. Refresh/reconnect

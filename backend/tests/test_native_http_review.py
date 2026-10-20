@@ -272,8 +272,7 @@ def test_expiry_during_filename_preparation_blocks_native_invoke(client):
 
 def test_capability_keeps_qualification_separate_from_pressure(client, isolated_resources):
     enable(client)
-    with isolated_resources._lock:
-        isolated_resources._sample["available_bytes"] = 1
+    isolated_resources.probe = lambda: {"available_bytes": 1}
     value = client.get("/api/workflows/capabilities", headers=HEADERS).json()
     assert value["resource_blocked"] and value["notepad_checklist"]["enabled"]
 
