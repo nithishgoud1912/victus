@@ -1,0 +1,109 @@
+{
+  "schema_version": 1,
+  "milestone": "V8-portable-implementation-increment",
+  "base_revision": "7d1c0b72364b3f5ea673f33922f163350bda0c41",
+  "branch": "codex/v8-implementation",
+  "v6_status": "V6_NOT_RECONCILED",
+  "v8_complete": false,
+  "release_qualified": false,
+  "qualification_records_promoted": false,
+  "capabilities_newly_enabled": [],
+  "source": {
+    "before_sha256": "ab6f94acffb5d7f9de93af9aa119e07113c07b8620c03448e8015fd43ecced22",
+    "after_sha256": "d4e6b71d94c6b74cf7effe1bc15ca3ecdeb2ef2b5f84be9ef78ee09a6bafa7ba",
+    "files": 317,
+    "runtime_sha256": "dffe28200dd75006053814289e92a1fafda3c203945f5fdf32e1867f323d6502"
+  },
+  "environment": {
+    "platform": "Linux",
+    "python": "3.12.14",
+    "node": "24.22.0",
+    "ui_engine": "alternate Chromium 153",
+    "locked_engine_qualified": false
+  },
+  "validation": {
+    "backend": {
+      "tests": 967,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "final_source_focused": {
+      "passed": 62,
+      "total": 62
+    },
+    "frontend": {
+      "passed": 23,
+      "total": 23,
+      "lint": true,
+      "api_generation_and_build": true
+    },
+    "backend_ruff": true,
+    "real_http_sse": {
+      "passed": 23,
+      "total": 23
+    },
+    "real_dashboard_api_smoke": true,
+    "ui_contracts": {
+      "command": 9,
+      "voice": 10,
+      "readiness": 10,
+      "all_passed": true,
+      "fixture_only": true
+    },
+    "intake": {
+      "initial_passed": 18,
+      "final_passed": 20,
+      "total": 20,
+      "expectations_unchanged": true,
+      "model_inference": false,
+      "tool_execution": false
+    },
+    "locks_and_public_api_unchanged": true
+  },
+  "reasoning": {
+    "samples_status": "MODEL_UNAVAILABLE",
+    "inference_samples_executed": 0,
+    "provider_requests": 0,
+    "pin": null,
+    "benchmark_requested": 30,
+    "benchmark_executed": 0,
+    "benchmark_unavailable": 30,
+    "benchmark_scored": false,
+    "benchmark_qualified": false,
+    "suite_sha256": "1a23540e729f3b62f9e0991fd7c53d6cd6e279a514f45f1e4a697949a273e340"
+  },
+  "voice": {
+    "quiet_recordings_evaluated": 0,
+    "noisy_recordings_evaluated": 0,
+    "physical_checks_witnessed": 0,
+    "qualified": false,
+    "synthetic_contract_tests_are_acoustic_evidence": false
+  },
+  "not_qualified": [
+    "Exact local reasoning model samples and original 27/30 benchmark",
+    "Real 50 quiet/50 noisy consented recordings and separately measured corrections/actions",
+    "All seven human-witnessed physical voice checks on Windows",
+    "Target inference/STT latency and resource envelope",
+    "Inherited V7 native, exact-engine browser and Windows recovery gates",
+    "V9 final-duration, frozen package, fresh-account and rollback gates"
+  ],
+  "report_sha256": {
+    "backend-final.xml": "30d546b08725a9120b3c9d99ba7eeb1f4302883e5d7009573f7d6988d5a65d4f",
+    "final-focused.xml": "d7bc68cb38c18fef578f170f0ff4cf2d82329d26a1fb4ed217eab5b7117ca0e0",
+    "frontend-test.log": "a8bea3f031a953e473fb129eff1f8dbd7d3226cf4628bd9d7d079a0222e49196",
+    "frontend-lint.log": "7117844f6bc46cf5aec4ffc9881d4934f5dbad12c9e0ec83a5a2ac2fa0dd21e7",
+    "frontend-build.log": "b77d528ecafe11cdb330348a037319f3b4c8943572108c6d737e310201cbeaeb",
+    "intake-01.json": "3f26c7f69989441c3fabb7a4150fe9defa20c543f9decae5db13c2f4708cd157",
+    "intake-final.json": "ddb9342b7d8b61c4beb1c1773ff9b5f503ca87399a638786dca0eec4dad190ff",
+    "model-samples.json": "8244a800b6ea2a7d562557570ff6a04cbe7eadc4205dffa5cdc6caf040a24af2",
+    "model-benchmark/report.json": "874fa558877b39d93f775c5b83db245c956f747040a6680f4a9ebe586b03556b",
+    "http-baseline/report.json": "2fafb093029eb2d6275d6783faaf84d68fcb1c294a8398d346fac705b4b0847c",
+    "command-ui/report.json": "4d84b814135e4c556faa7fc84ff86fe2c7d889fb1327176ec9880735532e4b53",
+    "voice-ui/report.json": "0bb52abdb49b6061c18678911bf83c329e1c233dc4bff0c5d28deac3faec89a2",
+    "readiness-ui/report.json": "02e222f65bb8601f8879d3568b2027a5d67fc779663dcc6ddecded4408f0dbf8",
+    "dashboard-smoke/report.json": "ca876d23c77a7eb9998881d78dcfdc39c2f49400e9cec856dd27b4f62b0d8532"
+  },
+  "private_diagnostics_published": false,
+  "validation_note": "Full suite passed before a formatting-only import blank-line fix; 62 affected contract tests and Ruff passed on the final source. No behavior changed after the full-suite run."
+}

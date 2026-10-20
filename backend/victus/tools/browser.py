@@ -13,7 +13,6 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from victus.tools.registry import RetryClass, RiskLevel, ToolSpec
 
-
 # ── argument models ──────────────────────────────────────────────────────
 
 class NavigateArguments(BaseModel):

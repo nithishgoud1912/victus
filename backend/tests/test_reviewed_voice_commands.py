@@ -47,6 +47,7 @@ def test_reviewed_missing_values_use_shared_durable_intake_and_verifier(services
     assert services.tasks.database.get(submitted.task_id).tool.startswith("internal.command.")
     row = services.commands.get_row(submitted.command.command_id)
     assert decode(row["payload"])["origin"] == "voice"
+    assert decode(row["payload"])["review_corrected"] is True
     assert verify_case(
         services.settings.data_dir,
         submitted.command.command_id,
@@ -192,3 +193,32 @@ def test_action_evaluation_keeps_unmeasured_cases_out_of_accuracy(tmp_path):
         group["measured"] == 0 and group["accuracy"] is None and group["unmeasured"] == 50
         for group in report["groups"].values()
     )
+    assert all(group["correction_rate"] is None for group in report["groups"].values())
+
+
+@pytest.mark.parametrize("changed", [False, True])
+def test_review_correction_is_server_derived_and_protected(services, changed):
+    from victus.tools.contracts import ActionRequest, NoteArguments
+    from victus.voice.action_evaluation import reviewed_correction
+
+    voice = voice_service(services)
+    snapshot = review(voice)
+    action = ActionRequest(
+        tool="fs.create_note",
+        arguments=NoteArguments(
+            filename="voice.txt", text="human correction" if changed else "reviewed"
+        ),
+    )
+    submitted = voice.submit(snapshot.session_id, snapshot.revision, action)
+    assert completed(services.tasks, submitted.task_id).verified
+    row = services.commands.get_row(submitted.command.command_id)
+    assert "review_corrected" not in row["payload"]
+    assert decode(row["payload"])["review_corrected"] is changed
+    assert reviewed_correction(services.settings.data_dir, submitted.command.command_id) is changed
+
+
+def test_typed_submission_cannot_assert_voice_correction_metadata(services):
+    with pytest.raises(ValueError, match="server-owned"):
+        services.commands.submit(
+            CommandSubmission(text="Create a note"), "typed-correction", review_corrected=True
+        )

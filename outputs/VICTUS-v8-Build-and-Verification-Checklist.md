@@ -96,3 +96,10 @@ Dependency: Selected V8 gates complete.
 - [ ] Separate portable, Windows-only, missing prerequisite, human and duration gates.
 - [ ] Update the current capability matrix and exact incomplete-work register.
 - [ ] Confirm final advertised claims match current evidence without waiving inherited gates.
+
+## Implementation follow-up
+
+The portable implementation and current results are recorded in
+[the V8 handoff](../docs/V8-TESTS-AND-INCOMPLETE.md). Original acceptance boxes
+remain open where real inference, recordings or witnessed Windows evidence is
+required. Portable contract passes do not complete those mixed acceptance gates.

@@ -24,21 +24,9 @@ class CommandService:
         self.tasks, self.model_pin = tasks, model_pin
 
     def model_ready(self):
-        if self.model_pin is None:
-            return False
-        import httpx
+        from victus.models.ollama import installed_pin_available
 
-        try:
-            response = httpx.get("http://127.0.0.1:11434/api/tags", timeout=2, trust_env=False)
-            response.raise_for_status()
-            return any(
-                row.get("name") == self.model_pin.name
-                and "sha256:" + row.get("digest", "").removeprefix("sha256:")
-                == self.model_pin.digest
-                for row in response.json()["models"]
-            )
-        except (httpx.HTTPError, ValueError, KeyError, TypeError):
-            return False
+        return installed_pin_available(self.model_pin)
 
     def response(self, row):
         mapping = self.tasks.queue.get_by_client_request_id("command_" + row["command_id"])
@@ -99,11 +87,15 @@ class CommandService:
     def get(self, command_id):
         return self.response(self.get_row(command_id))
 
-    def submit(self, submission, request_id, *, origin="typed"):
+    def submit(self, submission, request_id, *, origin="typed", review_corrected=None):
         if origin not in {"typed", "voice"}:
             raise ValueError("Unknown command origin")
         if request_id.startswith("voice-") != (origin == "voice"):
             raise ValueError("Voice request identity is server-owned")
+        if review_corrected is not None and (
+            origin != "voice" or type(review_corrected) is not bool
+        ):
+            raise ValueError("Correction metadata is server-owned voice provenance")
         if not re.fullmatch(r"[A-Za-z0-9_-]{1,128}", request_id):
             raise ValueError("Invalid request identity")
         with self.tasks.queue._admission_lock:
@@ -128,7 +120,13 @@ class CommandService:
                     (
                         command_id,
                         request_id,
-                        encode({"submission": submission.model_dump(), "origin": origin}),
+                        encode(
+                            {
+                                "submission": submission.model_dump(),
+                                "origin": origin,
+                                "review_corrected": review_corrected,
+                            }
+                        ),
                         "waiting",
                         None,
                         time.time() + 300,
@@ -149,6 +147,9 @@ class CommandService:
                     message="Service stopped; no command admitted.",
                 )
             saved = decode(row["payload"])
+            corrected = saved.get("review_corrected")
+            if saved.get("origin") == "voice" and answers.model_dump(exclude_none=True):
+                corrected = True
             submission = CommandSubmission.model_validate(saved.get("submission", saved))
             if row["state"] == "waiting":
                 fields, _ = interpret(submission)
@@ -176,6 +177,7 @@ class CommandService:
                                 {
                                     "submission": submission.model_dump(),
                                     "origin": saved.get("origin", "typed"),
+                                    "review_corrected": corrected,
                                 }
                             ),
                             "waiting" if missing else "ready",
@@ -198,6 +200,7 @@ class CommandService:
             # The canonical action is server-derived and protected; never accept model/tool data here.
             payload = {
                 "origin": saved.get("origin", "typed"),
+                "review_corrected": corrected,
                 "submission": submission.model_dump(),
                 "action": action.model_dump(),
                 "model_pin": self.model_pin.model_dump() if self.model_pin else None,

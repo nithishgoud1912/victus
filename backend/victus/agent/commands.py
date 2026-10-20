@@ -84,9 +84,9 @@ def interpret(submission):
     if "intent" not in fields:
         candidates = []
         for kind, pattern in [
-            ("note", r"\b(note|file)\b"),
+            ("note", r"\b(notes?|files?)\b"),
             ("checklist", r"\b(notepad|checklist)\b"),
-            ("research", r"\b(research|sources|browser|web)\b"),
+            ("research", r"\b(research|sources|browsers?|browse|web|websites?)\b"),
         ]:
             if re.search(pattern, text, re.I):
                 candidates.append(kind)

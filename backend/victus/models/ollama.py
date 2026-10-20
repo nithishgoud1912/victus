@@ -65,6 +65,33 @@ class OllamaTags(WireModel):
     models: list[OllamaTag] = Field(max_length=256)
 
 
+def installed_pin_available(pin, *, transport=None):
+    """Read-only bounded readiness; tag availability is not inference qualification."""
+    if pin is None:
+        return False
+    try:
+        with httpx.Client(
+            timeout=2, trust_env=False, follow_redirects=False, transport=transport
+        ) as client:
+            with client.stream("GET", "http://127.0.0.1:11434/api/tags") as response:
+                if response.status_code != 200:
+                    return False
+                data = bytearray()
+                for part in response.iter_bytes():
+                    data.extend(part)
+                    if len(data) > 200000:
+                        return False
+        tags = OllamaTags.model_validate(strict_json(data.decode("utf-8")))
+        matches = [
+            ModelPin(name=tag.name, digest=tag.digest)
+            for tag in tags.models
+            if tag.name == pin.name
+        ]
+        return matches == [pin]
+    except (httpx.HTTPError, ValueError, TypeError, RecursionError):
+        return False
+
+
 class OllamaClient:
     def __init__(self, base_url="http://127.0.0.1:11434", *, transport=None):
         parts = urlsplit(base_url)

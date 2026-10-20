@@ -280,7 +280,23 @@ class VoiceService:
                     ),
                 )
             action = CommandSubmission.model_validate(action.model_dump(), strict=True)
-            result = self.commands.submit(action, "voice-" + session_id, origin="voice")
+            # Compare the server-held proposal, never client-supplied provenance.
+            # Persist only a correction flag in the existing protected payload.
+            from victus.agent.commands import interpret
+
+            fields, missing = interpret(action)
+            corrected = None
+            if not missing and fields.intent == "note":
+                reviewed = ActionRequest.model_validate(
+                    {
+                        "tool": "fs.create_note",
+                        "arguments": {"filename": fields.filename, "text": fields.content},
+                    }
+                )
+                corrected = reviewed != self.snapshot_value.proposal
+            result = self.commands.submit(
+                action, "voice-" + session_id, origin="voice", review_corrected=corrected
+            )
             return self._command_result(result)
 
     def _command_result(self, result):
