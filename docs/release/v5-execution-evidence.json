@@ -1,0 +1,500 @@
+{
+  "schema_version": 1,
+  "milestone": "V5-portable-implementation-increment",
+  "prepared_date": "2026-10-19",
+  "timezone": "Asia/Kolkata",
+  "base_revision": "20ef56946d8b253cc12ed02e6ca5002508671ef4",
+  "branch": "codex/v5-implementation",
+  "v5_complete": false,
+  "release_qualified": false,
+  "qualification_records_promoted": false,
+  "capabilities_newly_enabled": [],
+  "environment": {
+    "platform": "Linux",
+    "python": "3.12.14",
+    "sqlite": "3.53.1",
+    "node": "24.22.0",
+    "playwright": "1.64.0",
+    "alternate_browser": "Chromium 153.0.8010.0",
+    "exact_browser": "Chromium 156.0.8078.4 / revision1248",
+    "exact_engine_install_status": "blocked: invalid/truncated download archive",
+    "normal_memory_guards": true,
+    "locks_and_generated_contracts_unchanged": true
+  },
+  "source": {
+    "files": 307,
+    "before_sha256": "c2c51729369b8c5fc47cbba8c8476a1258d3b2e169566d89763fb784ac59563c",
+    "after_sha256": "c2c51729369b8c5fc47cbba8c8476a1258d3b2e169566d89763fb784ac59563c",
+    "unchanged": true,
+    "runtime_sha256": "6f02bb172093b68363f1f281ffbcfb03a91b160d5666f43e6be43043d8441c5d",
+    "before_report": {
+      "path": ".local/v5-validation/final-source-before/source.json",
+      "sha256": "48fce6df904295c02fd584b9bbf0bf87ed2c92352a3b25e1d7c487b46097f7d7"
+    },
+    "after_report": {
+      "path": ".local/v5-validation/final-source-after/source.json",
+      "sha256": "48fce6df904295c02fd584b9bbf0bf87ed2c92352a3b25e1d7c487b46097f7d7"
+    }
+  },
+  "implemented": [
+    "Atomic one-time completion of an existing incomplete node-journal claim",
+    "Explicit finite crash-storage diagnostic using only a new isolated root",
+    "Canonical Windows/Linux exact Chromium discovery and matching production-loader identity",
+    "Real HTTP/SSE ordinary-bootstrap production research probe with separate negative mode",
+    "25 new portable regression cases and current capability/test handoff"
+  ],
+  "backend": {
+    "final_full_suite": {
+      "path": ".local/v5-validation/backend-full.xml",
+      "sha256": "11eca31c11dc5749a0e8c8e3cc9e1dd213b0c6429da14634568f6fde02611469",
+      "tests": 911,
+      "errors": 0,
+      "failures": 0,
+      "skipped": 0,
+      "passed": 911,
+      "seconds": 97.782,
+      "failed_tests": []
+    },
+    "before_focused": {
+      "path": ".local/v51-focused-before-01.xml",
+      "sha256": "9afaed4d7de30d492d28b37299cd71d216a07b907b2900cb055da2cb5d590632",
+      "tests": 86,
+      "errors": 0,
+      "failures": 0,
+      "skipped": 0,
+      "passed": 86,
+      "seconds": 22.113,
+      "failed_tests": []
+    },
+    "after_storage_focused": {
+      "path": ".local/v51-focused-after-01.xml",
+      "sha256": "4d54e4925a6cbda46f38158563dca1b7fa08a942dd22678f5d2bbcb81d4fe225",
+      "tests": 96,
+      "errors": 0,
+      "failures": 0,
+      "skipped": 0,
+      "passed": 96,
+      "seconds": 23.919,
+      "failed_tests": []
+    },
+    "browser_focused": {
+      "path": ".local/v52-focused-01.xml",
+      "sha256": "ced8094370863c3faa5df7029290a9f1a680389de3971aa3a90acf8064834258",
+      "tests": 72,
+      "errors": 0,
+      "failures": 0,
+      "skipped": 0,
+      "passed": 72,
+      "seconds": 3.27,
+      "failed_tests": []
+    },
+    "new_tests": 25,
+    "inherited_failures": "Historical V4 I/O, journal-crash unknown and missing-ledger observations were not reproduced and remain undiagnosed. A new passing suite does not establish their cause.",
+    "separate_fixed_invariant": "Missing/duplicate completion previously succeeded or replaced a durable result; conditional UPDATE now permits one winner only."
+  },
+  "finite_before_change_crash_campaign": {
+    "path": ".local/v51-diagnostic-before-01/report.json",
+    "sha256": "d7bbfeb43cc4d0ac8076bd5c63137546a7d62b9c500949c3811d5db866cd8ed9",
+    "cases": 12,
+    "passed": 12,
+    "filesystems": [
+      "overlay",
+      "tmpfs"
+    ],
+    "diagnostic_schedule": "3 rounds x effect/journal crash x 2 filesystems; each followed by fresh-process resume; no repeated effect"
+  },
+  "storage_diagnostics": [
+    {
+      "path": ".local/v5-validation/storage-overlay/report.json",
+      "sha256": "1dfd3f810d9299f2bfb696aad279276bc6120cf7f5765f910ebad6cac5148451",
+      "schema_version": 1,
+      "kind": "storage_diagnostic",
+      "qualified": false,
+      "status": "passed",
+      "python": "3.12.14",
+      "sqlite": "3.53.1",
+      "platform": "Linux",
+      "filesystem": {
+        "disk_free_bytes": 29278896128,
+        "free_inodes": 2061922,
+        "filesystem_type": "overlay"
+      },
+      "requested": 5,
+      "runtime_sha256": "6f02bb172093b68363f1f281ffbcfb03a91b160d5666f43e6be43043d8441c5d",
+      "cases": [
+        {
+          "sequence": 0,
+          "passed": true,
+          "exit_code": 73,
+          "integrity_ok": true,
+          "full_durability": true,
+          "wal": true
+        },
+        {
+          "sequence": 1,
+          "passed": true,
+          "exit_code": 73,
+          "integrity_ok": true,
+          "full_durability": true,
+          "wal": true
+        },
+        {
+          "sequence": 2,
+          "passed": true,
+          "exit_code": 73,
+          "integrity_ok": true,
+          "full_durability": true,
+          "wal": true
+        },
+        {
+          "sequence": 3,
+          "passed": true,
+          "exit_code": 73,
+          "integrity_ok": true,
+          "full_durability": true,
+          "wal": true
+        },
+        {
+          "sequence": 4,
+          "passed": true,
+          "exit_code": 73,
+          "integrity_ok": true,
+          "full_durability": true,
+          "wal": true
+        }
+      ],
+      "runtime_end_sha256": "6f02bb172093b68363f1f281ffbcfb03a91b160d5666f43e6be43043d8441c5d"
+    },
+    {
+      "path": "/dev/shm/victus-v5-storage-01/report.json",
+      "sha256": "35fc4d6a736e462d5534d8b32161a28efa28e109a49e1e45f2a88b060a3fe4fa",
+      "schema_version": 1,
+      "kind": "storage_diagnostic",
+      "qualified": false,
+      "status": "passed",
+      "python": "3.12.14",
+      "sqlite": "3.53.1",
+      "platform": "Linux",
+      "filesystem": {
+        "disk_free_bytes": 5223485440,
+        "free_inodes": 1275765,
+        "filesystem_type": "tmpfs"
+      },
+      "requested": 5,
+      "runtime_sha256": "6f02bb172093b68363f1f281ffbcfb03a91b160d5666f43e6be43043d8441c5d",
+      "cases": [
+        {
+          "sequence": 0,
+          "passed": true,
+          "exit_code": 73,
+          "integrity_ok": true,
+          "full_durability": true,
+          "wal": true
+        },
+        {
+          "sequence": 1,
+          "passed": true,
+          "exit_code": 73,
+          "integrity_ok": true,
+          "full_durability": true,
+          "wal": true
+        },
+        {
+          "sequence": 2,
+          "passed": true,
+          "exit_code": 73,
+          "integrity_ok": true,
+          "full_durability": true,
+          "wal": true
+        },
+        {
+          "sequence": 3,
+          "passed": true,
+          "exit_code": 73,
+          "integrity_ok": true,
+          "full_durability": true,
+          "wal": true
+        },
+        {
+          "sequence": 4,
+          "passed": true,
+          "exit_code": 73,
+          "integrity_ok": true,
+          "full_durability": true,
+          "wal": true
+        }
+      ],
+      "runtime_end_sha256": "6f02bb172093b68363f1f281ffbcfb03a91b160d5666f43e6be43043d8441c5d"
+    }
+  ],
+  "frontend": {
+    "tests": 23,
+    "passed": 23,
+    "lint": "passed",
+    "api_generation": "passed",
+    "typescript_vite_build": "passed",
+    "log": {
+      "path": ".local/v5-validation/frontend.log",
+      "sha256": "fa9f136e98d3bb4ba0be4709dc15d8a55e91157af15f7edd27f76a2b006890ad"
+    }
+  },
+  "static_checks": {
+    "ruff_check": "passed",
+    "ruff_format_check": "8 changed Python files formatted",
+    "git_diff_check": "passed"
+  },
+  "real_http_baseline": {
+    "path": ".local/v5-validation/http-baseline/report.json",
+    "sha256": "68715f719f7b0b1c7b0f365b97d91313e28554d8a6c9b4cb4d218de6083189d7",
+    "total": 23,
+    "passed": 23,
+    "checks": {
+      "health_authenticated": true,
+      "health_requires_auth": true,
+      "events_require_auth": true,
+      "native_gated_before_admission": true,
+      "note_admitted": true,
+      "note_verified_exact_bytes": true,
+      "duplicate_same_task_no_effect": true,
+      "snapshot_requires_auth": true,
+      "snapshot_read_only": true,
+      "ordered_event_replay": true,
+      "event_snapshot_read_only": true,
+      "cursor_reconnect_no_resubmission": true,
+      "command_requires_auth": true,
+      "command_admitted": true,
+      "command_graph_verified_exact_bytes": true,
+      "command_replay_no_effect": true,
+      "missing_values_no_task": true,
+      "clarification_snapshot_read_only": true,
+      "clarification_verified_exact_bytes": true,
+      "clarification_replay_original_identity": true,
+      "stop_latched": true,
+      "stop_blocks_command_effect": true,
+      "stop_blocks_later_effect": true
+    },
+    "normal_memory_guards": true
+  },
+  "browser_regressions": {
+    "path": ".local/v5-validation/browser-cases.json",
+    "sha256": "e640db85be7557cb94a02d0c865da4cdc166946e072da3ebe4c6bc0d1e4c549a",
+    "total": 10,
+    "passed": 10,
+    "cases": [
+      {
+        "case": "duplicate-buttons",
+        "status": "passed",
+        "browser_version": "153.0.8010.0",
+        "requested_scale": 1,
+        "actual_device_pixel_ratio": 1
+      },
+      {
+        "case": "stale-fields",
+        "status": "passed",
+        "browser_version": "153.0.8010.0",
+        "requested_scale": 1,
+        "actual_device_pixel_ratio": 1
+      },
+      {
+        "case": "redirects-and-privacy",
+        "status": "passed",
+        "browser_version": "153.0.8010.0",
+        "requested_scale": 1,
+        "actual_device_pixel_ratio": 1
+      },
+      {
+        "case": "blocked-popup",
+        "status": "passed",
+        "browser_version": "153.0.8010.0",
+        "requested_scale": 1,
+        "actual_device_pixel_ratio": 1
+      },
+      {
+        "case": "download-attempt",
+        "status": "passed",
+        "browser_version": "153.0.8010.0",
+        "requested_scale": 1,
+        "actual_device_pixel_ratio": 1
+      },
+      {
+        "case": "step-timeout",
+        "status": "passed",
+        "browser_version": "153.0.8010.0",
+        "requested_scale": 1,
+        "actual_device_pixel_ratio": 1
+      },
+      {
+        "case": "multiple-pages-scale-1",
+        "status": "passed",
+        "browser_version": "153.0.8010.0",
+        "requested_scale": 1,
+        "actual_device_pixel_ratio": 1
+      },
+      {
+        "case": "multiple-pages-scale-1.25",
+        "status": "passed",
+        "browser_version": "153.0.8010.0",
+        "requested_scale": 1.25,
+        "actual_device_pixel_ratio": 1.25
+      },
+      {
+        "case": "multiple-pages-scale-1.5",
+        "status": "passed",
+        "browser_version": "153.0.8010.0",
+        "requested_scale": 1.5,
+        "actual_device_pixel_ratio": 1.5
+      },
+      {
+        "case": "multiple-pages-scale-2",
+        "status": "passed",
+        "browser_version": "153.0.8010.0",
+        "requested_scale": 2,
+        "actual_device_pixel_ratio": 2
+      }
+    ],
+    "alternate_engine_only": true,
+    "promoted": false
+  },
+  "exact_browser_layout": {
+    "path": ".local/v5-validation/browser-layout.json",
+    "sha256": "edcc6e146b44bdf1048709f5bea3097abc2ae49b73c5184bd6026a1017c1795a",
+    "canonical_layout_matches_playwright": true,
+    "engine_present": false,
+    "expected_relative_path": "chromium-1248/chrome-linux64/chrome"
+  },
+  "production_admission_probes": {
+    "negative": {
+      "path": ".local/v5-validation/production-negative/report.json",
+      "sha256": "49581820199ceb57c84320bd27f2c750cfe1d218b809f73d291bb9d26e5372fc",
+      "schema_version": 1,
+      "kind": "production_fixture_probe",
+      "transport": "real loopback HTTP/SSE",
+      "injected_capabilities": false,
+      "normal_memory_guards": true,
+      "expect_unavailable": true,
+      "runtime_sha256": "6f02bb172093b68363f1f281ffbcfb03a91b160d5666f43e6be43043d8441c5d",
+      "status": "passed",
+      "passed": true,
+      "qualified": false,
+      "checks": {
+        "capabilities_require_auth": true,
+        "fixture_scope_only": true,
+        "unavailable_creates_no_work": true,
+        "unavailable_reason_present": true
+      },
+      "blocker": "MATCHING_BROWSER_QUALIFICATION_UNAVAILABLE",
+      "runtime_end_sha256": "6f02bb172093b68363f1f281ffbcfb03a91b160d5666f43e6be43043d8441c5d"
+    },
+    "positive": {
+      "path": ".local/v5-validation/production-positive/report.json",
+      "sha256": "97ccdb6a3e62acb0942fb7a644fe9b8ef600987698724ca594356e5c98e6d646",
+      "schema_version": 1,
+      "kind": "production_fixture_probe",
+      "transport": "real loopback HTTP/SSE",
+      "injected_capabilities": false,
+      "normal_memory_guards": true,
+      "expect_unavailable": false,
+      "runtime_sha256": "6f02bb172093b68363f1f281ffbcfb03a91b160d5666f43e6be43043d8441c5d",
+      "status": "blocked",
+      "passed": false,
+      "qualified": false,
+      "checks": {
+        "capabilities_require_auth": true,
+        "fixture_scope_only": true,
+        "unavailable_creates_no_work": true,
+        "unavailable_reason_present": true
+      },
+      "blocker": "MATCHING_BROWSER_QUALIFICATION_UNAVAILABLE",
+      "runtime_end_sha256": "6f02bb172093b68363f1f281ffbcfb03a91b160d5666f43e6be43043d8441c5d"
+    }
+  },
+  "short_reliability_smoke": {
+    "path": ".local/v5-validation/soak-smoke/report.json",
+    "sha256": "c20d994998df80915c7af6ebf5af1076fcf28f55755a140a49526a4578dea260",
+    "requested_seconds": 60.0,
+    "full_two_hour_soak": false,
+    "qualified": false,
+    "tasks_verified": 4,
+    "pressure_rejections": 0,
+    "memory_cycles": 4,
+    "backup_restores": 1,
+    "stt_calls": 0,
+    "failures": [],
+    "implementation_start_sha256": "1aa9024e99fba2623b427eb515942bd171ec658f38223cf81a623b56c81b7632",
+    "elapsed_seconds": 60.4195219930001,
+    "health_requests": 120,
+    "health_p95_seconds": 0.004862855000055788,
+    "health_max_seconds": 0.037242026000058104,
+    "rss_growth_from_warmed_baseline": 0.0008754924645113515,
+    "implementation_end_sha256": "1aa9024e99fba2623b427eb515942bd171ec658f38223cf81a623b56c81b7632",
+    "full_two_hour_gate_satisfied": false
+  },
+  "model": {
+    "readiness": {
+      "path": ".local/v5-validation/readiness.json",
+      "sha256": "4d6f85fab7ba7e9c3d94d3e7d5371862ee377e1f808b6254816ad5ba4b9f4e15",
+      "resource_ready": true,
+      "service_available": false,
+      "model_error": "MODEL_UNAVAILABLE",
+      "selected_pin": null
+    },
+    "samples": {
+      "path": ".local/v5-validation/model-samples.json",
+      "sha256": "8244a800b6ea2a7d562557570ff6a04cbe7eadc4205dffa5cdc6caf040a24af2",
+      "executed": 0,
+      "status": "MODEL_UNAVAILABLE"
+    },
+    "benchmark": {
+      "path": ".local/v5-validation/model-benchmark/report.json",
+      "sha256": "fe7d8de8edc30866dce3c672a14e88ccdd1c1ddede536790de5311644ba0fc0c",
+      "requested": 30,
+      "executed": 0,
+      "accuracy": null,
+      "status": "MODEL_UNAVAILABLE",
+      "suite_sha256": "1a23540e729f3b62f9e0991fd7c53d6cd6e279a514f45f1e4a697949a273e340"
+    }
+  },
+  "windows_only_not_run": [
+    "Target Windows crash/recovery confirmation",
+    "Windows descendant identity and real browser cleanup observations",
+    "Actual Notepad Save diagnosis, first complete success, >=20 native successes and adverse/review/DPI campaign",
+    "Witnessed microphone/SAPI/physical shortcut/speaker echo sessions",
+    "Current-source frozen build, per-capability package qualification, fresh standard account and actual release-pair migration/new-root rollback"
+  ],
+  "other_open_gates": [
+    "Undiagnosed historical intermittent persistence failures",
+    "Exact browser preparation and strict twenty-run fixture campaign",
+    "Matching local promotion, ordinary restart and positive production API/dashboard research",
+    "Actual installed reasoning model and frozen benchmark gate",
+    "Consented held-out 50 quiet/50 noisy recordings plus negatives and real reviewed action bindings",
+    "Full 7200-second/100-task/2-restore reliability qualification, with target and advertised-workflow scope"
+  ],
+  "handoff": "docs/V5-TESTS-AND-INCOMPLETE.md",
+  "historical_v4_evidence": "docs/release/v4-linux-validation.json",
+  "exact_browser_install_log": {
+    "path": ".local/v52-browser-install-01.log",
+    "sha256": "7f52ba5eb8e20eb02538d5a323757dabcfc027c79ef3371b2212caa632abfe8e"
+  },
+  "real_dashboard_smoke": {
+    "path": ".local/v5-validation/dashboard-real/report.json",
+    "sha256": "05bbe8be537750935143af5e5cad23fa5a89f9bc088a5da9d23532de8149c186",
+    "passed": true,
+    "checks": {
+      "dev_memory_session": true,
+      "typed_note_verified": true,
+      "production_http_only_session": true,
+      "production_reload_restored": true,
+      "production_no_bearer_after_bootstrap": true,
+      "logout_revoked": true,
+      "no_browser_storage": true,
+      "mobile_no_overflow": true
+    },
+    "page_errors": [],
+    "engine": "Explicit alternate Chromium 153.0.8010.0",
+    "scope": "Actual source backend and dev/built dashboard; no native or production research qualification"
+  },
+  "real_dashboard_browser_identity": {
+    "path": ".local/v5-validation/ui-browser-identity.jsonl",
+    "sha256": "647a5c31d8be74706f4a6dc16a4a4febfdac872542ba1cd4706bce3ddb15b4d6"
+  }
+}

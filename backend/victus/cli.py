@@ -25,6 +25,7 @@ def main() -> None:
             "assemble-native",
             "promote-native",
             "readiness",
+            "storage-check",
         ],
     )
     parser.add_argument("--output", type=Path)
@@ -34,6 +35,17 @@ def main() -> None:
     parser.add_argument("--model")
     parser.add_argument("--repetitions", type=int, choices=range(1, 21), default=20)
     args = parser.parse_args()
+    if args.command == "storage-check":
+        if args.output is None:
+            parser.error("storage-check requires a new --output directory")
+        from victus.runtime.storage_diagnostics import probe
+
+        try:
+            report = probe(args.output, repetitions=args.repetitions)
+        except (OSError, RuntimeError, ValueError):
+            parser.error("Storage diagnostic requires a new unlinked output and existing parent")
+        print(json.dumps({"status": report["status"], "qualified": False}))
+        raise SystemExit(0 if report["status"] == "passed" else 2)
     if args.command == "qualify-fixture":
         if args.output is None:
             parser.error("qualify-fixture requires a new --output directory")

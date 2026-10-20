@@ -61,6 +61,7 @@ docs/*
 !docs/decisions/
 !docs/supported-workflows.md
 !docs/V4-TESTS-AND-INCOMPLETE.md
+!docs/V5-TESTS-AND-INCOMPLETE.md
 !docs/release/
 docs/milestones/evidence/
 pytest_tmp/

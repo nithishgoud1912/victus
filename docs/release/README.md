@@ -1,6 +1,7 @@
 # Windows release procedure - 0.1.0 candidate
 
-Current source milestone: [V4 continuation](../milestones/V4-progress.md).
+Current source milestone: [V5 continuation](../milestones/V5-progress.md).
+[V5 verification and incomplete work](../V5-TESTS-AND-INCOMPLETE.md).
 [Test and incomplete-work handoff](../V4-TESTS-AND-INCOMPLETE.md).
 The original `dist/windows/Victus` and its M9 evidence are historical. Rebuilds
 must select fresh output/work directories; the build now refuses an existing
