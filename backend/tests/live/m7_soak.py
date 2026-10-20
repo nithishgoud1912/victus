@@ -6,6 +6,7 @@ Short runs validate the harness and are explicitly not M7 soak qualification.
 import argparse
 import hashlib
 import json
+import multiprocessing
 import secrets
 import socket
 import threading
@@ -18,6 +19,8 @@ import uvicorn
 from victus.api.app import create_app
 from victus.memory.models import MemoryInput
 from victus.runtime.resources import ResourcePressure
+from victus.runtime.soak_results import finalize
+from victus.runtime.source_inventory import source_identity
 from victus.settings import Settings
 from victus.storage.backups import restore
 from victus.voice.stt import TranscriptionWorker
@@ -52,6 +55,7 @@ def main():
         parser.error("Duration must be 10 to 14400 seconds")
     root = args.output.resolve()
     root.mkdir(parents=True, exist_ok=False)
+    source_start = source_identity(Path(__file__).resolve().parents[3])
     if args.require_ready:
         from victus.runtime.resources import resources, system_memory
 
@@ -63,7 +67,8 @@ def main():
                 "elapsed_seconds": 0,
                 "full_two_hour_soak": False,
                 "qualified": False,
-                "blocked": "RESOURCE_PRESSURE" if str(error) == "LOCAL_RESOURCE_PRESSURE"
+                "blocked": "RESOURCE_PRESSURE"
+                if str(error) == "LOCAL_RESOURCE_PRESSURE"
                 else "RESOURCE_TELEMETRY_UNAVAILABLE",
                 "boundary": "preflight",
                 "implementation_start_sha256": implementation_hash(),
@@ -89,16 +94,22 @@ def main():
         "full_two_hour_soak": False,
         "qualified": False,
         "tasks_verified": 0,
+        "tasks_admitted": 0,
         "pressure_rejections": 0,
         "memory_cycles": 0,
         "backup_restores": 0,
         "stt_calls": 0,
         "failures": [],
         "implementation_start_sha256": implementation_hash(),
+        "source_start_sha256": source_start,
+        "process_measurement_scope": "multiprocessing children only; Windows OS descendants remain separate",
     }
     durations, rss, telemetry = [], [], []
-    worker = TranscriptionWorker(str(args.model.resolve(strict=True))) if args.model else None
+    work = None
+    worker = None
     try:
+        if args.model:
+            worker = TranscriptionWorker(str(args.model.resolve(strict=True)))
         deadline = time.monotonic() + 15
         while not server.started and time.monotonic() < deadline:
             time.sleep(0.05)
@@ -133,6 +144,7 @@ def main():
                             report["pressure_rejections"] += 1
                         else:
                             response.raise_for_status()
+                            report["tasks_admitted"] += 1
                             operation = "task_verify"
                             task_id = response.json()["task_id"]
                             task_deadline = time.monotonic() + 20
@@ -238,26 +250,33 @@ def main():
         report["telemetry"] = telemetry
         report["implementation_end_sha256"] = implementation_hash()
         report["full_two_hour_soak"] = report["elapsed_seconds"] >= 7200
-        report["qualified"] = bool(
-            report["full_two_hour_soak"]
-            and not report["failures"]
-            and report["tasks_verified"] >= 100
-            and report["backup_restores"] >= 2
-            and report["rss_growth_from_warmed_baseline"] is not None
-            and report["rss_growth_from_warmed_baseline"] <= 0.20
-            and report["health_p95_seconds"] < 0.5
-            and report["implementation_start_sha256"] == report["implementation_end_sha256"]
-        )
+    except Exception as error:
+        report["failures"].append({"operation": "harness", "error_type": type(error).__name__})
     finally:
         closing.set()
+        if work is not None:
+            work.join(timeout=12)
         if worker:
-            worker.close()
+            try:
+                worker.close()
+            except Exception:
+                report["failures"].append("STT_CLEANUP_FAILED")
         server.should_exit = True
         server_thread.join(timeout=15)
+        report["server_shutdown_complete"] = not server_thread.is_alive()
+        report["work_shutdown_complete"] = work is None or not work.is_alive()
+        report["remaining_multiprocessing_children"] = sum(
+            child.is_alive() for child in multiprocessing.active_children()
+        )
         sock.close()
+        try:
+            report["source_end_sha256"] = source_identity(Path(__file__).resolve().parents[3])
+        except Exception:
+            report["failures"].append("SOURCE_END_INVENTORY_UNAVAILABLE")
+        finalize(report)
         (root / "report.json").write_text(json.dumps(report, indent=2), encoding="utf-8")
     print(json.dumps({key: value for key, value in report.items() if key != "telemetry"}))
-    return 0 if report["qualified"] or args.seconds < 7200 else 2
+    return 0 if report["qualified"] or report["smoke_passed"] else 2
 
 
 if __name__ == "__main__":

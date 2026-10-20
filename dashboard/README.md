@@ -91,3 +91,12 @@ Choose a new output directory each run. This starts an isolated test backend, ve
 - Local evidence: `.local/9a-regression.log`, `.local/9a-regression.xml`, and `.local/9a-browser-verified/report.json` with desktop/mobile screenshots.
 
 These checks cover section 9A. They do not qualify the real-model 30-goal benchmark or the remaining dashboard sections.
+
+## V9 Windows candidate status
+
+Release preparation adds exact bundle verification before frozen service startup.
+Run `Victus.exe verify-bundle` on the complete folder; altered or unlisted files
+are refused. The current release decision remains NO-GO pending target and
+full-duration evidence. See [V9 test and Windows register](../docs/V9-TESTS-AND-INCOMPLETE.md).
+Capability availability continues to come from the backend; installing the
+dashboard does not qualify native, browser, model or audio paths.

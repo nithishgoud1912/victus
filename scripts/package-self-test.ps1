@@ -18,7 +18,7 @@ $names = @('VICTUS_DATA_DIR','VICTUS_API_TOKEN','VICTUS_VOICE_MODEL_PATH','VICTU
 foreach ($name in $names) { $saved[$name] = [Environment]::GetEnvironmentVariable($name, 'Process'); [Environment]::SetEnvironmentVariable($name, $null, 'Process') }
 $server = $null
 $checks = [ordered]@{}
-$report = [ordered]@{ version=''; passed=$false; qualification='same-account-laptop-only'; checks=$checks; fresh_standard_account_tested=$false; gpu_browser_microphone_tested=$false; source_sha256=$null; bundle_manifest_sha256=$null }
+$report = [ordered]@{ version=''; passed=$false; qualification='same-account-laptop-only'; checks=$checks; fresh_standard_account_tested=$false; gpu_browser_microphone_tested=$false; source_sha256=$null; bundle_manifest_sha256=$null; graceful_server_shutdown_observed=$false; process_measurement_scope='server parent only; OS descendants remain unqualified'; forced_server_terminations=0; cleanup_complete=$false }
 
 function Assert-Check([string]$Name, [bool]$Condition) {
     $checks[$Name] = $Condition
@@ -30,6 +30,14 @@ function Invoke-CLI([string[]]$Arguments, [bool]$Success = $true) {
     if ($Success -and $code -ne 0) { throw 'Packaged command failed; inspect local private output if needed.' }
     if (-not $Success -and $code -eq 0) { throw 'Packaged maintenance unexpectedly succeeded.' }
     return ($result -join "`n")
+}
+function Stop-TestService {
+    if ($server -and -not $server.HasExited) {
+        $report.forced_server_terminations++
+        $server.Kill()
+        if (-not $server.WaitForExit(10000)) { throw 'Owned server cleanup deadline exceeded.' }
+    }
+    $script:server = $null
 }
 function Start-TestService {
     return Start-Process -FilePath $executable -ArgumentList @('serve') -WorkingDirectory $Bundle -WindowStyle Hidden -PassThru -RedirectStandardOutput (Join-Path $OutputDirectory 'service.stdout.log') -RedirectStandardError (Join-Path $OutputDirectory 'service.stderr.log')
@@ -61,6 +69,8 @@ try {
     }
     Assert-Check 'bundle_checksums' $validHashes
     Assert-Check 'windows_version_metadata' ((Get-Item -LiteralPath $executable).VersionInfo.FileVersion -eq '0.1.0.0')
+    $integrity = (Invoke-CLI -Arguments @('verify-bundle')) | ConvertFrom-Json
+    Assert-Check 'exact_candidate_inventory' ($integrity.integrity_verified -and $integrity.bundle_manifest_sha256 -eq $report.bundle_manifest_sha256 -and $integrity.source_sha256 -eq $report.source_sha256)
     $report.version = (Invoke-CLI -Arguments @('version')).Trim()
     Assert-Check 'entry_version' ($report.version -eq '0.1.0')
     $doctor = (Invoke-CLI -Arguments @('doctor')) | ConvertFrom-Json
@@ -109,7 +119,7 @@ try {
     Invoke-RestMethod -Method Post -Uri 'http://127.0.0.1:8765/api/stop' -Headers $headers | Out-Null
     $stopped = Invoke-RestMethod -Uri 'http://127.0.0.1:8765/api/health' -Headers $headers
     Assert-Check 'stop_then_maintenance' $stopped.stopped
-    $server.Kill(); $server.WaitForExit(); $server = $null
+    Stop-TestService
     # Update rehearsal: offline backup, idempotent migration, restart new entry.
     $backup = Join-Path $OutputDirectory 'pre-update-backup'
     Invoke-CLI -Arguments @('backup','--destination',$backup) | Out-Null
@@ -118,7 +128,7 @@ try {
     $server = Start-TestService
     $null = Wait-Service
     Invoke-RestMethod -Method Post -Uri 'http://127.0.0.1:8765/api/stop' -Headers $headers | Out-Null
-    $server.Kill(); $server.WaitForExit(); $server = $null
+    Stop-TestService
     $restored = Join-Path $OutputDirectory 'rollback-data'
     Invoke-CLI -Arguments @('restore','--source',$backup,'--destination',$restored) | Out-Null
     Assert-Check 'backup_and_restore' (Test-Path -LiteralPath (Join-Path $restored 'restore-review.json'))
@@ -127,13 +137,16 @@ try {
     $null = Wait-Service
     Assert-Check 'rollback_restart' ((Get-Content -LiteralPath (Join-Path $restored 'workspace/package-proof.txt') -Raw) -eq 'Package self-test fixture')
     Invoke-RestMethod -Method Post -Uri 'http://127.0.0.1:8765/api/stop' -Headers $headers | Out-Null
+    $finalIntegrity = (Invoke-CLI -Arguments @('verify-bundle')) | ConvertFrom-Json
+    Assert-Check 'candidate_unchanged_after_test' ($finalIntegrity.bundle_manifest_sha256 -eq $report.bundle_manifest_sha256)
     $report.passed = $true
 } catch {
     # Error class only: raw provider/server paths and tokens stay out of exports.
     $report.failure = 'PACKAGE_SELF_TEST_FAILED'
     Write-Warning 'Package self-test failed; review the check names and private local service logs.'
 } finally {
-    if ($server -and -not $server.HasExited) { $server.Kill(); $server.WaitForExit() }
+    try { Stop-TestService; $report.cleanup_complete = $true }
+    catch { $report.cleanup_complete = $false; $report.passed = $false }
     foreach ($name in $names) { [Environment]::SetEnvironmentVariable($name, $saved[$name], 'Process') }
     $report | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $OutputDirectory 'report.json')
 }

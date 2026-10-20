@@ -7,6 +7,7 @@ reviewed voice and memory controls. Capability availability is server-owned.
 
 - [Setup and local authentication](dashboard/README.md)
 - [Current supported workflows](docs/supported-workflows.md)
+- [V9 release preparation and Windows tests](docs/V9-TESTS-AND-INCOMPLETE.md)
 - [V7 implementation and remaining gates](docs/V7-TESTS-AND-INCOMPLETE.md)
 - [V7 implementation plan](outputs/VICTUS-v7-Next-Stage-Implementation-Plan.md)
 - [V5 implementation and remaining gates](docs/V5-TESTS-AND-INCOMPLETE.md)
@@ -15,7 +16,7 @@ reviewed voice and memory controls. Capability availability is server-owned.
 - [Revised V4 implementation plan](outputs/VICTUS-v4-Revised-Next-Stage-Implementation-Plan.md)
 - [Windows folder build and release procedure](docs/release/README.md)
 
-This is a 0.1.0 candidate. V7 names the implementation guide, not a released
+This is a 0.1.0 candidate. V9 names the implementation guide, not a released
 product version. Native/browser/model/voice gates remain explicit; module presence
 does not enable arbitrary computer control or public-web research. Cloud and wake
 are optional and default off. Portable Linux validation and remaining failures are recorded in the handoff;

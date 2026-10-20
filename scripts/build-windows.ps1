@@ -10,6 +10,7 @@ $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path $PSScriptRoot -Parent
 if (-not $Python) { $Python = Join-Path $projectRoot '.local/package-venv/Scripts/python.exe' }
 if (-not $NodeDirectory) { $NodeDirectory = Join-Path $projectRoot '.local/toolchains/node-v24.22.0-win-x64' }
+if (-not $SourceManifest) { throw 'Capture final source first; -SourceManifest is required.' }
 if (-not (Test-Path -LiteralPath $Python)) { throw 'Prepare the pinned packaging environment first. See docs/release/README.md.' }
 $savedPath = $env:PATH
 $savedStage = $env:VICTUS_BUILD_STAGE

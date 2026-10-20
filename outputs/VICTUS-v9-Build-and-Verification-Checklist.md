@@ -98,3 +98,10 @@ Dependency: All mandatory selected gates; no unresolved hidden failure.
 - [ ] Separate portable, Windows-only, missing prerequisite, human and duration gates.
 - [ ] Update the current capability matrix and exact incomplete-work register.
 - [ ] Confirm final advertised claims match current evidence without waiving inherited gates.
+
+## Implementation follow-up
+
+See [V9 handoff](../docs/V9-TESTS-AND-INCOMPLETE.md) for implemented verification
+and actual portable outcomes. Mixed acceptance gates stay unchecked while their
+full-duration, Windows, human or retained-artifact prerequisites remain open.
+No frozen capability or release is qualified by portable fixture tests.

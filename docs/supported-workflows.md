@@ -1,5 +1,15 @@
 # Supported workflows - VICTUS 0.1.0 candidate
 
+## Current V9 release preparation
+
+Exact source/bundle integrity and truthful soak/shutdown/rollback accounting are
+implemented. The proposed frozen candidate scope is deterministic notes and
+reviewed command intake. No Windows bundle or release is newly qualified.
+The full-duration, fresh-account, process and prior-release gates remain open;
+V7/V8 native/browser/model/voice obligations are retained. See
+[V9 tests and Windows register](V9-TESTS-AND-INCOMPLETE.md) and
+[release decision](release/v9-release-status.json).
+
 ## Current V8 portable implementation increment
 
 V8 hardens exact model readiness, command clarification, voice correction

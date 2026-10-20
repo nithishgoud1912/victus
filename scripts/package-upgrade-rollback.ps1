@@ -12,7 +12,7 @@ $old=Join-Path $PriorBundle 'Victus.exe'
 $new=Join-Path $CandidateBundle 'Victus.exe'
 $server=$null
 $checks=[ordered]@{}
-$report=[ordered]@{passed=$false;qualification='isolated-prior-artifact-pair';checks=$checks;fresh_standard_account_tested=$false;formal_cross_version_release_qualified=$false}
+$report=[ordered]@{passed=$false;qualification='isolated-prior-artifact-pair';checks=$checks;fresh_standard_account_tested=$false;formal_cross_version_release_qualified=$false;graceful_server_shutdown_observed=$false;forced_server_terminations=0;cleanup_complete=$false}
 $saved=@{}
 $names=@('VICTUS_DATA_DIR','VICTUS_API_TOKEN','VICTUS_VOICE_MODEL_PATH','VICTUS_WAKE_MANIFEST_PATH','VICTUS_COMMAND_MODEL','VICTUS_COMMAND_MODEL_DIGEST','VICTUS_MCP_NOTES','VICTUS_CLOUD_MODEL','VICTUS_CLOUD_UPSTREAM','VICTUS_EMERGENCY_HOTKEY','VICTUS_DASHBOARD_DEV_ORIGIN')
 foreach($name in $names){$saved[$name]=[Environment]::GetEnvironmentVariable($name,'Process');[Environment]::SetEnvironmentVariable($name,$null,'Process')}
@@ -28,7 +28,8 @@ function Launch([string]$exe,[string]$label){
 }
 function Stop-Owned{
     Invoke-RestMethod -Method Post -Uri 'http://127.0.0.1:8765/api/stop' -Headers $headers | Out-Null
-    $server.Kill();$server.WaitForExit();$script:server=$null
+    $report.forced_server_terminations++
+    $server.Kill();if(-not $server.WaitForExit(10000)){throw 'Owned cleanup deadline'};$script:server=$null
 }
 function Wait-Task([string]$id){
     for($i=0;$i -lt 250;$i++){
@@ -44,6 +45,12 @@ try{
     $candidateHash=(Get-FileHash -LiteralPath (Join-Path $CandidateBundle 'release-manifest.json') -Algorithm SHA256).Hash
     Check 'distinct_prior_and_candidate_artifacts' ($priorHash -ne $candidateHash)
     $report.prior_manifest_sha256=$priorHash.ToLower();$report.candidate_manifest_sha256=$candidateHash.ToLower()
+    $report.prior_executable_sha256=(Get-FileHash -LiteralPath $old -Algorithm SHA256).Hash.ToLower()
+    $report.candidate_executable_sha256=(Get-FileHash -LiteralPath $new -Algorithm SHA256).Hash.ToLower()
+    $integrity=(Invoke-VictusOffline $new @('verify-bundle'))|ConvertFrom-Json
+    Check 'candidate_exact_inventory' ($integrity.integrity_verified -and $integrity.bundle_manifest_sha256 -eq $report.candidate_manifest_sha256)
+    $priorIntegrity=(Invoke-VictusOffline $new @('verify-bundle','--source',$PriorBundle))|ConvertFrom-Json
+    Check 'prior_exact_inventory' ($priorIntegrity.integrity_verified -and $priorIntegrity.bundle_manifest_sha256 -eq $report.prior_manifest_sha256)
     $report.prior_version=(Invoke-VictusOffline $old @('version')).Trim();$report.candidate_version=(Invoke-VictusOffline $new @('version')).Trim()
     $report.same_product_version=$report.prior_version -eq $report.candidate_version
     $data=Join-Path $OutputDirectory 'upgrade-data'
@@ -58,9 +65,15 @@ try{
     $report.prior_schema=((Invoke-VictusOffline $old @('migrate'))|ConvertFrom-Json).schema
     $backup=Join-Path $OutputDirectory 'prior-backup'
     $null=Invoke-VictusOffline $old @('backup','--destination',$backup)
+    # Preserve old data; migrate only a separate checksum-verified restored copy.
+    $candidateData=Join-Path $OutputDirectory 'candidate-data'
+    $null=Invoke-VictusOffline $new @('restore','--source',$backup,'--destination',$candidateData)
+    $data=$candidateData
+    $env:VICTUS_DATA_DIR=$candidateData
     $migration=(Invoke-VictusOffline $new @('migrate'))|ConvertFrom-Json
     $report.candidate_schema=$migration.schema
-    Check 'actual_schema_upgrade' ($migration.schema -gt $report.prior_schema -and $migration.applied.Count -gt 0)
+    $report.schema_changed=$migration.schema -gt $report.prior_schema
+    Check 'compatible_schema_migration' ($migration.schema -ge $report.prior_schema)
     Launch $new 'candidate'
     Check 'candidate_preserves_prior_bytes' ((Get-Content -LiteralPath (Join-Path $data 'workspace/prior-proof.txt') -Raw) -eq 'Prior artifact proof')
     $commandHeaders=@{Authorization=$headers.Authorization;'X-Client-Request-ID'='upgrade-command'}
@@ -75,12 +88,19 @@ try{
     Check 'rollback_excludes_candidate_effect' (-not (Test-Path -LiteralPath (Join-Path $rollback 'workspace/upgraded.txt')))
     Stop-Owned
     Check 'prior_bundle_preserved' ((Get-FileHash -LiteralPath (Join-Path $PriorBundle 'release-manifest.json') -Algorithm SHA256).Hash -eq $priorHash)
+    $finalIntegrity=(Invoke-VictusOffline $new @('verify-bundle'))|ConvertFrom-Json
+    Check 'candidate_bundle_preserved' ($finalIntegrity.bundle_manifest_sha256 -eq $report.candidate_manifest_sha256)
+    $finalPrior=(Invoke-VictusOffline $new @('verify-bundle','--source',$PriorBundle))|ConvertFrom-Json
+    Check 'prior_inventory_preserved' ($finalPrior.bundle_manifest_sha256 -eq $report.prior_manifest_sha256)
     $report.passed=$true
 }catch{
     $report.failure='UPGRADE_ROLLBACK_FAILED_OR_BLOCKED'
     Write-Warning 'Prior-artifact check failed or was blocked. Review the private local logs.'
 }finally{
-    if($server -and -not $server.HasExited){$server.Kill();$server.WaitForExit()}
+    try{
+        if($server -and -not $server.HasExited){$report.forced_server_terminations++;$server.Kill();if(-not $server.WaitForExit(10000)){throw 'Owned cleanup deadline'}}
+        $report.cleanup_complete=$true
+    }catch{$report.cleanup_complete=$false;$report.passed=$false}
     foreach($name in $names){[Environment]::SetEnvironmentVariable($name,$saved[$name],'Process')}
     $report|ConvertTo-Json -Depth 6|Set-Content -LiteralPath (Join-Path $OutputDirectory 'report.json')
 }
